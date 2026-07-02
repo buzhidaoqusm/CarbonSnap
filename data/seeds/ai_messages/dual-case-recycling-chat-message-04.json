@@ -1,0 +1,15 @@
+{
+  "_seed_key": "dual-case-recycling-chat-message-04",
+  "conversation_ref": "ai_conversations.dual-case-recycling-chat",
+  "role": "user",
+  "message_type": "image",
+  "content_text": "Please audit this completion photo.",
+  "content_json": {
+    "purpose": "completion_audit",
+    "image_url": "/api/uploads/seed-ai/dual-case-recycling-chat-audit-01-image.png",
+    "recycling_case_ref": "recycling_cases.dual-case-recycling-chat-case-01"
+  },
+  "related_analysis_ref": null,
+  "sequence_no": 4,
+  "created_at": "2026-03-31T10:47:24.447350"
+}

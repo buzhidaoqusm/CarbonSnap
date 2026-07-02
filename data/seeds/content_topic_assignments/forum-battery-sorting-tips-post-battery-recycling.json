@@ -1,0 +1,11 @@
+{
+  "_seed_key": "forum-battery-sorting-tips-post-battery-recycling",
+  "domain": "forum",
+  "content_type": "post",
+  "content_ref": "forum_posts.battery-sorting-tips-post",
+  "topic_id": "battery-recycling",
+  "confidence_score": 0.85,
+  "source": "ai_constrained",
+  "created_at": "2026-04-09T02:22:46.995850",
+  "updated_at": "2026-04-09T02:22:46.995850"
+}

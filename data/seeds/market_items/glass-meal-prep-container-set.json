@@ -1,0 +1,12 @@
+{
+  "_seed_key": "glass-meal-prep-container-set",
+  "seller_ref": "users.demo-home-organizer",
+  "title": "Glass Meal Prep Container Set, 3-Piece, Leak-Resistant Lids",
+  "description": "Set of three tempered glass food containers in good used condition. Includes matching leak-resistant lids and stackable rectangular shapes for efficient refrigerator storage. Ideal for meal prep, leftovers, and reducing disposable takeaway packaging.",
+  "image_urls_json": [
+    "/api/uploads/seed-market/glass-meal-prep-container-set.jpg"
+  ],
+  "price_points": 68,
+  "status": "active",
+  "created_at": "2026-03-29T11:15:00+08:00"
+}

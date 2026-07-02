@@ -1,0 +1,11 @@
+{
+  "_seed_key": "forum-coffee-tin-utensil-holder-post-upcycling",
+  "domain": "forum",
+  "content_type": "post",
+  "content_ref": "forum_posts.coffee-tin-utensil-holder-post",
+  "topic_id": "upcycling",
+  "confidence_score": 0.95,
+  "source": "ai_constrained",
+  "created_at": "2026-04-09T02:23:37.600277",
+  "updated_at": "2026-04-09T02:23:37.600277"
+}

@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Reusable goods seller avatar</title>
+  <desc id="desc">An elegant abstract portrait with a repaired goods badge and green glow.</desc>
+  <defs>
+    <linearGradient id="bg" x1="31" y1="26" x2="226" y2="229" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f2ffe0"/>
+      <stop offset="0.52" stop-color="#a0e0a2"/>
+      <stop offset="1" stop-color="#326e86"/>
+    </linearGradient>
+    <linearGradient id="coat" x1="58" y1="164" x2="199" y2="235" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1f735b"/>
+      <stop offset="1" stop-color="#31416b"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#2e5645" flood-opacity="0.23"/>
+    </filter>
+  </defs>
+  <circle cx="128" cy="128" r="120" fill="url(#bg)"/>
+  <path fill="#ffffff" opacity="0.42" d="M33 147c31-18 56-17 86 0 37 21 67 16 105-12-4 63-46 109-96 109-48 0-88-38-95-97Z"/>
+  <g filter="url(#softShadow)">
+    <path fill="url(#coat)" d="M56 225c9-42 36-64 72-64s63 22 72 64c-20 13-45 19-72 19s-52-6-72-19Z"/>
+    <circle cx="128" cy="107" r="50" fill="#efc2a1"/>
+    <path fill="#314557" d="M79 105c4-35 25-58 56-58 27 0 44 18 47 48-13-9-29-14-49-14-22 0-39 9-54 24Z"/>
+    <path fill="#e5ad8a" d="M94 121c7 21 19 33 34 33 16 0 28-12 35-33-12 8-24 12-35 12s-22-4-34-12Z" opacity="0.55"/>
+    <circle cx="111" cy="111" r="5" fill="#273846"/>
+    <circle cx="146" cy="111" r="5" fill="#273846"/>
+    <path fill="none" stroke="#965c51" stroke-linecap="round" stroke-width="5" d="M116 133c8 6 17 6 25 0"/>
+  </g>
+  <g transform="translate(169 67)">
+    <path fill="#fffdf0" d="M0 18h50v48H0z"/>
+    <path fill="none" stroke="#fffdf0" stroke-linecap="round" stroke-width="7" d="M12 19c0-19 26-19 26 0"/>
+    <path fill="#41a970" d="M17 43c10-14 24-12 27-9-5 12-16 19-27 9Z"/>
+  </g>
+  <g fill="none" stroke="#fffdf0" stroke-linecap="round" stroke-linejoin="round" stroke-width="6">
+    <path d="M51 86c14-12 29-12 43 0"/>
+    <path d="M60 87c3 12 13 19 25 18"/>
+    <path d="M91 79l9 9-9 9"/>
+  </g>
+</svg>

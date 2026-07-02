@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Home organizer avatar</title>
+  <desc id="desc">A calm abstract portrait with tidy home shapes and soft botanical details.</desc>
+  <defs>
+    <linearGradient id="bg" x1="32" y1="24" x2="225" y2="229" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#e8f7ff"/>
+      <stop offset="0.5" stop-color="#9edbd7"/>
+      <stop offset="1" stop-color="#6d8a5f"/>
+    </linearGradient>
+    <linearGradient id="sweater" x1="57" y1="163" x2="199" y2="235" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#407f68"/>
+      <stop offset="1" stop-color="#324966"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#385746" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+  <circle cx="128" cy="128" r="120" fill="url(#bg)"/>
+  <path fill="#ffffff" opacity="0.45" d="M34 152c27-18 55-20 83-5 39 20 69 17 105-8-4 61-46 105-94 105-47 0-86-37-94-92Z"/>
+  <g filter="url(#softShadow)">
+    <path fill="url(#sweater)" d="M56 225c9-42 36-64 72-64s63 22 72 64c-20 13-45 19-72 19s-52-6-72-19Z"/>
+    <circle cx="128" cy="106" r="50" fill="#eec5a8"/>
+    <path fill="#4d4b4f" d="M79 105c3-36 25-60 55-59 26 1 44 19 47 49-12-10-28-17-48-17-22 0-39 10-54 27Z"/>
+    <path fill="#e3ad8d" d="M94 121c7 21 19 33 34 33 16 0 28-12 35-33-12 8-24 12-35 12s-22-4-34-12Z" opacity="0.55"/>
+    <circle cx="111" cy="111" r="5" fill="#273846"/>
+    <circle cx="146" cy="111" r="5" fill="#273846"/>
+    <path fill="none" stroke="#965c51" stroke-linecap="round" stroke-width="5" d="M116 133c8 6 17 6 25 0"/>
+  </g>
+  <g transform="translate(48 68)">
+    <path fill="#fffdf2" d="M0 30 31 5l31 25v39H0V30Z"/>
+    <path fill="#59a979" d="M22 52c9-14 22-12 25-10-4 12-15 19-25 10Z"/>
+  </g>
+  <g transform="translate(174 71)">
+    <rect width="39" height="57" rx="7" fill="#fffdf2"/>
+    <path fill="none" stroke="#63a580" stroke-linecap="round" stroke-width="5" d="M10 16h19M10 29h19M10 42h13"/>
+  </g>
+  <path fill="none" stroke="#fffdf2" stroke-linecap="round" stroke-width="6" d="M86 185h84"/>
+</svg>

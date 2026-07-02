@@ -1,0 +1,30 @@
+{
+  "_seed_key": "plastic-bottle-real-chat",
+  "user_ref": "users.demo-ai-recycler",
+  "title": "Plastic Bottle Recycling",
+  "status": "completed",
+  "current_pending_action": "none",
+  "session_context_json": {
+    "session_id": "66bb97f0-1452-4c68-acb2-821032376eb7",
+    "conversation_id": 1,
+    "recycling_case_id": null,
+    "created_at": "2026-04-08T09:34:40.344492+00:00",
+    "updated_at": "2026-04-08T09:36:22.107938+00:00",
+    "location_state": {
+      "permission_state": "granted",
+      "location_source": "browser",
+      "coordinates": {
+        "lat": 39.874905287431915,
+        "lng": 116.47891938595929
+      },
+      "manual_area": null,
+      "normalized_area": null,
+      "skip_nearby_search": false,
+      "expires_at": "2026-04-08T10:35:46.563519+00:00"
+    },
+    "paused_context": null
+  },
+  "last_message_at": "2026-04-08T09:36:22.099955",
+  "created_at": "2026-03-31T10:46:10.253740",
+  "updated_at": "2026-04-08T09:36:22.108937"
+}

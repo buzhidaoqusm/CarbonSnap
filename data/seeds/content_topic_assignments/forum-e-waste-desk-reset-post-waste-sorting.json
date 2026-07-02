@@ -1,0 +1,11 @@
+{
+  "_seed_key": "forum-e-waste-desk-reset-post-waste-sorting",
+  "domain": "forum",
+  "content_type": "post",
+  "content_ref": "forum_posts.e-waste-desk-reset-post",
+  "topic_id": "waste-sorting",
+  "confidence_score": 0.75,
+  "source": "ai_constrained",
+  "created_at": "2026-04-09T02:25:16.752914",
+  "updated_at": "2026-04-09T02:25:16.752914"
+}

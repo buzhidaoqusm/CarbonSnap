@@ -1,0 +1,11 @@
+{
+  "_seed_key": "forum-aluminum-can-desk-holder-post-metal-recycling",
+  "domain": "forum",
+  "content_type": "post",
+  "content_ref": "forum_posts.aluminum-can-desk-holder-post",
+  "topic_id": "metal-recycling",
+  "confidence_score": 0.85,
+  "source": "ai_constrained",
+  "created_at": "2026-04-09T02:22:24.147704",
+  "updated_at": "2026-04-09T02:22:24.147704"
+}

@@ -1,0 +1,11 @@
+{
+  "_seed_key": "forum-paper-bag-drawer-organizer-post-paper-recycling",
+  "domain": "forum",
+  "content_type": "post",
+  "content_ref": "forum_posts.paper-bag-drawer-organizer-post",
+  "topic_id": "paper-recycling",
+  "confidence_score": 0.75,
+  "source": "ai_constrained",
+  "created_at": "2026-04-09T02:26:18.606564",
+  "updated_at": "2026-04-09T02:26:18.606564"
+}

@@ -1,0 +1,32 @@
+{
+  "_seed_key": "dual-case-recycling-chat-message-12",
+  "conversation_ref": "ai_conversations.dual-case-recycling-chat",
+  "role": "assistant",
+  "message_type": "audit_result",
+  "content_text": "Audit passed. Your recycling case has been verified, and 4 points were awarded.",
+  "content_json": {
+    "audit_result": {
+      "audit_result": "passed",
+      "auditor_confidence": 0.98,
+      "audit_reason": "The photo clearly shows a power bank (matching the predicted e-waste type) being placed into a bin explicitly labeled 'Electronics Recycling' and 'Recycle Your E-Waste,' confirming appropriate disposal."
+    },
+    "audit_attempt": {
+      "recycling_case_ref": "recycling_cases.dual-case-recycling-chat-case-02",
+      "attempt_no": 2,
+      "audit_result": "passed",
+      "auditor_confidence": 0.98,
+      "audit_reason": "The photo clearly shows a power bank (matching the predicted e-waste type) being placed into a bin explicitly labeled 'Electronics Recycling' and 'Recycle Your E-Waste,' confirming appropriate disposal.",
+      "audit_image_url": "/api/uploads/seed-ai/dual-case-recycling-chat-audit-03-image.png",
+      "created_at": "2026-04-09T00:31:35.688111"
+    },
+    "finalized": true,
+    "recycling_case_ref": "recycling_cases.dual-case-recycling-chat-case-02",
+    "analysis_record_ref": "waste_analysis_records.dual-case-recycling-chat-record-02",
+    "transaction_ref": "transactions.dual-case-recycling-chat-transaction-02",
+    "user_points": 6,
+    "user_carbon_amount": 0.51
+  },
+  "related_analysis_ref": "waste_analysis_records.dual-case-recycling-chat-record-02",
+  "sequence_no": 12,
+  "created_at": "2026-04-09T00:31:35.816611"
+}

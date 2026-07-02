@@ -1,0 +1,14 @@
+{
+  "_seed_key": "plastic-bottle-real-chat-message-06",
+  "conversation_ref": "ai_conversations.plastic-bottle-real-chat",
+  "role": "user",
+  "message_type": "text",
+  "content_text": "Can you give me another option besides putting it in the recycling bin?",
+  "content_json": {
+    "has_image": false,
+    "image_url": null
+  },
+  "related_analysis_ref": null,
+  "sequence_no": 6,
+  "created_at": "2026-04-08T09:32:32.895657"
+}

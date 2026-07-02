@@ -1,0 +1,11 @@
+{
+  "_seed_key": "forum-low-buy-dorm-setup-post-upcycling",
+  "domain": "forum",
+  "content_type": "post",
+  "content_ref": "forum_posts.low-buy-dorm-setup-post",
+  "topic_id": "upcycling",
+  "confidence_score": 0.55,
+  "source": "ai_constrained",
+  "created_at": "2026-04-09T02:25:31.830247",
+  "updated_at": "2026-04-09T02:25:31.830247"
+}

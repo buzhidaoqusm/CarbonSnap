@@ -1,0 +1,13 @@
+{
+  "_seed_key": "memory-preference-chat-message-02",
+  "conversation_ref": "ai_conversations.memory-preference-chat",
+  "role": "assistant",
+  "message_type": "text",
+  "content_text": "Hello! How can I assist you today?",
+  "content_json": {
+    "model": "qwen3.5-flash-2026-02-23"
+  },
+  "related_analysis_ref": null,
+  "sequence_no": 2,
+  "created_at": "2026-04-09T09:38:29.936293"
+}

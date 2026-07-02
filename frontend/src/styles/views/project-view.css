@@ -1,0 +1,625 @@
+.project-page,
+.project-detail-page {
+  display: grid;
+  gap: 20px;
+}
+
+.project-hero,
+.project-story,
+.project-funding,
+.project-composer,
+.panel {
+  border-radius: 22px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background:
+    radial-gradient(circle at top right, rgba(16, 185, 129, 0.14), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 252, 0.98));
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
+  padding: 24px;
+}
+
+.project-hero {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.9fr);
+  align-items: start;
+}
+
+.project-hero__copy h1,
+.project-story h1 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  line-height: 1.04;
+  color: #0f3d34;
+}
+
+.project-hero__eyebrow,
+.project-story__eyebrow,
+.project-funding__eyebrow {
+  margin: 0 0 10px;
+  color: #0f766e;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 800;
+  font-size: 0.84rem;
+}
+
+.project-hero__stats {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.project-stat {
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(15, 118, 110, 0.12);
+  padding: 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.project-stat span,
+.project-card__days,
+.project-progress__meta,
+.project-card__description,
+.project-card__meta dt,
+.project-contribution-list__item p,
+.subtitle {
+  color: #5f6f6b;
+}
+
+.project-stat strong {
+  font-size: 1.8rem;
+  color: #0b3f35;
+}
+
+.project-hero__actions,
+.project-card__actions,
+.project-loadmore {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.project-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.project-pagination__ellipsis {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  color: #5f6f6b;
+  font-size: 0.95rem;
+}
+
+.project-btn--icon {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: unset;
+}
+
+.project-btn--page {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  min-width: unset;
+  font-size: 0.875rem;
+}
+
+.project-btn--active {
+  background: linear-gradient(135deg, #127e69, #0f6a72) !important;
+  color: #fff !important;
+  border-color: #0f766e !important;
+}
+
+.project-btn {
+  border: 1px solid #0f766e;
+  background: linear-gradient(135deg, #127e69, #0f6a72);
+  color: #fff;
+  border-radius: 999px;
+  padding: 11px 18px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.project-btn--ghost {
+  background: #fff;
+  color: #0f766e;
+}
+
+.project-btn--small {
+  padding: 10px 14px;
+}
+
+.project-btn--block {
+  width: 100%;
+}
+
+.project-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.project-composer__header h2,
+.project-story__section h2,
+.project-funding h2 {
+  margin: 0;
+  color: #123f37;
+}
+
+.project-composer-window {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  isolation: isolate;
+}
+
+.project-composer-window__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: rgba(20, 24, 23, 0.52);
+}
+
+.project-composer--modal {
+  position: relative;
+  z-index: 1;
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  background:
+    radial-gradient(circle at top right, rgba(16, 185, 129, 0.14), transparent 30%),
+    linear-gradient(180deg, #ffffff, #f7faf9);
+}
+
+.project-composer--modal .project-composer__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.project-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.project-form__row {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.project-form__field {
+  display: grid;
+  gap: 8px;
+}
+
+.project-form__field span {
+  font-weight: 700;
+  color: #123f37;
+}
+
+.project-form__field input,
+.project-form__field select,
+.project-form__field textarea {
+  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  padding: 12px 14px;
+  font: inherit;
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.project-deadline-fields {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.project-deadline-fields legend {
+  color: #123f37;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.project-form__row--deadline {
+  grid-template-columns: minmax(180px, 1fr) minmax(120px, 0.45fr);
+}
+
+.project-form__row--deadline label {
+  display: grid;
+  gap: 8px;
+}
+
+.project-form__row--deadline span {
+  color: #123f37;
+  font-weight: 700;
+}
+
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.project-card {
+  border-radius: 20px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 249, 248, 0.98));
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.08);
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+}
+
+.project-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.project-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.project-badge--fundraising {
+  background: rgba(16, 185, 129, 0.14);
+  color: #0f766e;
+}
+
+.project-badge--completed {
+  background: rgba(59, 130, 246, 0.14);
+  color: #1d4ed8;
+}
+
+.project-badge--expired {
+  background: rgba(239, 68, 68, 0.14);
+  color: #b91c1c;
+}
+
+.project-card__title-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.project-card__title-link:hover h2 {
+  text-decoration: underline;
+}
+
+.project-card__title-link h2 {
+  margin: 0;
+  color: #133e35;
+  line-height: 1.2;
+}
+
+.project-progress {
+  display: grid;
+  gap: 10px;
+}
+
+.project-progress__track {
+  height: 12px;
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.project-progress__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0f766e, #22c55e);
+}
+
+.project-progress__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.95rem;
+}
+
+.project-card__meta,
+.project-funding__facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0;
+}
+
+.project-card__meta div,
+.project-funding__facts div {
+  display: grid;
+  gap: 4px;
+}
+
+.project-card__meta dd,
+.project-funding__facts dd {
+  margin: 0;
+  color: #143c35;
+  font-weight: 700;
+}
+
+.project-detail__back a {
+  color: #0f766e;
+  text-decoration: none;
+}
+
+.project-detail__back a:hover {
+  text-decoration: underline;
+}
+
+.project-detail__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.95fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.project-story__header,
+.project-funding {
+  display: grid;
+  gap: 18px;
+}
+
+.project-story {
+  display: grid;
+  gap: 22px;
+}
+
+.project-story__body {
+  color: #193d35;
+  font-size: 1.02rem;
+  line-height: 1.7;
+}
+
+.project-funding {
+  position: sticky;
+  top: 88px;
+}
+
+.project-funding__summary h2 {
+  font-size: 2.2rem;
+}
+
+.project-funding__box {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(15, 118, 110, 0.12);
+}
+
+.project-quick-points {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.project-quick-points__btn {
+  border-radius: 999px;
+  border: 1px solid rgba(15, 118, 110, 0.24);
+  padding: 9px 14px;
+  background: #fff;
+  color: #0f766e;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.project-contribution-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.project-contribution-list__item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  border-radius: 16px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.project-contribution-list__item strong,
+.project-contribution-list__item span {
+  color: #123f37;
+}
+
+.project-contribution-list__item p {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+}
+
+.project-feedback--success {
+  color: #0f766e;
+}
+
+.error {
+  color: #b91c1c;
+}
+
+@media (max-width: 980px) {
+  .project-hero,
+  .project-detail__grid,
+  .project-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .project-funding {
+    position: static;
+  }
+}
+
+@media (max-width: 640px) {
+  .project-hero__stats,
+  .project-form__row,
+  .project-form__row--deadline,
+  .project-card__meta,
+  .project-funding__facts {
+    grid-template-columns: 1fr;
+  }
+
+  .project-composer--modal .project-composer__header {
+    flex-direction: column;
+  }
+}
+.project-card__cover {
+  border-radius: 14px;
+  overflow: hidden;
+  height: 180px;
+}
+
+.project-image-preview-trigger {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  cursor: zoom-in;
+  padding: 0;
+}
+
+.project-card__cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+.project-story__cover {
+  border-radius: 16px;
+  overflow: hidden;
+  height: clamp(260px, 36vw, 420px);
+}
+
+.project-story__cover .project-image-preview-trigger,
+.project-story__cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+.project-cover-upload__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  border: 2px dashed rgba(15, 118, 110, 0.3);
+  padding: 18px 24px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.6);
+  transition: border-color 0.2s;
+  width: 100%;
+}
+
+.project-cover-upload__trigger:hover {
+  border-color: #0f766e;
+}
+
+.project-cover-upload__trigger span {
+  color: #0f766e;
+  font-weight: 700;
+}
+
+.project-cover-upload__preview {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  min-height: 240px;
+  aspect-ratio: 16 / 10;
+}
+
+.project-cover-upload__preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.project-cover-upload__remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.project-cover-upload__status {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
+
+.project-form__optional {
+  font-weight: 400;
+  color: #5f6f6b;
+  font-style: normal;
+  font-size: 0.88rem;
+}
+
+.project-view {
+  overflow-x: hidden;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}

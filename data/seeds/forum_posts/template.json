@@ -1,0 +1,10 @@
+{
+  "_seed_key": "example-post",
+  "_notes": "Template only. Copy this file and rename it.",
+  "author_ref": "users.demo-community-guide",
+  "title": "Example forum post title",
+  "content": "Example forum post content.",
+  "image_urls_json": null,
+  "status": "published",
+  "created_at": "2026-03-29T10:00:00+08:00"
+}

@@ -1,0 +1,11 @@
+{
+  "_seed_key": "forum-community-cleanup-invite-post-community-cleanup",
+  "domain": "forum",
+  "content_type": "post",
+  "content_ref": "forum_posts.community-cleanup-invite-post",
+  "topic_id": "community-cleanup",
+  "confidence_score": 0.96,
+  "source": "ai_constrained",
+  "created_at": "2026-04-09T02:24:35.447959",
+  "updated_at": "2026-04-09T02:24:35.447959"
+}

@@ -1,0 +1,12 @@
+{
+  "_seed_key": "example-project",
+  "_notes": "Template only. Copy this file and rename it.",
+  "creator_user_ref": "users.demo-community-guide",
+  "title": "Example community project",
+  "description": "Write a clear project description with goals, intended impact, and how the raised points will be used.",
+  "points_target": 500,
+  "points_raised": 120,
+  "status": "fundraising",
+  "deadline_at": "2026-04-20T20:00:00+08:00",
+  "created_at": "2026-03-29T12:00:00+08:00"
+}

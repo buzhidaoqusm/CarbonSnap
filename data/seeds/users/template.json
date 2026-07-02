@@ -1,0 +1,13 @@
+{
+  "_seed_key": "example-user",
+  "_notes": "Template only. Copy this file and rename it.",
+  "username": "example_user",
+  "email": "example@example.com",
+  "password_hash": "replace-with-real-hash",
+  "avatar_url": null,
+  "bio": "Example bio",
+  "total_carbon_amount": 0.0,
+  "current_points": 0,
+  "preferences_json": null,
+  "created_at": "2026-03-29T09:00:00+08:00"
+}

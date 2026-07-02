@@ -1,0 +1,77 @@
+<mxfile host="65bd71144e">
+    <diagram id="audit_flow" name="Multimodal Audit Flow">
+        <mxGraphModel dx="529" dy="906" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="600" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="title" value="Multimodal Completion-Audit Flow: Data, AI Judgement, and Outcomes" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontColor=#1d5f35;fontStyle=1" parent="1" vertex="1">
+                    <mxGeometry x="40" y="20" width="1080" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="node_a" value="&lt;b style=&quot;color: #2a52be; font-size: 14px;&quot;&gt;Case Context&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;span style=&quot;color: #475569; font-size: 12px;&quot;&gt;Waste type, weight &amp;amp; expected rewards&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;arcSize=10;strokeColor=#2a52be;fillColor=#f0f4ff;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="90" width="160" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="node_b" value="&lt;b style=&quot;color: #2a52be; font-size: 14px;&quot;&gt;User Evidence&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;span style=&quot;color: #475569; font-size: 12px;&quot;&gt;Completion photo &amp;amp; user message&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;arcSize=10;strokeColor=#2a52be;fillColor=#f0f4ff;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="240" width="160" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="node_c" value="&lt;b style=&quot;color: #1d5f35; font-size: 14px;&quot;&gt;Audit Prompt Builder&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;span style=&quot;color: #475569; font-size: 12px;&quot;&gt;System instructions + context + image data&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;arcSize=10;strokeColor=#1d5f35;fillColor=#f2fcf5;" parent="1" vertex="1">
+                    <mxGeometry x="260" y="165" width="160" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="node_d" value="&lt;b style=&quot;color: #1d5f35; font-size: 14px;&quot;&gt;Multimodal LLM Judgement&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;span style=&quot;color: #475569; font-size: 12px;&quot;&gt;Verify item match &amp;amp; disposal suitability&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;arcSize=10;strokeColor=#1d5f35;fillColor=#f2fcf5;" parent="1" vertex="1">
+                    <mxGeometry x="480" y="165" width="160" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="node_i" value="&lt;b style=&quot;font-size: 14px;&quot;&gt;&lt;font color=&quot;#424242&quot;&gt;Finalize &amp;amp; Reward&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;span style=&quot;color: #475569; font-size: 12px;&quot;&gt;Update ledger: Carbon Points &amp;amp; CO2 saved&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;arcSize=10;strokeColor=#1c5632;fillColor=#f8fafc;" parent="1" vertex="1">
+                    <mxGeometry x="720" y="90" width="160" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="node_j" value="&lt;b style=&quot;font-size: 14px;&quot;&gt;&lt;font color=&quot;#d05328&quot;&gt;Feedback &amp;amp; Retry&lt;/font&gt;&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;span style=&quot;color: #475569; font-size: 12px;&quot;&gt;Return audit reason, allow new attempt&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;arcSize=10;strokeColor=#d05328;fillColor=#f8fafc;" parent="1" vertex="1">
+                    <mxGeometry x="720" y="240" width="160" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="node_k" value="&lt;b style=&quot;color: #334155; font-size: 14px;&quot;&gt;Behavior &amp;amp; Profile Update&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;span style=&quot;color: #475569; font-size: 12px;&quot;&gt;Record event &amp;amp; recompute preferences&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;arcSize=10;strokeColor=#475569;fillColor=#f8fafc;" parent="1" vertex="1">
+                    <mxGeometry x="960" y="165" width="160" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_ac" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#1d5f35;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.25;" parent="1" source="node_a" target="node_c" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_bc" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#1d5f35;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.75;" parent="1" source="node_b" target="node_c" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_cd" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#1d5f35;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" parent="1" source="node_c" target="node_d" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_ei" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#1d5f35;strokeWidth=2;exitX=1;exitY=0.25;entryX=0;entryY=0.5;" edge="1" parent="1" source="node_d" target="node_i">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="label_ei" value="passed" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=12;fontColor=#1d5f35;labelBackgroundColor=#ffffff;" connectable="0" vertex="1" parent="edge_ei">
+                    <mxGeometry x="-0.3" relative="1" as="geometry">
+                        <mxPoint y="-10" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge_ej_unclear" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#d05328;strokeWidth=2;exitX=1;exitY=0.75;entryX=0;entryY=0.25;" edge="1" parent="1" source="node_d" target="node_j">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="label_ej_unclear" value="unclear" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=12;fontColor=#d05328;labelBackgroundColor=#ffffff;" connectable="0" vertex="1" parent="edge_ej_unclear">
+                    <mxGeometry x="-0.3" relative="1" as="geometry">
+                        <mxPoint y="-10" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge_ej_failed" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#d05328;strokeWidth=2;exitX=0.75;exitY=1;entryX=0;entryY=0.75;" edge="1" parent="1" source="node_d" target="node_j">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="600" y="307"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="label_ej_failed" value="failed" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=12;fontColor=#d05328;labelBackgroundColor=#ffffff;" connectable="0" vertex="1" parent="edge_ej_failed">
+                    <mxGeometry x="-0.3" relative="1" as="geometry">
+                        <mxPoint y="10" as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="edge_ik" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#475569;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.25;" parent="1" source="node_i" target="node_k" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_jk" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#475569;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.75;" parent="1" source="node_j" target="node_k" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

@@ -1,0 +1,13 @@
+{
+  "_seed_key": "demo-buyer",
+  "_notes": "Password: demo123",
+  "username": "demo_buyer",
+  "email": "buyer@example.com",
+  "password_hash": "scrypt:32768:8:1$akZTrbgXkd1O1hK9$c0bf065d6463adabda644d064e5e2a9c16d166026eb80503dcb0e9a23e3d8540e8f8f6c54aa8326218e0b3824ad136fd275c51c008f794a5bb40a689614a4d2c",
+  "avatar_url": "/api/uploads/seed-avatars/demo-buyer.svg",
+  "bio": "Often buys eco-friendly second-hand goods.",
+  "total_carbon_amount": 9.2,
+  "current_points": 160,
+  "preferences_json": null,
+  "created_at": "2026-03-29T09:12:00+08:00"
+}

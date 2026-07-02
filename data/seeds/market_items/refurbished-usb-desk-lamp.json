@@ -1,0 +1,12 @@
+{
+  "_seed_key": "refurbished-usb-desk-lamp",
+  "seller_ref": "users.demo-tech-repairer",
+  "title": "Refurbished USB LED Desk Lamp, Adjustable Neck, Warm White",
+  "description": "Pre-owned LED desk lamp that has been tested for stable power delivery and consistent brightness. Features a flexible neck, compact base, and USB power input. Minor cosmetic wear on the base only. Suitable for study desks, bedside tables, and small workstations.",
+  "image_urls_json": [
+    "/api/uploads/seed-market/refurbished-usb-desk-lamp.jpg"
+  ],
+  "price_points": 72,
+  "status": "active",
+  "created_at": "2026-03-29T11:12:00+08:00"
+}

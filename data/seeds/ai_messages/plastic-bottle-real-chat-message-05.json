@@ -1,0 +1,23 @@
+{
+  "_seed_key": "plastic-bottle-real-chat-message-05",
+  "conversation_ref": "ai_conversations.plastic-bottle-real-chat",
+  "role": "assistant",
+  "message_type": "audit_result",
+  "content_text": "Audit passed. Your recycling case has been verified, and 1 points were awarded.",
+  "content_json": {
+    "audit_result": {
+      "audit_result": "passed",
+      "auditor_confidence": 0.9,
+      "audit_reason": "The photo shows a plastic bottle in a recycling bin, indicating the task was completed."
+    },
+    "finalized": true,
+    "recycling_case_ref": "recycling_cases.plastic-bottle-real-chat-case-01",
+    "analysis_record_ref": "waste_analysis_records.plastic-bottle-real-chat-record-01",
+    "transaction_ref": "transactions.plastic-bottle-real-chat-transaction-01",
+    "user_points": 1,
+    "user_carbon_amount": 0.08
+  },
+  "related_analysis_ref": "waste_analysis_records.plastic-bottle-real-chat-record-01",
+  "sequence_no": 5,
+  "created_at": "2026-03-31T10:47:32.582370"
+}

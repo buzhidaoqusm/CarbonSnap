@@ -1,0 +1,11 @@
+{
+  "_seed_key": "forum-plastic-bottle-diy-post-upcycling",
+  "domain": "forum",
+  "content_type": "post",
+  "content_ref": "forum_posts.plastic-bottle-diy-post",
+  "topic_id": "upcycling",
+  "confidence_score": 0.85,
+  "source": "ai_constrained",
+  "created_at": "2026-04-09T02:26:57.442023",
+  "updated_at": "2026-04-09T02:26:57.442023"
+}

@@ -1,0 +1,11 @@
+{
+  "_seed_key": "forum-cardboard-gift-box-post-upcycling",
+  "domain": "forum",
+  "content_type": "post",
+  "content_ref": "forum_posts.cardboard-gift-box-post",
+  "topic_id": "upcycling",
+  "confidence_score": 0.95,
+  "source": "ai_constrained",
+  "created_at": "2026-04-09T02:22:53.029524",
+  "updated_at": "2026-04-09T02:22:53.029524"
+}

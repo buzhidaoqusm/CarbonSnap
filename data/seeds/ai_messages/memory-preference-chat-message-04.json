@@ -1,0 +1,20 @@
+{
+  "_seed_key": "memory-preference-chat-message-04",
+  "conversation_ref": "ai_conversations.memory-preference-chat",
+  "role": "assistant",
+  "message_type": "text",
+  "content_text": "Understood! From now on, I’ll prioritize nearby drop-off suggestions for any recommendations we discuss.\n\nIs there anything specific you’re looking for right now?",
+  "content_json": {
+    "model": "qwen3.5-flash-2026-02-23",
+    "memory_updates": [
+      {
+        "id": 1,
+        "memory_type": "recycling_preference",
+        "memory_key": "prefer_nearby_options"
+      }
+    ]
+  },
+  "related_analysis_ref": null,
+  "sequence_no": 4,
+  "created_at": "2026-04-09T09:42:09.631503"
+}

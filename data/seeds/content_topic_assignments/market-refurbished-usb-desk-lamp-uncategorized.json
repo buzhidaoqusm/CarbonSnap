@@ -1,0 +1,11 @@
+{
+  "_seed_key": "market-refurbished-usb-desk-lamp-uncategorized",
+  "domain": "market",
+  "content_type": "item",
+  "content_ref": "market_items.refurbished-usb-desk-lamp",
+  "topic_id": "uncategorized",
+  "confidence_score": 1.0,
+  "source": "fallback",
+  "created_at": "2026-04-09T02:29:44.949038",
+  "updated_at": "2026-04-09T02:29:44.949038"
+}

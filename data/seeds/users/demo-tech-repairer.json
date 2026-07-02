@@ -1,0 +1,13 @@
+{
+  "_seed_key": "demo-tech-repairer",
+  "_notes": "Password: demo123",
+  "username": "repair_lab_notes",
+  "email": "tech-repairer@example.com",
+  "password_hash": "scrypt:32768:8:1$akZTrbgXkd1O1hK9$c0bf065d6463adabda644d064e5e2a9c16d166026eb80503dcb0e9a23e3d8540e8f8f6c54aa8326218e0b3824ad136fd275c51c008f794a5bb40a689614a4d2c",
+  "avatar_url": "/api/uploads/seed-avatars/demo-tech-repairer.svg",
+  "bio": "Shares repair notes, refurbishes electronics, and collects e-waste drop-off tips.",
+  "total_carbon_amount": 22.1,
+  "current_points": 510,
+  "preferences_json": null,
+  "created_at": "2026-03-29T09:20:00+08:00"
+}

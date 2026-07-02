@@ -1,0 +1,11 @@
+{
+  "_seed_key": "project-community-laptop-repair-corner-electronics-recycling",
+  "domain": "project",
+  "content_type": "project",
+  "content_ref": "projects.community-laptop-repair-corner",
+  "topic_id": "electronics-recycling",
+  "confidence_score": 0.95,
+  "source": "ai_constrained",
+  "created_at": "2026-04-09T02:31:16.753689",
+  "updated_at": "2026-04-09T02:31:16.753689"
+}

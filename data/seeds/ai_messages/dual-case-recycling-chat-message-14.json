@@ -1,0 +1,23 @@
+{
+  "_seed_key": "dual-case-recycling-chat-message-14",
+  "conversation_ref": "ai_conversations.dual-case-recycling-chat",
+  "role": "assistant",
+  "message_type": "tool_result",
+  "content_text": "I found two recycling items in this chat. Are you asking about the plastic bottle or the power bank?",
+  "content_json": {
+    "stream_stage": "clarification",
+    "clarification_options": [
+      {
+        "label": "Plastic bottle",
+        "reply_text": "I mean the plastic bottle."
+      },
+      {
+        "label": "Power bank",
+        "reply_text": "I mean the power bank."
+      }
+    ]
+  },
+  "related_analysis_ref": null,
+  "sequence_no": 14,
+  "created_at": "2026-04-09T08:31:55.880015"
+}

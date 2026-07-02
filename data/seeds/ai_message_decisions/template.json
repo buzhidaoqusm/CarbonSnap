@@ -1,0 +1,17 @@
+{
+  "_seed_key": "example-ai-decision",
+  "_notes": "Template only. Copy this file and rename it.",
+  "conversation_ref": "ai_conversations.example-ai-conversation",
+  "user_message_ref": "ai_messages.example-ai-message",
+  "intent": "general_chat",
+  "follow_up_type": null,
+  "target_case_ref": null,
+  "confidence": 0.5,
+  "needs_clarification": false,
+  "decision_json": {
+    "intent": "general_chat",
+    "confidence": 0.5
+  },
+  "engine_version": "decision-engine-v2",
+  "created_at": "2026-03-31T09:00:30+08:00"
+}

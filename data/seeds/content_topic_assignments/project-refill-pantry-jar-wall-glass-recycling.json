@@ -1,0 +1,11 @@
+{
+  "_seed_key": "project-refill-pantry-jar-wall-glass-recycling",
+  "domain": "project",
+  "content_type": "project",
+  "content_ref": "projects.refill-pantry-jar-wall",
+  "topic_id": "glass-recycling",
+  "confidence_score": 0.85,
+  "source": "ai_constrained",
+  "created_at": "2026-04-09T02:33:38.969662",
+  "updated_at": "2026-04-09T02:33:38.969662"
+}

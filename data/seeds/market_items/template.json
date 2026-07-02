@@ -1,0 +1,11 @@
+{
+  "_seed_key": "example-item",
+  "_notes": "Template only. Copy this file and rename it.",
+  "seller_ref": "users.demo-seller",
+  "title": "Example market item title",
+  "description": "Example market item description.",
+  "image_urls_json": null,
+  "price_points": 30,
+  "status": "active",
+  "created_at": "2026-03-29T11:00:00+08:00"
+}

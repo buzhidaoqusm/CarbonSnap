@@ -1,0 +1,14 @@
+{
+  "_seed_key": "plastic-bottle-real-chat-message-08",
+  "conversation_ref": "ai_conversations.plastic-bottle-real-chat",
+  "role": "user",
+  "message_type": "text",
+  "content_text": "Where can I recycle it near me?",
+  "content_json": {
+    "has_image": false,
+    "image_url": null
+  },
+  "related_analysis_ref": null,
+  "sequence_no": 8,
+  "created_at": "2026-04-08T09:35:30.311700"
+}

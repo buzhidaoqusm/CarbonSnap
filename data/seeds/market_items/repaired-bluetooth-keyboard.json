@@ -1,0 +1,12 @@
+{
+  "_seed_key": "repaired-bluetooth-keyboard",
+  "seller_ref": "users.demo-tech-repairer",
+  "title": "Repaired Bluetooth Keyboard, Compact Layout, Fully Tested",
+  "description": "Compact wireless keyboard with a repaired charging port and verified Bluetooth pairing. All keys, charging, and battery retention were checked after repair. Shows moderate signs of previous use but remains fully functional for everyday typing, note taking, and portable setups.",
+  "image_urls_json": [
+    "/api/uploads/seed-market/repaired-bluetooth-keyboard.jpg"
+  ],
+  "price_points": 95,
+  "status": "active",
+  "created_at": "2026-03-29T11:21:00+08:00"
+}

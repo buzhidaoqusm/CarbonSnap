@@ -1,0 +1,15 @@
+{
+  "_seed_key": "example-memory-item",
+  "user_ref": "users.example-user",
+  "memory_type": "recycling_preference",
+  "memory_key": "prefer_nearby_options",
+  "value_json": {
+    "enabled": true
+  },
+  "source_type": "explicit_chat",
+  "source_message_ref": "ai_messages.example-message",
+  "conversation_ref": "ai_conversations.example-chat",
+  "status": "active",
+  "created_at": "2026-01-01T00:00:00",
+  "updated_at": "2026-01-01T00:00:00"
+}

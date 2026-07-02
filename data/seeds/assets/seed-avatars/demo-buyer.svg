@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Eco buyer avatar</title>
+  <desc id="desc">A graceful abstract portrait with a leaf tote and warm market colors.</desc>
+  <defs>
+    <linearGradient id="bg" x1="34" y1="24" x2="226" y2="231" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff0d4"/>
+      <stop offset="0.52" stop-color="#ffc783"/>
+      <stop offset="1" stop-color="#4a9c86"/>
+    </linearGradient>
+    <linearGradient id="jacket" x1="55" y1="162" x2="204" y2="234" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1f7f75"/>
+      <stop offset="1" stop-color="#2f456d"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#3f644f" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+  <circle cx="128" cy="128" r="120" fill="url(#bg)"/>
+  <path fill="#fff9ea" opacity="0.48" d="M31 153c38-13 58-8 86 8 32 18 62 19 107-11-7 55-48 94-96 94-49 0-90-39-97-91Z"/>
+  <g filter="url(#softShadow)">
+    <path fill="url(#jacket)" d="M56 225c8-42 35-64 72-64 36 0 64 22 72 64-20 13-45 19-72 19s-52-6-72-19Z"/>
+    <circle cx="128" cy="107" r="50" fill="#f2c7a4"/>
+    <path fill="#563f3b" d="M78 105c2-33 21-58 50-60 30-2 50 20 52 55-12-14-28-23-49-24-22-1-39 9-53 29Z"/>
+    <path fill="#efb88f" d="M93 121c8 21 20 32 35 32 16 0 28-11 36-32-13 7-25 11-36 11-12 0-23-4-35-11Z" opacity="0.58"/>
+    <circle cx="111" cy="111" r="5" fill="#2c3946"/>
+    <circle cx="146" cy="111" r="5" fill="#2c3946"/>
+    <path fill="none" stroke="#9b5c51" stroke-linecap="round" stroke-width="5" d="M116 133c8 6 17 6 25 0"/>
+  </g>
+  <g transform="translate(161 157)">
+    <path fill="#fff7dc" d="M2 25h48l-5 47H7L2 25Z"/>
+    <path fill="none" stroke="#fff7dc" stroke-linecap="round" stroke-width="7" d="M13 28c0-19 26-19 26 0"/>
+    <path fill="#36a46f" d="M19 50c10-16 23-14 25-14-2 15-14 25-25 14Z"/>
+    <path fill="#207d64" d="M17 52c1-9-4-16-10-20 11-1 21 7 10 20Z"/>
+  </g>
+  <circle cx="55" cy="76" r="9" fill="#fff4cf" opacity="0.9"/>
+  <circle cx="201" cy="68" r="6" fill="#fff4cf" opacity="0.7"/>
+</svg>

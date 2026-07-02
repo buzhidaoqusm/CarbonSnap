@@ -1,0 +1,12 @@
+{
+  "_seed_key": "stainless-steel-water-bottle",
+  "seller_ref": "users.demo-home-organizer",
+  "title": "Stainless Steel Water Bottle, 600 ml, Vacuum Insulated",
+  "description": "Reusable stainless steel water bottle with vacuum insulation and screw-top lid. Clean interior, secure seal, and light cosmetic marks from normal use. Keeps drinks cold for several hours and works well for commuting, office use, or gym sessions.",
+  "image_urls_json": [
+    "/api/uploads/seed-market/stainless-steel-water-bottle.jpg"
+  ],
+  "price_points": 54,
+  "status": "active",
+  "created_at": "2026-03-29T11:18:00+08:00"
+}

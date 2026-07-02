@@ -1,0 +1,16 @@
+{
+  "_seed_key": "dual-case-recycling-chat-case-01",
+  "user_ref": "users.demo-ai-recycler",
+  "conversation_ref": "ai_conversations.dual-case-recycling-chat",
+  "origin_message_ref": "ai_messages.dual-case-recycling-chat-message-01",
+  "waste_type_predicted": "plastic bottle",
+  "confidence": 0.95,
+  "estimated_weight_kg": 0.05,
+  "expected_co2_saved_kg": 0.08,
+  "expected_carbon_points": 0.8,
+  "status": "audit_passed",
+  "latest_audit_attempt_no": 1,
+  "approved_analysis_ref": "waste_analysis_records.dual-case-recycling-chat-record-01",
+  "created_at": "2026-03-31T10:46:32.772739",
+  "updated_at": "2026-04-09T08:30:00.299808"
+}

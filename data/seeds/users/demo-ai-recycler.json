@@ -1,0 +1,40 @@
+{
+  "_seed_key": "demo-ai-recycler",
+  "_notes": "Password: demo123",
+  "username": "demo_ai_recycler",
+  "email": "ai-recycler@example.com",
+  "password_hash": "scrypt:32768:8:1$akZTrbgXkd1O1hK9$c0bf065d6463adabda644d064e5e2a9c16d166026eb80503dcb0e9a23e3d8540e8f8f6c54aa8326218e0b3824ad136fd275c51c008f794a5bb40a689614a4d2c",
+  "avatar_url": "/api/uploads/seed-avatars/demo-ai-recycler.svg",
+  "bio": "Uses the AI recycling workspace to sort everyday drink containers and verify completed drop-offs.",
+  "total_carbon_amount": 0.51,
+  "current_points": 6,
+  "preferences_json": {
+    "version": 1,
+    "updated_at": "2026-04-09T00:31:51.905801+00:00",
+    "content_interest_preferences": {
+      "topics": [
+        {
+          "topic_id": "battery-recycling",
+          "score": 0.583,
+          "raw_score": 7.0,
+          "confidence_score": 0.75,
+          "event_count": 3,
+          "source_domains": [
+            "ai"
+          ],
+          "last_event_at": "2026-04-09T00:31:35.759981"
+        }
+      ],
+      "confidence_score": 0.583
+    },
+    "action_preferences": {
+      "prefer_nearby_options": null,
+      "allow_manual_area_input": null,
+      "preferred_recycling_methods": [],
+      "avoid_recycling_methods": [],
+      "max_recycling_distance_km": null,
+      "response_style": null
+    }
+  },
+  "created_at": "2026-03-31T00:30:00"
+}

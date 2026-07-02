@@ -1,0 +1,11 @@
+{
+  "_seed_key": "project-campus-battery-drop-box-pilot-battery-recycling",
+  "domain": "project",
+  "content_type": "project",
+  "content_ref": "projects.campus-battery-drop-box-pilot",
+  "topic_id": "battery-recycling",
+  "confidence_score": 0.75,
+  "source": "ai_constrained",
+  "created_at": "2026-04-09T02:30:54.037637",
+  "updated_at": "2026-04-09T02:30:54.037637"
+}

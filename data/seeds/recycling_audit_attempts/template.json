@@ -1,0 +1,18 @@
+{
+  "_seed_key": "example-audit-attempt",
+  "_notes": "Template only. Copy this file and rename it.",
+  "recycling_case_ref": "recycling_cases.example-recycling-case",
+  "user_ref": "users.example-user",
+  "conversation_ref": "ai_conversations.example-ai-conversation",
+  "audit_image_url": "/api/uploads/seed-ai/example-audit.jpg",
+  "attempt_no": 1,
+  "audit_result": "unclear",
+  "auditor_confidence": 0.4,
+  "audit_reason": "Example audit reason",
+  "audit_response_json": {
+    "audit_result": "unclear",
+    "auditor_confidence": 0.4,
+    "audit_reason": "Example audit reason"
+  },
+  "created_at": "2026-03-31T09:02:00+08:00"
+}

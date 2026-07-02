@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-labelledby="title">
+  <title id="title">CarbonSnap carbon sprite</title>
+  <defs>
+    <linearGradient id="leaf" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="orb" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#a7f3d0"/>
+      <stop offset="100%" stop-color="#6ee7b7"/>
+    </linearGradient>
+  </defs>
+  <circle cx="100" cy="108" r="72" fill="url(#orb)" opacity="0.95"/>
+  <path fill="url(#leaf)" d="M100 36c-8 28-36 48-52 64 18 10 40 14 52 14s34-4 52-14c-16-16-44-36-52-64z"/>
+  <circle cx="100" cy="96" r="18" fill="#ecfdf5"/>
+  <circle cx="92" cy="92" r="5" fill="#064e3b"/>
+  <circle cx="108" cy="92" r="5" fill="#064e3b"/>
+  <path fill="#064e3b" d="M92 104c6 8 14 8 20 0-6 4-14 4-20 0z"/>
+  <ellipse cx="100" cy="132" rx="40" ry="12" fill="#10b981" opacity="0.35"/>
+</svg>

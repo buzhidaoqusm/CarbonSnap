@@ -1,0 +1,41 @@
+.idea/
+.vscode/
+*.iml
+.superpowers/
+
+# Secrets / local environment
+**/.env
+!**/.env.example
+
+# Logs
+*.log
+*.err.log
+
+# Frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/vite-dev*.log
+frontend/vite-node*.log
+
+# Backend
+backend/.venv/
+backend/**/__pycache__/
+backend/**/*.pyc
+
+# OS
+.DS_Store
+
+data/uploads/
+data/faiss/
+data/carbonsnap.db
+
+# Generated demos and heavy local artifacts
+docs/hyperframes/
+*.mp4
+*.wav
+*.zip
+*.exe
+*.pdf
+*.pptx
+*.docx

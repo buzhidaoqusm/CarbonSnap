@@ -1,0 +1,11 @@
+{
+  "_seed_key": "project-school-plastic-sorting-station-waste-sorting",
+  "domain": "project",
+  "content_type": "project",
+  "content_ref": "projects.school-plastic-sorting-station",
+  "topic_id": "waste-sorting",
+  "confidence_score": 0.75,
+  "source": "ai_constrained",
+  "created_at": "2026-04-09T02:34:22.077799",
+  "updated_at": "2026-04-09T02:34:22.077799"
+}

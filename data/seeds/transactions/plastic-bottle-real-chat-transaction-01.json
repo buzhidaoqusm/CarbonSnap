@@ -1,0 +1,10 @@
+{
+  "_seed_key": "plastic-bottle-real-chat-transaction-01",
+  "user_ref": "users.demo-ai-recycler",
+  "type": "earn",
+  "points_delta": 1,
+  "co2_delta_kg": 0.08,
+  "source_type": "waste_analysis",
+  "source_ref": "waste_analysis_records.plastic-bottle-real-chat-record-01",
+  "created_at": "2026-03-31T10:47:32.514811"
+}

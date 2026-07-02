@@ -1,0 +1,13 @@
+{
+  "_seed_key": "memory-preference-chat-message-06",
+  "conversation_ref": "ai_conversations.memory-preference-chat",
+  "role": "assistant",
+  "message_type": "text",
+  "content_text": "You just asked me to prioritize nearby drop-off suggestions going forward. Specifically, you said:\n\n> \"From now on, I prefer nearby drop-off suggestions first.\"",
+  "content_json": {
+    "model": "qwen3.5-flash-2026-02-23"
+  },
+  "related_analysis_ref": null,
+  "sequence_no": 6,
+  "created_at": "2026-04-09T09:45:47.783338"
+}

@@ -1,0 +1,33 @@
+.notification-view {
+  min-height: 100dvh;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #d7dedc;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #aaaeac;
+}
+
+.notification-list-enter-active,
+.notification-list-leave-active {
+  transition:
+    opacity 220ms ease,
+    transform 220ms ease;
+}
+
+.notification-list-enter-from,
+.notification-list-leave-to {
+  opacity: 0;
+  transform: translateY(12px);
+}

@@ -1,0 +1,26 @@
+{
+  "_seed_key": "dual-case-recycling-chat-audit-02",
+  "recycling_case_ref": "recycling_cases.dual-case-recycling-chat-case-02",
+  "user_ref": "users.demo-ai-recycler",
+  "conversation_ref": "ai_conversations.dual-case-recycling-chat",
+  "audit_image_url": "/api/uploads/seed-ai/dual-case-recycling-chat-audit-02-image.png",
+  "attempt_no": 1,
+  "audit_result": "unclear",
+  "auditor_confidence": 0.9,
+  "audit_reason": "The item is a power bank matching the waste type, but it is being placed in a generic recycling bin. Specialized e-waste or battery recycling pathways are not clearly visible, which is required for verification.",
+  "audit_response_json": {
+    "audit_result": "unclear",
+    "auditor_confidence": 0.9,
+    "audit_reason": "The item is a power bank matching the waste type, but it is being placed in a generic recycling bin. Specialized e-waste or battery recycling pathways are not clearly visible, which is required for verification.",
+    "case_summary": {
+      "id": 3,
+      "waste_type_predicted": "Portable Power Bank / Electronic Waste",
+      "confidence": 0.98,
+      "estimated_weight_kg": 0.35,
+      "expected_co2_saved_kg": 0.35,
+      "expected_carbon_points": 3.5,
+      "status": "pending_audit"
+    }
+  },
+  "created_at": "2026-04-09T00:28:52.388271"
+}

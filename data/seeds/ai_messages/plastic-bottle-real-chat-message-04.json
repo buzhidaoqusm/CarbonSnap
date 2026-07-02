@@ -1,0 +1,15 @@
+{
+  "_seed_key": "plastic-bottle-real-chat-message-04",
+  "conversation_ref": "ai_conversations.plastic-bottle-real-chat",
+  "role": "user",
+  "message_type": "image",
+  "content_text": "Please audit this completion photo.",
+  "content_json": {
+    "purpose": "completion_audit",
+    "image_url": "/api/uploads/seed-ai/plastic-bottle-real-chat-message-04-image_url.png",
+    "recycling_case_ref": "recycling_cases.plastic-bottle-real-chat-case-01"
+  },
+  "related_analysis_ref": null,
+  "sequence_no": 4,
+  "created_at": "2026-03-31T10:47:24.447350"
+}

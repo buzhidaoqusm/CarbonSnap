@@ -1,0 +1,10 @@
+{
+  "_seed_key": "example-post-chunk-v01-i00",
+  "_notes": "Template only. Copy this file and rename it.",
+  "post_ref": "forum_posts.example-post",
+  "chunk_text": "Example chunk text.",
+  "chunk_index": 0,
+  "section_title": "Main",
+  "chunk_version": 1,
+  "embedding_id": "post-1-v1-c0"
+}

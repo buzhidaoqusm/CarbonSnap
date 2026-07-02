@@ -1,0 +1,13 @@
+{
+  "_seed_key": "memory-preference-chat-message-05",
+  "conversation_ref": "ai_conversations.memory-preference-chat",
+  "role": "user",
+  "message_type": "text",
+  "content_text": "What did I just ask you about a minute ago?",
+  "content_json": {
+    "has_image": false
+  },
+  "related_analysis_ref": null,
+  "sequence_no": 5,
+  "created_at": "2026-04-09T09:45:31.565939"
+}

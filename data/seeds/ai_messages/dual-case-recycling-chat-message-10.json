@@ -1,0 +1,29 @@
+{
+  "_seed_key": "dual-case-recycling-chat-message-10",
+  "conversation_ref": "ai_conversations.dual-case-recycling-chat",
+  "role": "assistant",
+  "message_type": "audit_result",
+  "content_text": "Audit unclear. The item is a power bank matching the waste type, but it is being placed in a generic recycling bin. Specialized e-waste or battery recycling pathways are not clearly visible, which is required for verification.",
+  "content_json": {
+    "audit_result": {
+      "audit_result": "unclear",
+      "auditor_confidence": 0.9,
+      "audit_reason": "The item is a power bank matching the waste type, but it is being placed in a generic recycling bin. Specialized e-waste or battery recycling pathways are not clearly visible, which is required for verification."
+    },
+    "audit_attempt": {
+      "recycling_case_ref": "recycling_cases.dual-case-recycling-chat-case-02",
+      "attempt_no": 1,
+      "audit_result": "unclear",
+      "auditor_confidence": 0.9,
+      "audit_reason": "The item is a power bank matching the waste type, but it is being placed in a generic recycling bin. Specialized e-waste or battery recycling pathways are not clearly visible, which is required for verification.",
+      "audit_image_url": "/api/uploads/seed-ai/dual-case-recycling-chat-audit-02-image.png",
+      "created_at": "2026-04-09T00:28:52.388271"
+    },
+    "finalized": false,
+    "retryable": true,
+    "recycling_case_ref": "recycling_cases.dual-case-recycling-chat-case-02"
+  },
+  "related_analysis_ref": null,
+  "sequence_no": 10,
+  "created_at": "2026-04-09T00:28:52.500314"
+}

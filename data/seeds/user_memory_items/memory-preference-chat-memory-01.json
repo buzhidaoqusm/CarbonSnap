@@ -1,0 +1,15 @@
+{
+  "_seed_key": "memory-preference-chat-memory-01",
+  "user_ref": "users.demo-ai-recycler",
+  "memory_type": "recycling_preference",
+  "memory_key": "prefer_nearby_options",
+  "value_json": {
+    "enabled": true
+  },
+  "source_type": "explicit_chat",
+  "source_message_ref": "ai_messages.memory-preference-chat-message-03",
+  "conversation_ref": "ai_conversations.memory-preference-chat",
+  "status": "active",
+  "created_at": "2026-04-09T10:02:58.332615",
+  "updated_at": "2026-04-09T10:02:58.332615"
+}

@@ -1,0 +1,46 @@
+{
+  "_seed_key": "dual-case-recycling-chat-message-07",
+  "conversation_ref": "ai_conversations.dual-case-recycling-chat",
+  "role": "assistant",
+  "message_type": "analysis_result",
+  "content_text": "## Recycling Guide: Portable Power Bank\n\nYou're on the right track! Here’s the breakdown for your power bank:\n\n*   **Waste Type:** Portable Power Bank / Electronic Waste\n*   **Confidence:** 98%\n*   **Estimated Weight:** 0.35 kg\n*   **CO₂ Reduced:** 0.35 kg\n*   **Carbon Points Earned:** 3.5\n\n### Important Safety & Recycling Tips\n*   **⚠️ Hazard Alert:** Do **not** place this in regular trash. Lithium-ion batteries pose a fire risk in standard waste streams.\n*   **Drop-off:** Locate a certified e-waste recycling center.\n*   **Local Events:** Check if your city has household hazardous waste drop-off days.\n*   **Retailers:** Contact the original electronics retailer; many offer free take-back programs.\n\n### Next Step: Find a Location Near You\nTo find specific drop-off centers, we need to know where you are. Please choose an option below:\n\n*   **Allow Browser Location:** We’ll find spots nearest to your current GPS position.\n*   **Enter Area Manually:** Type your city or postal code if you prefer not to share live location.\n*   **Skip Nearby Search:** View general guidelines only (no specific facilities listed).\n\nLet us know how you’d like to proceed!",
+  "content_json": {
+    "stream_stage": "analysis",
+    "analysis_payload": {
+      "waste_type": "Portable Power Bank / Electronic Waste",
+      "confidence": 0.98,
+      "estimated_weight_kg": 0.35,
+      "co2_saved_kg": 0.35,
+      "carbon_points": 3.5,
+      "recycle_suggestions": [
+        "Drop off at a certified e-waste recycling center",
+        "Check for local household hazardous waste drop-off days",
+        "Do not place in regular trash (Lithium-ion fire hazard)",
+        "Contact retailer for any electronics recycling programs"
+      ],
+      "forum_references": [],
+      "requires_location_decision": true,
+      "nearby_locations": [],
+      "map_error": null,
+      "location_options": [
+        {
+          "key": "allow_browser_location",
+          "label": "Allow browser location"
+        },
+        {
+          "key": "enter_manual_area",
+          "label": "Enter area manually"
+        },
+        {
+          "key": "skip_nearby_search",
+          "label": "Skip nearby search"
+        }
+      ],
+      "stream_stage": "analysis"
+    },
+    "recycling_case_ref": "recycling_cases.dual-case-recycling-chat-case-02"
+  },
+  "related_analysis_ref": null,
+  "sequence_no": 7,
+  "created_at": "2026-04-09T00:27:03.964252"
+}

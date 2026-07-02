@@ -1,0 +1,12 @@
+{
+  "_seed_key": "recycled-paper-notebook",
+  "seller_ref": "users.demo-seller",
+  "title": "Recycled Paper Notebook, A5 Size, Minimal Cover Design",
+  "description": "A5 notebook made from recycled paper stock with a clean minimal cover and lightly used outer edges. Most pages remain blank and suitable for journaling, class notes, or planning. A practical low-waste option for everyday writing needs.",
+  "image_urls_json": [
+    "/api/uploads/seed-market/recycled-paper-notebook.jpg"
+  ],
+  "price_points": 35,
+  "status": "active",
+  "created_at": "2026-03-29T11:05:00+08:00"
+}

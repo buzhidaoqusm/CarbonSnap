@@ -1,0 +1,12 @@
+{
+  "_seed_key": "bamboo-fiber-towel",
+  "seller_ref": "users.demo-home-organizer",
+  "title": "Bamboo Fiber Kitchen Towel Set, Reusable, Soft Weave",
+  "description": "Reusable kitchen towel set made from bamboo fiber blend fabric. Soft texture, good absorbency, and suitable for replacing disposable kitchen wipes in daily cleaning routines. Clean and ready to use, with only light signs of normal washing.",
+  "image_urls_json": [
+    "/api/uploads/seed-market/bamboo-fiber-towel.jpg"
+  ],
+  "price_points": 48,
+  "status": "active",
+  "created_at": "2026-03-29T11:08:00+08:00"
+}

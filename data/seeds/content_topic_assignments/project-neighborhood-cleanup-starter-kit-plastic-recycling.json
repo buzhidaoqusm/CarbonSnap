@@ -1,0 +1,11 @@
+{
+  "_seed_key": "project-neighborhood-cleanup-starter-kit-plastic-recycling",
+  "domain": "project",
+  "content_type": "project",
+  "content_ref": "projects.neighborhood-cleanup-starter-kit",
+  "topic_id": "plastic-recycling",
+  "confidence_score": 0.9,
+  "source": "ai_constrained",
+  "created_at": "2026-04-09T02:33:04.437560",
+  "updated_at": "2026-04-09T02:33:04.437560"
+}

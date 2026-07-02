@@ -1,0 +1,11 @@
+{
+  "_seed_key": "market-recycled-paper-notebook-paper-recycling",
+  "domain": "market",
+  "content_type": "item",
+  "content_ref": "market_items.recycled-paper-notebook",
+  "topic_id": "paper-recycling",
+  "confidence_score": 0.85,
+  "source": "ai_constrained",
+  "created_at": "2026-04-09T02:29:44.937610",
+  "updated_at": "2026-04-09T02:29:44.937610"
+}
