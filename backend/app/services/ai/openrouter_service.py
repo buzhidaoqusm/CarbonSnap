@@ -418,6 +418,104 @@ def _send_completion_request(
     return client.chat.completions.create(**request_payload)
 
 
+def complete_with_tools(
+    *,
+    messages: list[dict[str, Any]],
+    tools: list[dict[str, Any]] | None = None,
+    tool_choice: str = "auto",
+    timeout: float | None = None,
+) -> dict[str, Any]:
+    client = _get_client()
+    model = _get_provider_settings()["model"]
+
+    request_payload: dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "stream": False,
+    }
+
+    if tools:
+        request_payload["tools"] = tools
+        request_payload["tool_choice"] = tool_choice
+
+    extra_headers = _build_extra_headers()
+    if extra_headers:
+        request_payload["extra_headers"] = extra_headers
+
+    effective_timeout = (
+        timeout if timeout is not None else float(current_app.config.get("AI_LLM_TIMEOUT_SECONDS", 60) or 60)
+    )
+    request_payload["timeout"] = effective_timeout
+
+    completion = client.chat.completions.create(**request_payload)
+
+    choices = getattr(completion, "choices", None) or []
+    if choices:
+        message = choices[0].message
+        finish_reason = getattr(choices[0], "finish_reason", None) or None
+        raw_content = getattr(message, "content", None)
+        raw_tool_calls = getattr(message, "tool_calls", None) or []
+    else:
+        finish_reason = None
+        raw_content = ""
+        raw_tool_calls = []
+
+    tool_calls: list[dict[str, Any]] = []
+    for tool_call in raw_tool_calls:
+        raw_arguments = tool_call.function.arguments
+        try:
+            parsed_arguments = json.loads(raw_arguments)
+        except (TypeError, ValueError):
+            parsed_arguments = {}
+        tool_calls.append(
+            {
+                "id": tool_call.id,
+                "name": tool_call.function.name,
+                "arguments": parsed_arguments,
+            }
+        )
+
+    if raw_content:
+        content: str | None = str(raw_content)
+    elif tool_calls:
+        content = None
+    else:
+        content = raw_content
+
+    usage = getattr(completion, "usage", None)
+    result_model = getattr(completion, "model", None) or model
+
+    raw_message: dict[str, Any] = {
+        "role": "assistant",
+        "content": raw_content or None,
+    }
+    if raw_tool_calls:
+        raw_message["tool_calls"] = [
+            {
+                "id": tool_call.id,
+                "type": "function",
+                "function": {
+                    "name": tool_call.function.name,
+                    "arguments": tool_call.function.arguments,
+                },
+            }
+            for tool_call in raw_tool_calls
+        ]
+
+    return {
+        "content": content,
+        "tool_calls": tool_calls,
+        "finish_reason": finish_reason,
+        "model": result_model,
+        "usage": {
+            "prompt_tokens": getattr(usage, "prompt_tokens", None),
+            "completion_tokens": getattr(usage, "completion_tokens", None),
+            "total_tokens": getattr(usage, "total_tokens", None),
+        },
+        "raw_message": raw_message,
+    }
+
+
 def complete_text(
     *,
     user_message: str,

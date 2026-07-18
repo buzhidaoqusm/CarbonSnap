@@ -13,6 +13,7 @@ from app.repositories.ai import conversation_repository, recycling_case_reposito
 from app.services.ai.agent_trace_service import (
     attach_graph_context_to_trace,
     attach_forum_citations_to_trace,
+    build_trace_shell,
     normalize_trace_for_storage,
 )
 from app.services.ai.ai_decision_engine import persist_message_decision
@@ -29,6 +30,7 @@ from app.services.ai.neo4j_graph_retrieval_service import (
     query_graph_context,
 )
 from app.services.ai.openrouter_service import (
+    build_messages,
     chat_with_openrouter,
     generate_conversation_title,
     history_from_message_records,
@@ -763,6 +765,193 @@ def complete_chat_message(
         "user_message_id": user_message.id,
         "assistant_message_id": assistant_message.id,
         "memory_updates": memory_updates,
+    }
+
+
+def _tool_calling_agent_system_prompt() -> str:
+    return (
+        "You are CarbonSnap's recycling assistant. You can call tools to ground your answers:\n"
+        "- search_forum: retrieve community forum posts for real user experiences and tips.\n"
+        "- query_recycling_graph: look up recycling rules, risks, and material relationships.\n"
+        "- estimate_carbon_saving: estimate CO2 savings and points for an item.\n"
+        "- find_nearby_recycling_places: find nearby recycling points (needs the user's location).\n"
+        "- read_user_memory / recommend_project: personalize the reply.\n"
+        "Call a tool only when it genuinely helps answer the user, and prefer grounding factual "
+        "recycling claims in tool results rather than guessing.\n"
+        "When you use a forum post, cite it inline with its exact [Title](URL) and end with a short "
+        "'Sources' section listing only the links you actually used. Never invent titles or URLs.\n"
+        "Answer in the user's language. Keep replies concise and practical."
+    )
+
+
+def _build_agent_loop_trace(
+    *,
+    decision: dict[str, Any] | None,
+    conversation_id: int | None,
+    user_id: int | None,
+    loop_result: dict[str, Any],
+) -> dict[str, Any] | None:
+    trace = decision.get("trace") if isinstance(decision, dict) else None
+    if not trace:
+        trace = build_trace_shell(
+            user_id=user_id,
+            conversation_id=conversation_id,
+            intent=(decision or {}).get("intent"),
+        )
+
+    tool_trace = loop_result.get("tool_trace") or []
+    trace = json.loads(json.dumps(trace, ensure_ascii=False, default=str))
+    existing_tool_calls = list(trace.get("tool_calls") or [])
+    trace["tool_calls"] = [*existing_tool_calls, *tool_trace]
+    trace["agent_loop"] = {
+        "enabled": True,
+        "framework": "langgraph",
+        "engine": "tool_calling_agent",
+        "stopped_reason": loop_result.get("stopped_reason"),
+        "iterations": loop_result.get("iterations"),
+        "nodes": loop_result.get("nodes", []),
+        "tool_call_count": len(tool_trace),
+        "usage": loop_result.get("usage_total", {}),
+    }
+    if loop_result.get("model"):
+        model_block = dict(trace.get("model") or {})
+        model_block["name"] = loop_result.get("model")
+        trace["model"] = model_block
+    return normalize_trace_for_storage(trace, conversation_id=conversation_id)
+
+
+def complete_tool_calling_agent_message(
+    *,
+    user_id: int | None,
+    message: str,
+    history: list[dict[str, Any]] | None = None,
+    image_data_url: str | None = None,
+    conversation_id: int | None = None,
+    title: str | None = None,
+    prompt_memory: dict[str, Any] | None = None,
+    memory_candidates: list[dict[str, Any]] | None = None,
+    decision: dict[str, Any] | None = None,
+    client_context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Model-driven general-chat reply.
+
+    Mirrors ``complete_chat_message``'s persistence, but the reply is produced by
+    the tool-calling agent loop: the model chooses and invokes tools (forum RAG,
+    graph, carbon estimate, nearby search) instead of retrieval being pre-injected
+    by rules. Gated behind ``AI_TOOL_CALLING_AGENT_ENABLED``.
+    """
+    from app.services.ai.tool_calling_agent import run_tool_calling_agent
+
+    system_prompt = _tool_calling_agent_system_prompt()
+    agent_context = {"user_id": user_id, "client_context": client_context}
+
+    if user_id is None:
+        request_history = _trim_history_to_recent_turns(
+            history or [],
+            max_turns=int(current_app.config.get("AI_SHORT_TERM_MEMORY_TURNS", 10) or 10),
+        )
+        if image_data_url:
+            store_data_url_image(image_data_url, namespace="chat")
+        messages = build_messages(
+            user_message=message,
+            history=request_history,
+            image_data_url=image_data_url,
+            system_prompt=system_prompt,
+            prompt_memory=prompt_memory or {},
+        )
+        loop_result = run_tool_calling_agent(messages=messages, context=agent_context)
+        return {
+            "reply": loop_result.get("content", ""),
+            "model": loop_result.get("model"),
+            "usage": loop_result.get("usage_total", {}),
+            "tool_trace": loop_result.get("tool_trace", []),
+            "agent_loop": {
+                "stopped_reason": loop_result.get("stopped_reason"),
+                "iterations": loop_result.get("iterations"),
+                "nodes": loop_result.get("nodes", []),
+            },
+        }
+
+    resolved_title = title
+    if conversation_id is None and resolved_title is None:
+        resolved_title = _build_initial_chat_title(message=message, image_data_url=image_data_url)
+
+    conversation = _resolve_conversation_for_user(
+        user_id=user_id,
+        conversation_id=conversation_id,
+        title=resolved_title,
+    )
+    request_history, _persisted_messages = _resolve_history_for_request(
+        conversation=conversation,
+        supplied_history=history,
+    )
+
+    user_message = _persist_user_message(
+        conversation_id=conversation.id,
+        message=message,
+        image_data_url=image_data_url,
+    )
+    memory_updates = _persist_explicit_memory_candidates(
+        user_id=user_id,
+        conversation_id=conversation.id,
+        source_message_id=user_message.id,
+        candidates=memory_candidates or [],
+    )
+    if decision is not None:
+        persist_message_decision(
+            conversation_id=conversation.id,
+            user_message_id=user_message.id,
+            decision=decision,
+        )
+    effective_prompt_memory = (
+        get_prompt_memory_summary(user_id)
+        if memory_updates
+        else (prompt_memory if prompt_memory is not None else get_prompt_memory_summary(user_id))
+    )
+    effective_prompt_memory = _apply_memory_candidates_to_prompt_memory(
+        effective_prompt_memory,
+        memory_candidates,
+    )
+
+    messages = build_messages(
+        user_message=message,
+        history=request_history,
+        image_data_url=image_data_url,
+        system_prompt=system_prompt,
+        prompt_memory=effective_prompt_memory,
+    )
+    loop_result = run_tool_calling_agent(messages=messages, context=agent_context)
+
+    response_trace = _build_agent_loop_trace(
+        decision=decision,
+        conversation_id=conversation.id,
+        user_id=user_id,
+        loop_result=loop_result,
+    )
+    assistant_message = _persist_assistant_message(
+        conversation_id=conversation.id,
+        reply=loop_result.get("content", ""),
+        model=loop_result.get("model"),
+        memory_updates=memory_updates,
+        trace=response_trace,
+    )
+
+    return {
+        "reply": loop_result.get("content", ""),
+        "model": loop_result.get("model"),
+        "usage": loop_result.get("usage_total", {}),
+        "tool_trace": loop_result.get("tool_trace", []),
+        "trace": response_trace,
+        "conversation_id": conversation.id,
+        "conversation_title": conversation.title,
+        "user_message_id": user_message.id,
+        "assistant_message_id": assistant_message.id,
+        "memory_updates": memory_updates,
+        "agent_loop": {
+            "stopped_reason": loop_result.get("stopped_reason"),
+            "iterations": loop_result.get("iterations"),
+            "nodes": loop_result.get("nodes", []),
+        },
     }
 
 

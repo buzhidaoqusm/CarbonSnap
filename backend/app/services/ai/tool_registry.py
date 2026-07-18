@@ -85,6 +85,54 @@ def run_tool(
     }
 
 
+def to_openai_tools(*, exclude_high_risk: bool = False) -> list[dict[str, Any]]:
+    tools: list[dict[str, Any]] = []
+    for tool in list_tool_definitions():
+        if exclude_high_risk and tool["risk_level"] == "high":
+            continue
+        tools.append(
+            {
+                "type": "function",
+                "function": {
+                    "name": tool["name"],
+                    "description": tool["description"],
+                    "parameters": tool["input_schema"],
+                },
+            }
+        )
+    return tools
+
+
+def execute_tool_call(
+    name: str,
+    arguments: dict[str, Any] | None = None,
+    *,
+    context: dict[str, Any] | None = None,
+    allow_high_risk: bool = False,
+) -> dict[str, Any]:
+    merged = dict(arguments or {})
+    context = context or {}
+
+    user_id = context.get("user_id")
+    if name in {"read_user_memory", "recommend_project"} and user_id is not None:
+        if merged.get("user_id") is None:
+            merged["user_id"] = user_id
+
+    if name == "find_nearby_recycling_places":
+        client_context = context.get("client_context") or {}
+        location_state = client_context.get("location_state") or {}
+        coordinates = location_state.get("coordinates") or {}
+        if merged.get("lat") is None and coordinates.get("lat") is not None:
+            merged["lat"] = coordinates.get("lat")
+        if merged.get("lng") is None and coordinates.get("lng") is not None:
+            merged["lng"] = coordinates.get("lng")
+        if merged.get("area") is None and location_state.get("area_label"):
+            merged["area"] = location_state.get("area_label")
+
+    result = run_tool(name, merged, allow_high_risk=allow_high_risk)
+    return {**result, "arguments": merged}
+
+
 def select_tools_for_decision(
     decision: dict[str, Any] | None,
     *,

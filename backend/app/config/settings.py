@@ -115,6 +115,15 @@ def load_app_settings(app: Flask) -> None:
     )
     app.config["AI_TRACE_ENABLED"] = _get_bool_env("AI_TRACE_ENABLED", True)
     app.config["AI_GRAPH_AGENT_ENABLED"] = _get_bool_env("AI_GRAPH_AGENT_ENABLED", False)
+    app.config["AI_TOOL_CALLING_AGENT_ENABLED"] = _get_bool_env(
+        "AI_TOOL_CALLING_AGENT_ENABLED", False
+    )
+    app.config["AI_AGENT_MAX_ITERATIONS"] = int(
+        os.getenv("AI_AGENT_MAX_ITERATIONS", "4").strip() or "4"
+    )
+    app.config["AI_LLM_TIMEOUT_SECONDS"] = float(
+        os.getenv("AI_LLM_TIMEOUT_SECONDS", "60").strip() or "60"
+    )
     app.config["AI_NEO4J_GRAPHRAG_ENABLED"] = _get_bool_env(
         "AI_NEO4J_GRAPHRAG_ENABLED", False
     )
