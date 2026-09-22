@@ -285,25 +285,11 @@ def _execute_clarification_node(state: GraphAgentState) -> GraphAgentState:
     }
 
 
-def _tool_calling_agent_enabled() -> bool:
-    from flask import current_app
-
-    return bool(current_app.config.get("AI_TOOL_CALLING_AGENT_ENABLED", False))
-
-
 def _execute_general_chat_node(state: GraphAgentState) -> GraphAgentState:
-    from app.services.ai.ai_conversation_service import (
-        complete_chat_message,
-        complete_tool_calling_agent_message,
-    )
+    from app.services.ai.ai_conversation_service import complete_general_chat_with_mode
 
     decision = state["decision"]
-    general_chat_fn = (
-        complete_tool_calling_agent_message
-        if _tool_calling_agent_enabled()
-        else complete_chat_message
-    )
-    result = general_chat_fn(
+    result = complete_general_chat_with_mode(
         user_id=state.get("user_id"),
         message=state["message"],
         history=state.get("history"),

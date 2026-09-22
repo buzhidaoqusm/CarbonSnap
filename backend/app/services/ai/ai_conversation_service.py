@@ -955,6 +955,156 @@ def complete_tool_calling_agent_message(
     }
 
 
+def _build_shadow_selection_messages(
+    *,
+    message: str,
+    history: list[dict[str, Any]] | None,
+    image_data_url: str | None,
+    prompt_memory: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    """Reconstruct the prompt the tool-calling model would see, for a
+    selection-only shadow call (no tools are executed)."""
+    request_history = _trim_history_to_recent_turns(
+        history or [],
+        max_turns=int(current_app.config.get("AI_SHORT_TERM_MEMORY_TURNS", 10) or 10),
+    )
+    return build_messages(
+        user_message=message,
+        history=request_history,
+        image_data_url=image_data_url,
+        system_prompt=_tool_calling_agent_system_prompt(),
+        prompt_memory=prompt_memory or {},
+    )
+
+
+def _attach_and_log_tool_selection_shadow(
+    *,
+    result: dict[str, Any],
+    mode: str,
+    decision: dict[str, Any] | None,
+    comparison: dict[str, Any],
+    extra: dict[str, Any] | None = None,
+) -> None:
+    from app.services.ai.tool_selection_shadow import (
+        build_shadow_record,
+        record_shadow_comparison,
+    )
+
+    record = build_shadow_record(
+        mode=mode,
+        decision=decision,
+        comparison=comparison,
+        extra={"conversation_id": result.get("conversation_id"), **(extra or {})},
+    )
+    record_shadow_comparison(record)
+
+    shadow_block = {
+        "mode": mode,
+        "served_by": record["served_by"],
+        **comparison,
+    }
+    trace = result.get("trace")
+    if isinstance(trace, dict):
+        trace["tool_selection_shadow"] = shadow_block
+    result["tool_selection_shadow"] = shadow_block
+
+
+def complete_general_chat_with_mode(
+    *,
+    user_id: int | None,
+    message: str,
+    history: list[dict[str, Any]] | None = None,
+    image_data_url: str | None = None,
+    conversation_id: int | None = None,
+    title: str | None = None,
+    prompt_memory: dict[str, Any] | None = None,
+    memory_candidates: list[dict[str, Any]] | None = None,
+    decision: dict[str, Any] | None = None,
+    client_context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """General-chat entrypoint that honours the tool-selection rollout mode.
+
+    * ``model``  — serve the model-driven tool-calling loop (A6). Compares the
+      tools the model actually invoked against the rule engine's selection for
+      free (no extra LLM call).
+    * ``shadow`` — serve the rule-based reply, but run one non-executing model
+      call to capture what the model *would* have selected, and log the
+      divergence (A7 pre-flip evidence gathering).
+    * ``rule``   — serve the rule-based reply unchanged (default).
+    """
+    from app.services.ai.tool_selection_shadow import (
+        compare_tool_selections,
+        model_tool_selection,
+        resolve_tool_selection_mode,
+        rule_tool_selection,
+    )
+
+    mode = resolve_tool_selection_mode()
+
+    if mode == "model":
+        result = complete_tool_calling_agent_message(
+            user_id=user_id,
+            message=message,
+            history=history,
+            image_data_url=image_data_url,
+            conversation_id=conversation_id,
+            title=title,
+            prompt_memory=prompt_memory,
+            memory_candidates=memory_candidates,
+            decision=decision,
+            client_context=client_context,
+        )
+        try:
+            rule_tools = rule_tool_selection(decision, client_context=client_context)
+            model_tools = [entry.get("name") for entry in (result.get("tool_trace") or [])]
+            comparison = compare_tool_selections(rule_tools, model_tools)
+            _attach_and_log_tool_selection_shadow(
+                result=result, mode=mode, decision=decision, comparison=comparison
+            )
+        except Exception:  # pragma: no cover - comparison must never break serving
+            pass
+        return result
+
+    result = complete_chat_message(
+        user_id=user_id,
+        message=message,
+        history=history,
+        image_data_url=image_data_url,
+        conversation_id=conversation_id,
+        title=title,
+        prompt_memory=prompt_memory,
+        memory_candidates=memory_candidates,
+        decision=decision,
+        client_context=client_context,
+    )
+
+    if mode == "shadow":
+        try:
+            shadow_messages = _build_shadow_selection_messages(
+                message=message,
+                history=history,
+                image_data_url=image_data_url,
+                prompt_memory=prompt_memory,
+            )
+            model_selection = model_tool_selection(messages=shadow_messages)
+            rule_tools = rule_tool_selection(decision, client_context=client_context)
+            comparison = compare_tool_selections(rule_tools, model_selection["tools"])
+            _attach_and_log_tool_selection_shadow(
+                result=result,
+                mode=mode,
+                decision=decision,
+                comparison=comparison,
+                extra={
+                    "shadow_model": model_selection.get("model"),
+                    "shadow_usage": model_selection.get("usage", {}),
+                },
+            )
+        except Exception:  # pragma: no cover - shadow must never break serving
+            pass
+
+    return result
+
+
 def stream_chat_message(
     *,
     user_id: int | None,

@@ -118,6 +118,17 @@ def load_app_settings(app: Flask) -> None:
     app.config["AI_TOOL_CALLING_AGENT_ENABLED"] = _get_bool_env(
         "AI_TOOL_CALLING_AGENT_ENABLED", False
     )
+    # Tool-selection rollout mode: "rule" (v1, default) | "model" (v2, A6) |
+    # "shadow" (serve v1, compare against v2's selection, A7). Empty falls back
+    # to the legacy AI_TOOL_CALLING_AGENT_ENABLED boolean (true -> "model").
+    app.config["AI_TOOL_SELECTION_MODE"] = (
+        os.getenv("AI_TOOL_SELECTION_MODE", "").strip().lower()
+    )
+    # JSONL sink for rule-vs-model tool-selection comparisons. Empty (default)
+    # disables logging so no file is written unless explicitly opted in.
+    app.config["AI_TOOL_SELECTION_SHADOW_LOG"] = os.getenv(
+        "AI_TOOL_SELECTION_SHADOW_LOG", ""
+    ).strip()
     app.config["AI_AGENT_MAX_ITERATIONS"] = int(
         os.getenv("AI_AGENT_MAX_ITERATIONS", "4").strip() or "4"
     )
