@@ -33,6 +33,26 @@
 
 ---
 
+## ✅ 进度：A6–A7 已完成（2026-07-18）
+
+把"规则驱动 → 模型驱动"做成了可灰度、可度量的上线路径，复用 decision engine 的三模式思路。
+
+- `backend/app/services/ai/tool_selection_shadow.py`（新）— 工具选择灰度核心：
+  - `resolve_tool_selection_mode()` → `rule`（v1，默认）/ `model`（v2，A6）/ `shadow`（A7）；空值回退到旧的 `AI_TOOL_CALLING_AGENT_ENABLED`（true→model），保证既有 flag 不失效。
+  - `rule_tool_selection()`（v1 规则选择）、`model_tool_selection()`（v2 仅选择、不执行的单次模型调用）、`compare_tool_selections()`（matched / rule_only / model_only / exact_match / jaccard）、`record_shadow_comparison()`（best-effort 追加 JSONL，绝不阻断服务）。
+- `backend/app/services/ai/ai_conversation_service.py` — 新增 `complete_general_chat_with_mode()`（general 路径的模式入口）：
+  - `model` 模式：走模型环路服务用户，**零额外成本**地把"模型实际调用的工具"与"规则会选的工具"对比（A6 主路径 + A7 度量）。
+  - `shadow` 模式：仍由安全的规则路径服务，另跑一次不执行的模型选择调用，记录分歧（A7 上线前取证）。
+  - `rule` 模式：完全等价于既有 `complete_chat_message`（默认，行为不变）。
+- `backend/app/services/ai/langgraph_agent.py` — general 节点统一改走 `complete_general_chat_with_mode()`（移除旧的布尔分支）。
+- 配置：`AI_TOOL_SELECTION_MODE`、`AI_TOOL_SELECTION_SHADOW_LOG`（默认空=不落盘，opt-in）（`settings.py` + `.env.example`）。
+- 报告：`backend/scripts/tool_selection_shadow_report.py` — 把 JSONL 聚合成"规则 vs 模型工具选择一致率"的真实数字（exact-match 率、mean Jaccard、逐工具一致率、Top 分歧），支撑"X%→Y% 后全量"的叙事。
+- 测试：`test_tool_selection_shadow.py`（14 项：模式解析、对比指标、两种选择策略、JSONL 落盘、三模式 orchestrator 分发）。
+
+> 说明：默认仍为 `rule`——正确的灰度姿势是先用 `shadow` 采集证据、再凭数字 flip 到 `model`，而不是一上来硬切默认（也避免破坏既有测试与依赖真实 LLM）。A6/A7 的价值正是把这条"有据可依的全量"路径本身建好。
+
+---
+
 ## A. Agent 架构（核心，最高优先级）
 
 > 这一组决定"到底是不是 agent"。P0 全部集中在这里。
