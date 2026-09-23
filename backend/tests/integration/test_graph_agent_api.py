@@ -16,10 +16,15 @@ def _post_json(client, url, data, headers=None, buffered=False):
     )
 
 
-def _extract_sse_payloads(response) -> list[dict]:
+def _extract_sse_payloads(response, *, include_heartbeat: bool = False) -> list[dict]:
     body = response.get_data(as_text=True)
     data_lines = [line for line in body.splitlines() if line.startswith("data: ")]
-    return [json.loads(line.removeprefix("data: ")) for line in data_lines]
+    payloads = [json.loads(line.removeprefix("data: ")) for line in data_lines]
+    if include_heartbeat:
+        return payloads
+    # The stream opens with a heartbeat frame so proxies flush early; tests
+    # assert on the semantic events that follow it.
+    return [payload for payload in payloads if payload.get("type") != "heartbeat"]
 
 
 def _general_decision():
@@ -42,7 +47,7 @@ def _general_decision():
     }
 
 
-def test_ai_chat_uses_langgraph_when_feature_flag_enabled(client, app, monkeypatch):
+def test_ai_chat_uses_langgraph_when_feature_flag_enabled(client, app, make_auth_headers, monkeypatch):
     app.config.update(
         AI_GRAPH_AGENT_ENABLED=True,
         AI_DEMO_REPLAY_ENABLED=False,
@@ -62,7 +67,8 @@ def test_ai_chat_uses_langgraph_when_feature_flag_enabled(client, app, monkeypat
         },
     )
 
-    response = _post_json(client, "/api/ai/chat", {"message": "hello"})
+    _, headers = make_auth_headers()
+    response = _post_json(client, "/api/ai/chat", {"message": "hello"}, headers)
 
     data = response.get_json()["data"]
     assert response.status_code == 200
@@ -72,7 +78,7 @@ def test_ai_chat_uses_langgraph_when_feature_flag_enabled(client, app, monkeypat
     assert data["trace"]["graph_agent"]["framework"] == "langgraph"
 
 
-def test_ai_chat_stream_uses_langgraph_when_feature_flag_enabled(client, app, monkeypatch):
+def test_ai_chat_stream_uses_langgraph_when_feature_flag_enabled(client, app, make_auth_headers, monkeypatch):
     app.config.update(
         AI_GRAPH_AGENT_ENABLED=True,
         AI_DEMO_REPLAY_ENABLED=False,
@@ -89,10 +95,12 @@ def test_ai_chat_stream_uses_langgraph_when_feature_flag_enabled(client, app, mo
 
     monkeypatch.setattr(ai_conversation_service, "stream_chat_message", fake_stream_chat_message)
 
+    _, headers = make_auth_headers()
     response = _post_json(
         client,
         "/api/ai/chat/stream",
         {"message": "hello"},
+        headers,
         buffered=True,
     )
 
@@ -103,7 +111,7 @@ def test_ai_chat_stream_uses_langgraph_when_feature_flag_enabled(client, app, mo
     assert payloads[0]["graph_agent"]["route"] == "general"
 
 
-def test_ai_chat_keeps_existing_route_when_graph_agent_disabled(client, app, monkeypatch):
+def test_ai_chat_keeps_existing_route_when_graph_agent_disabled(client, app, make_auth_headers, monkeypatch):
     app.config.update(
         AI_GRAPH_AGENT_ENABLED=False,
         AI_DEMO_REPLAY_ENABLED=False,
@@ -123,7 +131,8 @@ def test_ai_chat_keeps_existing_route_when_graph_agent_disabled(client, app, mon
         },
     )
 
-    response = _post_json(client, "/api/ai/chat", {"message": "hello"})
+    _, headers = make_auth_headers()
+    response = _post_json(client, "/api/ai/chat", {"message": "hello"}, headers)
 
     data = response.get_json()["data"]
     assert response.status_code == 200

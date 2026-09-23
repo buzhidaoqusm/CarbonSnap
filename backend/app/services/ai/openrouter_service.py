@@ -50,7 +50,11 @@ def _get_client() -> OpenAI:
     if not api_key:
         raise OpenRouterConfigError(f"{settings['provider'].upper()} API key is not configured.")
 
-    return OpenAI(base_url=settings["base_url"], api_key=api_key)
+    return OpenAI(
+        base_url=settings["base_url"],
+        api_key=api_key,
+        max_retries=int(current_app.config.get("AI_LLM_MAX_RETRIES", 2) or 0),
+    )
 
 
 def _build_extra_headers() -> dict[str, str]:

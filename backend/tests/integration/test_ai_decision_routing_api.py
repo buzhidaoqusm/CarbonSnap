@@ -19,10 +19,15 @@ def _post_json(client, url, data, headers=None, buffered=False):
     )
 
 
-def _extract_sse_payloads(response) -> list[dict]:
+def _extract_sse_payloads(response, *, include_heartbeat: bool = False) -> list[dict]:
     body = response.get_data(as_text=True)
     data_lines = [line for line in body.splitlines() if line.startswith("data: ")]
-    return [json.loads(line.removeprefix("data: ")) for line in data_lines]
+    payloads = [json.loads(line.removeprefix("data: ")) for line in data_lines]
+    if include_heartbeat:
+        return payloads
+    # The stream opens with a heartbeat frame so proxies flush early; tests
+    # assert on the semantic events that follow it.
+    return [payload for payload in payloads if payload.get("type") != "heartbeat"]
 
 
 class TestAiDecisionRoutingApi:
@@ -71,6 +76,8 @@ class TestAiDecisionRoutingApi:
         payloads = _extract_sse_payloads(response)
         assert response.status_code == 200
         assert [payload["type"] for payload in payloads] == ["meta", "delta", "done"]
+        raw_payloads = _extract_sse_payloads(response, include_heartbeat=True)
+        assert raw_payloads[0]["type"] == "heartbeat"
 
     def test_chat_stream_routes_recycling_requests_through_recycling_stream(
         self,

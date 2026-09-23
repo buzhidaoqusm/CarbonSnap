@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from scripts import seed_ai_example_data
+import json
+
+from scripts import seed_ai_example_data, seed_example_data
 
 from app.extensions.db import db
 from app.models.ai import AIConversation
@@ -43,7 +45,14 @@ def test_sync_seed_user_reuses_existing_user_and_updates_seed_fields(app):
             "Uses the AI recycling workspace to sort everyday drink containers "
             "and verify completed drop-offs."
         )
-        assert refreshed_user.current_points == 1
+        # Read the expectation from the seed file so this stays true when the
+        # demo dataset is regenerated.
+        seed_payload = json.loads(
+            (seed_example_data.SEEDS_ROOT / "users" / "demo-ai-recycler.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        assert refreshed_user.current_points == seed_payload["current_points"]
         assert registry["users"]["demo-ai-recycler"] == existing_user.id
 
 

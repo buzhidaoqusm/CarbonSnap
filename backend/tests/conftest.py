@@ -16,6 +16,7 @@ Architecture:
 """
 
 import os
+import socket
 from pathlib import Path
 from tempfile import mkdtemp
 
@@ -25,8 +26,14 @@ import pytest
 _TEST_TMP_ROOT = Path(mkdtemp(prefix="carbonsnap-tests-"))
 _TEST_DB_PATH = _TEST_TMP_ROOT / "test.db"
 
+_EMPTY_ENV_FILE = _TEST_TMP_ROOT / "empty.env"
+_EMPTY_ENV_FILE.write_text("", encoding="utf-8")
+
 os.environ.update(
     {
+        # Ignore the developer's local .env so results are identical here and
+        # in CI; everything the suite depends on is pinned below.
+        "ENV_FILE": str(_EMPTY_ENV_FILE),
         # Never touch the developer's dev database.
         "DATABASE_URL": f"sqlite:///{_TEST_DB_PATH}",
         "UPLOAD_ROOT": str(_TEST_TMP_ROOT / "uploads"),
@@ -36,10 +43,12 @@ os.environ.update(
         # never valid so an un-mocked call fails instead of billing anyone.
         "OPENROUTER_API_KEY": "test-key",
         "QWEN_API_KEY": "test-key",
-        # Unroutable endpoints: an un-mocked HTTP call fails fast instead of
-        # hitting the public internet and hanging the suite.
-        "OSM_NOMINATIM_URL": "http://127.0.0.1:9",
-        "OSM_OVERPASS_URL": "http://127.0.0.1:9/api/interpreter",
+        "OPENROUTER_BASE_URL": "http://openrouter.test.invalid/v1",
+        "QWEN_BASE_URL": "http://qwen.test.invalid/v1",
+        # Obviously fake endpoints. The block_network fixture below is what
+        # actually stops outbound traffic; these just make intent clear.
+        "OSM_NOMINATIM_URL": "http://nominatim.test.invalid",
+        "OSM_OVERPASS_URL": "http://overpass.test.invalid/api/interpreter",
         # Empty JSON list, otherwise settings falls back to public mirrors.
         "OSM_OVERPASS_FALLBACK_URLS_JSON": "[]",
         "OSM_OVERPASS_TIMEOUT_SECONDS": "1",
@@ -47,6 +56,7 @@ os.environ.update(
         "OSM_OVERPASS_MAX_ATTEMPTS_PER_ENDPOINT": "1",
         "OSM_OVERPASS_RETRY_BACKOFF_MS": "0",
         "AI_LLM_TIMEOUT_SECONDS": "5",
+        "AI_LLM_MAX_RETRIES": "0",
         # Optional subsystems stay off unless a test turns them on.
         "AI_GRAPH_AGENT_ENABLED": "false",
         "AI_NEO4J_GRAPHRAG_ENABLED": "false",
@@ -90,6 +100,63 @@ def app():
             f"at {_TEST_DB_PATH}. Refusing to run — drop_all() would wipe it."
         )
         yield flask_app
+
+
+# ---------------------------------------------------------------------------
+# Network isolation
+# ---------------------------------------------------------------------------
+
+_ALLOWED_HOSTS = {"127.0.0.1", "::1", "localhost", ""}
+
+
+@pytest.fixture(autouse=True)
+def block_network(monkeypatch):
+    """Fail fast on any un-mocked outbound connection.
+
+    Without this a forgotten mock silently calls a real provider: it bills
+    someone, makes the suite non-deterministic, and (on Windows) costs seconds
+    per attempt waiting for the connection to be refused.
+    """
+    real_getaddrinfo = socket.getaddrinfo
+    real_create_connection = socket.create_connection
+    real_connect = socket.socket.connect
+
+    def _check(host) -> None:
+        if str(host) not in _ALLOWED_HOSTS:
+            raise RuntimeError(
+                f"Blocked network access to {host!r} during tests. "
+                "Mock the client instead of calling out."
+            )
+
+    def guarded_getaddrinfo(host, *args, **kwargs):
+        _check(host)
+        return real_getaddrinfo(host, *args, **kwargs)
+
+    def guarded_create_connection(address, *args, **kwargs):
+        _check(address[0] if isinstance(address, tuple) else address)
+        return real_create_connection(address, *args, **kwargs)
+
+    def guarded_connect(self, address, *args, **kwargs):
+        if isinstance(address, tuple):
+            _check(address[0])
+        return real_connect(self, address, *args, **kwargs)
+
+    monkeypatch.setattr(socket, "getaddrinfo", guarded_getaddrinfo)
+    monkeypatch.setattr(socket, "create_connection", guarded_create_connection)
+    monkeypatch.setattr(socket.socket, "connect", guarded_connect)
+
+
+# ---------------------------------------------------------------------------
+# Config isolation  (the app fixture is session-scoped, so feature flags a test
+# flips with app.config.update() would otherwise leak into every later test)
+# ---------------------------------------------------------------------------
+
+@pytest.fixture(autouse=True)
+def restore_app_config(app):
+    original = dict(app.config)
+    yield
+    app.config.clear()
+    app.config.update(original)
 
 
 # ---------------------------------------------------------------------------

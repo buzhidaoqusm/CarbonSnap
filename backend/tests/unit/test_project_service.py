@@ -22,6 +22,7 @@ def test_create_project_returns_serialized_project(app, make_user):
             creator_user_id=creator_id,
             title="Neighborhood Compost Corner",
             description="A small shared composting station for our block.",
+            cover_image_url=None,
             points_target=240,
             deadline_at=_future_deadline(),
         )
@@ -42,6 +43,7 @@ def test_contribute_to_project_deducts_points_and_marks_completed(app, make_user
             creator_user_id=creator_id,
             title="Park Tool Library",
             description="Shared repair tools for the neighborhood.",
+            cover_image_url=None,
             points_target=120,
             deadline_at=_future_deadline(),
         )
@@ -62,8 +64,9 @@ def test_contribute_to_project_deducts_points_and_marks_completed(app, make_user
         assert project.status == "completed"
         assert project.points_raised == 120
         assert supporter.current_points == 60
-        assert len(notifications) == 1
-        assert notifications[0].event_type == "project_completed"
+        # Completion notifies the creator and every distinct contributor.
+        assert {n.event_type for n in notifications} == {"project_completed"}
+        assert {n.recipient_user_id for n in notifications} == {creator_id, supporter_id}
 
 
 def test_contribute_to_project_rejects_expired_project(app, make_user):
@@ -106,6 +109,7 @@ def test_contribute_to_project_rejects_points_above_remaining(app, make_user):
             creator_user_id=creator_id,
             title="Bike Fix Day",
             description="Community repair workshop.",
+            cover_image_url=None,
             points_target=100,
             deadline_at=_future_deadline(),
         )

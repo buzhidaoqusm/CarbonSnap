@@ -9,7 +9,9 @@ from flask import Flask
 
 def load_app_settings(app: Flask) -> None:
     backend_root = Path(__file__).resolve().parents[2]
-    env_path = backend_root / ".env"
+    # ENV_FILE lets tests, containers and CI point somewhere else (or at an
+    # empty file) instead of picking up a developer's local .env.
+    env_path = Path(os.getenv("ENV_FILE", backend_root / ".env"))
 
     load_dotenv(dotenv_path=env_path, override=False)
 
@@ -134,6 +136,11 @@ def load_app_settings(app: Flask) -> None:
     )
     app.config["AI_LLM_TIMEOUT_SECONDS"] = float(
         os.getenv("AI_LLM_TIMEOUT_SECONDS", "60").strip() or "60"
+    )
+    # Provider-side retries for transient failures (429/5xx/timeouts), handled
+    # by the OpenAI SDK. Tests set 0 so a blocked call fails immediately.
+    app.config["AI_LLM_MAX_RETRIES"] = int(
+        os.getenv("AI_LLM_MAX_RETRIES", "2").strip() or "2"
     )
     app.config["AI_NEO4J_GRAPHRAG_ENABLED"] = _get_bool_env(
         "AI_NEO4J_GRAPHRAG_ENABLED", False
