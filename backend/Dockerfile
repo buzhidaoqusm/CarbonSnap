@@ -23,7 +23,12 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PATH="/app/.venv/bin:$PATH"
 
-RUN useradd --create-home --uid 10001 carbonsnap
+# /data is the mount point for the database, uploads and the FAISS index. It
+# must exist and belong to the app user in the image: a fresh named volume
+# copies this ownership, otherwise it is root-owned and startup cannot write.
+RUN useradd --create-home --uid 10001 carbonsnap \
+    && mkdir -p /data \
+    && chown carbonsnap:carbonsnap /data
 
 WORKDIR /app
 
@@ -35,4 +40,6 @@ USER carbonsnap
 EXPOSE 5000
 
 # run.py is the local dev entrypoint; the container serves through gunicorn.
-CMD ["gunicorn", "-c", "gunicorn.conf.py", "-b", "0.0.0.0:5000", "app:create_app()"]
+# Migrate first: nothing else creates the schema in a fresh volume (run.py's
+# create_all() never runs here). Once, before gunicorn forks its workers.
+CMD ["sh", "-c", "flask --app 'app:create_app()' db upgrade && exec gunicorn -c gunicorn.conf.py -b 0.0.0.0:5000 'app:create_app()'"]
