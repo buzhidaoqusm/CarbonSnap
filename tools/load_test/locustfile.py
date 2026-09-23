@@ -53,7 +53,7 @@ class ChatUser(HttpUser):
         credentials = {
             "username": f"load_{suffix}",
             "email": f"load_{suffix}@example.com",
-            "password": "load-test-password",
+            "password": "Load-test-password1",
         }
         response = self.client.post("/api/auth/register", json=credentials, name="/auth/register")
         if response.status_code >= 400:

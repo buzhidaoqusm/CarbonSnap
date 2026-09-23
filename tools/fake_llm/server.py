@@ -31,6 +31,8 @@ TOKEN_INTERVAL_MS = int(os.getenv("FAKE_LLM_TOKEN_INTERVAL_MS", "25"))
 TOKEN_COUNT = int(os.getenv("FAKE_LLM_TOKEN_COUNT", "120"))
 EMBEDDING_DIM = int(os.getenv("FAKE_LLM_EMBEDDING_DIM", "1024"))
 PORT = int(os.getenv("PORT", "9800"))
+# One line per request, to see how many provider calls a single chat turn makes.
+LOG_REQUESTS = os.getenv("FAKE_LLM_LOG", "").lower() in {"1", "true", "yes"}
 
 _WORDS = (
     "Rinse the bottle, remove the cap, and put it in the plastics bin. "
@@ -90,6 +92,8 @@ class FakeProviderHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802 - stdlib hook
         path = self.path.split("?", 1)[0].rstrip("/")
         payload = self._read_json()
+        if LOG_REQUESTS:
+            self._log_request(path, payload)
 
         if path.endswith("/chat/completions"):
             if payload.get("stream"):
@@ -115,6 +119,22 @@ class FakeProviderHandler(BaseHTTPRequestHandler):
             return
 
         self._send_json({"error": {"message": f"unhandled path {path}"}}, status=404)
+
+    def _log_request(self, path: str, payload: dict) -> None:
+        messages = payload.get("messages") or []
+        system = next((m.get("content") for m in messages if m.get("role") == "system"), "")
+        print(
+            json.dumps(
+                {
+                    "path": path,
+                    "stream": bool(payload.get("stream")),
+                    "response_format": (payload.get("response_format") or {}).get("type"),
+                    "tools": len(payload.get("tools") or []),
+                    "system": str(system)[:100],
+                }
+            ),
+            flush=True,
+        )
 
     def _complete(self, payload: dict) -> None:
         time.sleep((FIRST_TOKEN_MS + TOKEN_INTERVAL_MS * TOKEN_COUNT) / 1000)

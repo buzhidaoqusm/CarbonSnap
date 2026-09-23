@@ -1,0 +1,24 @@
+# Load-test overlay: points the api at the fake provider and keeps benchmark
+# data out of ./data, so hundreds of throwaway accounts never reach the dev DB.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.bench.yml --profile bench up -d --build
+#   docker compose -f docker-compose.yml -f docker-compose.bench.yml --profile bench down -v
+#
+# See docs/benchmarks.md.
+
+services:
+  api:
+    environment:
+      LLM_PROVIDER: openrouter
+      OPENROUTER_BASE_URL: http://fake-llm:9800/v1
+      OPENROUTER_API_KEY: fake
+    volumes: !override
+      - bench-data:/data
+
+  fake-llm:
+    environment:
+      # "1" prints one line per provider call: how many calls a chat turn makes.
+      FAKE_LLM_LOG: ${FAKE_LLM_LOG:-0}
+
+volumes:
+  bench-data:
