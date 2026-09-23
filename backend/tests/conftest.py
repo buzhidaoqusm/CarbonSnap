@@ -1,23 +1,70 @@
 """Shared pytest fixtures for all test layers.
 
 Architecture:
-- Uses an in-memory SQLite database (separate from the dev database).
-- `app` fixture is session-scoped (created once).
+- Every test run gets its own throwaway SQLite file in a temp directory. The
+  environment is pinned *before* ``create_app()`` runs, because
+  Flask-SQLAlchemy 3.x builds the engine inside ``init_app`` — overriding
+  ``SQLALCHEMY_DATABASE_URI`` afterwards has no effect and silently leaves the
+  suite pointed at the developer's ``data/carbonsnap.db`` (which ``drop_all``
+  would then wipe).
+- `app` fixture is session-scoped (created once) and asserts the engine really
+  landed on the throwaway database.
 - `db_session` fixture is function-scoped: drops and recreates all tables
-  before every test, guaranteeing full data isolation without relying on
-  Flask-SQLAlchemy 3.x session.bind (which was removed in 3.x).
+  before every test, guaranteeing full data isolation.
 - `client` provides a Flask test client.
 - `make_auth_headers` is a per-test factory that creates distinct users.
 """
 
-import pytest
+import os
+from pathlib import Path
 from tempfile import mkdtemp
-from flask_jwt_extended import create_access_token
-from werkzeug.security import generate_password_hash
 
-from app import create_app
-from app.extensions.db import db as _db
-from app.models.user import User
+import pytest
+
+# --- Pinned before importing the app: settings read os.environ at import/boot.
+_TEST_TMP_ROOT = Path(mkdtemp(prefix="carbonsnap-tests-"))
+_TEST_DB_PATH = _TEST_TMP_ROOT / "test.db"
+
+os.environ.update(
+    {
+        # Never touch the developer's dev database.
+        "DATABASE_URL": f"sqlite:///{_TEST_DB_PATH}",
+        "UPLOAD_ROOT": str(_TEST_TMP_ROOT / "uploads"),
+        "UPLOAD_URL_PREFIX": "/api/uploads",
+        "JWT_SECRET_KEY": "test-secret",
+        # Placeholder credentials: non-empty so provider config checks pass,
+        # never valid so an un-mocked call fails instead of billing anyone.
+        "OPENROUTER_API_KEY": "test-key",
+        "QWEN_API_KEY": "test-key",
+        # Unroutable endpoints: an un-mocked HTTP call fails fast instead of
+        # hitting the public internet and hanging the suite.
+        "OSM_NOMINATIM_URL": "http://127.0.0.1:9",
+        "OSM_OVERPASS_URL": "http://127.0.0.1:9/api/interpreter",
+        # Empty JSON list, otherwise settings falls back to public mirrors.
+        "OSM_OVERPASS_FALLBACK_URLS_JSON": "[]",
+        "OSM_OVERPASS_TIMEOUT_SECONDS": "1",
+        "OSM_OVERPASS_CONNECT_TIMEOUT_SECONDS": "1",
+        "OSM_OVERPASS_MAX_ATTEMPTS_PER_ENDPOINT": "1",
+        "OSM_OVERPASS_RETRY_BACKOFF_MS": "0",
+        "AI_LLM_TIMEOUT_SECONDS": "5",
+        # Optional subsystems stay off unless a test turns them on.
+        "AI_GRAPH_AGENT_ENABLED": "false",
+        "AI_NEO4J_GRAPHRAG_ENABLED": "false",
+        "AI_DEMO_REPLAY_ENABLED": "false",
+        "AI_TOOL_SELECTION_MODE": "",
+        "AI_TOOL_SELECTION_SHADOW_LOG": "",
+        "NEO4J_URI": "",
+        "NEO4J_USERNAME": "",
+        "NEO4J_PASSWORD": "",
+    }
+)
+
+from flask_jwt_extended import create_access_token  # noqa: E402
+from werkzeug.security import generate_password_hash  # noqa: E402
+
+from app import create_app  # noqa: E402
+from app.extensions.db import db as _db  # noqa: E402
+from app.models.user import User  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -27,24 +74,21 @@ from app.models.user import User
 @pytest.fixture(scope="session")
 def app():
     flask_app = create_app()
-    upload_root = mkdtemp(prefix="carbonsnap-test-uploads-")
     flask_app.config.update(
         TESTING=True,
-        SQLALCHEMY_DATABASE_URI="sqlite:///:memory:",
-        JWT_SECRET_KEY="test-secret",
         JWT_ACCESS_TOKEN_EXPIRES=False,
-        UPLOAD_ROOT=upload_root,
-        UPLOAD_URL_PREFIX="/api/uploads",
         AI_DECISION_ENGINE_MODE="llm_first",
         AI_DECISION_ENGINE_VERSION="decision-engine-v2",
         AI_DECISION_CONFIDENCE_THRESHOLD=0.65,
-        AI_GRAPH_AGENT_ENABLED=False,
-        AI_NEO4J_GRAPHRAG_ENABLED=False,
-        NEO4J_URI="",
-        NEO4J_USERNAME="",
-        NEO4J_PASSWORD="",
     )
     with flask_app.app_context():
+        # Fail loudly rather than destroying a real database: db_session below
+        # runs drop_all() before every single test.
+        bound_url = str(_db.engine.url)
+        assert str(_TEST_DB_PATH) in bound_url, (
+            f"Tests are bound to {bound_url!r} instead of the throwaway database "
+            f"at {_TEST_DB_PATH}. Refusing to run — drop_all() would wipe it."
+        )
         yield flask_app
 
 
@@ -54,11 +98,7 @@ def app():
 
 @pytest.fixture(autouse=True)
 def db_session(app):
-    """Drop and recreate all tables before each test for full isolation.
-
-    SQLite in-memory DDL is extremely fast so this adds negligible overhead
-    while being 100% reliable across Flask-SQLAlchemy versions.
-    """
+    """Drop and recreate all tables before each test for full isolation."""
     with app.app_context():
         _db.drop_all()
         _db.create_all()
