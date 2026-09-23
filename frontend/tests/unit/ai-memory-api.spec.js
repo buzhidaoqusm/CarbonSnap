@@ -1,3 +1,4 @@
+import { asResponse } from "../helpers/fetch.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -17,7 +18,7 @@ describe("AI memory API", () => {
   it("fetches ai memory summary and items", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
+      vi.fn().mockResolvedValue(asResponse({
         ok: true,
         json: async () => ({
           code: 0,
@@ -29,7 +30,7 @@ describe("AI memory API", () => {
             items: [],
           },
         }),
-      }),
+      })),
     );
 
     const result = await fetchAiMemory();
@@ -41,13 +42,13 @@ describe("AI memory API", () => {
   it("sends delete and patch requests to the expected endpoints", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
+      vi.fn().mockResolvedValue(asResponse({
         ok: true,
         json: async () => ({
           code: 0,
           data: { summary: {}, item: {} },
         }),
-      }),
+      })),
     );
 
     await createAiMemoryItem({

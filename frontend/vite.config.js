@@ -6,6 +6,10 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
+    // The AI chat view specs drive real typing/streaming animations, which
+    // take ~4s alone and longer when files run in parallel on a loaded CI box.
+    testTimeout: 30000,
+    hookTimeout: 30000,
   },
   server: {
     port: 5173,

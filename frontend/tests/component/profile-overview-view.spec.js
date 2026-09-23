@@ -1,3 +1,4 @@
+import { asResponse } from "../helpers/fetch.js";
 import { computed, ref, nextTick } from "vue";
 import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -60,10 +61,10 @@ describe("ProfileOverviewView", () => {
 
   it("renders the lightweight stitched account overview for signed-in users", async () => {
     const { fetchLedgerSummary } = await import("../../src/api/ledger/ledger.js");
-    fetchLedgerSummary.mockResolvedValue({
+    fetchLedgerSummary.mockResolvedValue(asResponse({
       current_points: 48,
       total_carbon_amount: 12.5,
-    });
+    }));
     const ProfileOverviewView = (await import("../../src/views/profile/ProfileOverviewView.vue")).default;
 
     const wrapper = mount(ProfileOverviewView, {

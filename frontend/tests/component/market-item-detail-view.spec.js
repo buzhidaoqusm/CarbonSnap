@@ -1,3 +1,4 @@
+import { asResponse } from "../helpers/fetch.js";
 import { defineComponent, h, nextTick } from "vue";
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -65,7 +66,7 @@ describe("MarketItemDetailView", () => {
     const { fetchMarketItem, fetchMyOrders } = await import("../../src/api/market/market.js");
     const MarketItemDetailView = (await import("../../src/views/market/MarketItemDetailView.vue")).default;
 
-    fetchMarketItem.mockResolvedValue({
+    fetchMarketItem.mockResolvedValue(asResponse({
       id: 8,
       seller_id: 3,
       title: "Bottle lamp",
@@ -73,11 +74,11 @@ describe("MarketItemDetailView", () => {
       status: "active",
       price_points: 25,
       image_urls_json: "[]",
-    });
-    fetchMyOrders.mockResolvedValue({
+    }));
+    fetchMyOrders.mockResolvedValue(asResponse({
       items: [],
       total: 0,
-    });
+    }));
 
     const wrapper = mount(MarketItemDetailView, {
       global: {
@@ -120,7 +121,7 @@ describe("MarketItemDetailView", () => {
     const { fetchMarketItem, fetchMyOrders, recordMarketLongView } = await import("../../src/api/market/market.js");
     const MarketItemDetailView = (await import("../../src/views/market/MarketItemDetailView.vue")).default;
 
-    fetchMarketItem.mockResolvedValue({
+    fetchMarketItem.mockResolvedValue(asResponse({
       id: 8,
       seller_id: 3,
       title: "Bottle lamp",
@@ -128,12 +129,12 @@ describe("MarketItemDetailView", () => {
       status: "active",
       price_points: 25,
       image_urls_json: "[]",
-    });
-    fetchMyOrders.mockResolvedValue({
+    }));
+    fetchMyOrders.mockResolvedValue(asResponse({
       items: [],
       total: 0,
-    });
-    recordMarketLongView.mockResolvedValue({ tracked: true });
+    }));
+    recordMarketLongView.mockResolvedValue(asResponse({ tracked: true }));
 
     mount(MarketItemDetailView, {
       global: {

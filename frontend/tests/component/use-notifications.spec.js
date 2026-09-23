@@ -1,3 +1,4 @@
+import { asResponse } from "../helpers/fetch.js";
 import { computed, defineComponent, nextTick, ref } from "vue";
 import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -50,13 +51,13 @@ describe("useNotifications", () => {
       isLoggedIn,
     };
 
-    notificationApi.fetchNotifications.mockResolvedValue({
+    notificationApi.fetchNotifications.mockResolvedValue(asResponse({
       items: [],
       total: 0,
       unread_count: 0,
-    });
-    notificationApi.fetchUnreadNotificationCount.mockResolvedValue({ unread_count: 0 });
-    notificationApi.markNotificationRead.mockResolvedValue({ ok: true });
+    }));
+    notificationApi.fetchUnreadNotificationCount.mockResolvedValue(asResponse({ unread_count: 0 }));
+    notificationApi.markNotificationRead.mockResolvedValue(asResponse({ ok: true }));
 
     addEventListenerSpy = vi.spyOn(window, "addEventListener");
     removeEventListenerSpy = vi.spyOn(window, "removeEventListener");
@@ -72,7 +73,7 @@ describe("useNotifications", () => {
 
   it("boots with a baseline fetch, suppresses historical toasts, and uses the fixed recent window", async () => {
     notificationApi.fetchNotifications
-      .mockResolvedValueOnce({
+      .mockResolvedValueOnce(asResponse({
         items: [
           {
             id: 1,
@@ -85,8 +86,8 @@ describe("useNotifications", () => {
         ],
         total: 1,
         unread_count: 1,
-      })
-      .mockResolvedValueOnce({
+      }))
+      .mockResolvedValueOnce(asResponse({
         items: [
           {
             id: 2,
@@ -107,10 +108,10 @@ describe("useNotifications", () => {
         ],
         total: 2,
         unread_count: 2,
-      });
+      }));
     notificationApi.fetchUnreadNotificationCount
-      .mockResolvedValueOnce({ unread_count: 1 })
-      .mockResolvedValueOnce({ unread_count: 2 });
+      .mockResolvedValueOnce(asResponse({ unread_count: 1 }))
+      .mockResolvedValueOnce(asResponse({ unread_count: 2 }));
 
     const useNotifications = await loadComposable();
     const Harness = createHarness(useNotifications);
@@ -142,7 +143,7 @@ describe("useNotifications", () => {
   });
 
   it("updates local read state and cleans up polling listeners", async () => {
-    notificationApi.fetchNotifications.mockResolvedValue({
+    notificationApi.fetchNotifications.mockResolvedValue(asResponse({
       items: [
         {
           id: 7,
@@ -155,9 +156,9 @@ describe("useNotifications", () => {
       ],
       total: 1,
       unread_count: 1,
-    });
-    notificationApi.fetchUnreadNotificationCount.mockResolvedValue({ unread_count: 1 });
-    notificationApi.markNotificationRead.mockResolvedValue({ ok: true });
+    }));
+    notificationApi.fetchUnreadNotificationCount.mockResolvedValue(asResponse({ unread_count: 1 }));
+    notificationApi.markNotificationRead.mockResolvedValue(asResponse({ ok: true }));
 
     const useNotifications = await loadComposable();
     const Harness = createHarness(useNotifications);

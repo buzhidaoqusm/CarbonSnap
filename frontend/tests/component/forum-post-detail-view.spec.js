@@ -1,3 +1,4 @@
+import { asResponse } from "../helpers/fetch.js";
 import { defineComponent, h, nextTick } from "vue";
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -90,7 +91,7 @@ describe("ForumPostDetailView", () => {
     const ForumPostDetailView =
       (await import("../../src/views/forum/ForumPostDetailView.vue")).default;
 
-    fetchForumPost.mockResolvedValue({
+    fetchForumPost.mockResolvedValue(asResponse({
       id: 8,
       author_id: 3,
       title: "Detail post",
@@ -100,9 +101,9 @@ describe("ForumPostDetailView", () => {
       liked_by_user: false,
       created_at: "2026-03-26T12:00:00",
       image_urls_json: '["https://example.com/image.jpg"]',
-    });
+    }));
     fetchForumComments
-      .mockResolvedValueOnce({
+      .mockResolvedValueOnce(asResponse({
         items: [
           {
             id: 4,
@@ -114,8 +115,8 @@ describe("ForumPostDetailView", () => {
             parent_comment_id: null,
           },
         ],
-      })
-      .mockResolvedValueOnce({
+      }))
+      .mockResolvedValueOnce(asResponse({
         items: [
           {
             id: 4,
@@ -145,8 +146,8 @@ describe("ForumPostDetailView", () => {
             parent_comment_id: 4,
           },
         ],
-      })
-      .mockResolvedValueOnce({
+      }))
+      .mockResolvedValueOnce(asResponse({
         items: [
           {
             id: 4,
@@ -185,14 +186,14 @@ describe("ForumPostDetailView", () => {
             parent_comment_id: 4,
           },
         ],
-      });
+      }));
     createForumComment
-      .mockResolvedValueOnce({ id: 5, content: "New comment" })
-      .mockResolvedValueOnce({ id: 7, content: "Nested reply", parent_comment_id: 4 });
-    trackForumPostLongView.mockResolvedValue({ recorded: true, post_id: 8, action_type: "long_view" });
+      .mockResolvedValueOnce(asResponse({ id: 5, content: "New comment" }))
+      .mockResolvedValueOnce(asResponse({ id: 7, content: "Nested reply", parent_comment_id: 4 }));
+    trackForumPostLongView.mockResolvedValue(asResponse({ recorded: true, post_id: 8, action_type: "long_view" }));
     toggleForumLike
-      .mockResolvedValueOnce({ liked: true, like_count: 2 })
-      .mockResolvedValueOnce({ liked: true, like_count: 1 });
+      .mockResolvedValueOnce(asResponse({ liked: true, like_count: 2 }))
+      .mockResolvedValueOnce(asResponse({ liked: true, like_count: 1 }));
 
     const wrapper = mount(ForumPostDetailView, {
       global: {
@@ -268,7 +269,7 @@ describe("ForumPostDetailView", () => {
     const ForumPostDetailView =
       (await import("../../src/views/forum/ForumPostDetailView.vue")).default;
 
-    fetchForumPost.mockResolvedValue({
+    fetchForumPost.mockResolvedValue(asResponse({
       id: 8,
       author_id: 3,
       title: "Detail post",
@@ -278,9 +279,9 @@ describe("ForumPostDetailView", () => {
       liked_by_user: false,
       created_at: "2026-03-26T12:00:00",
       image_urls_json: "[]",
-    });
-    fetchForumComments.mockResolvedValue({ items: [] });
-    trackForumPostLongView.mockResolvedValue({ recorded: true, post_id: 8, action_type: "long_view" });
+    }));
+    fetchForumComments.mockResolvedValue(asResponse({ items: [] }));
+    trackForumPostLongView.mockResolvedValue(asResponse({ recorded: true, post_id: 8, action_type: "long_view" }));
 
     mount(ForumPostDetailView, {
       global: {
@@ -307,7 +308,7 @@ describe("ForumPostDetailView", () => {
     const ForumPostDetailView =
       (await import("../../src/views/forum/ForumPostDetailView.vue")).default;
 
-    fetchForumPost.mockResolvedValue({
+    fetchForumPost.mockResolvedValue(asResponse({
       id: 8,
       author_id: 3,
       title: "Gallery post",
@@ -317,8 +318,8 @@ describe("ForumPostDetailView", () => {
       liked_by_user: false,
       created_at: "2026-03-26T12:00:00",
       image_urls_json: '["https://example.com/one.jpg","https://example.com/two.jpg"]',
-    });
-    fetchForumComments.mockResolvedValue({ items: [] });
+    }));
+    fetchForumComments.mockResolvedValue(asResponse({ items: [] }));
 
     const wrapper = mount(ForumPostDetailView, {
       global: {
@@ -358,7 +359,7 @@ describe("ForumPostDetailView", () => {
     const ForumPostDetailView =
       (await import("../../src/views/forum/ForumPostDetailView.vue")).default;
 
-    fetchForumPost.mockResolvedValue({
+    fetchForumPost.mockResolvedValue(asResponse({
       id: 8,
       author_id: 3,
       title: "Original post",
@@ -368,14 +369,14 @@ describe("ForumPostDetailView", () => {
       liked_by_user: false,
       created_at: "2026-03-26T12:00:00",
       image_urls_json: '["/api/uploads/forum/old.jpg"]',
-    });
-    fetchForumComments.mockResolvedValue({ items: [] });
-    updateForumPost.mockResolvedValue({
+    }));
+    fetchForumComments.mockResolvedValue(asResponse({ items: [] }));
+    updateForumPost.mockResolvedValue(asResponse({
       id: 8,
       title: "Updated post",
       content: "Updated body",
       image_urls_json: '["/api/uploads/forum/old.jpg"]',
-    });
+    }));
 
     const wrapper = mount(ForumPostDetailView, {
       global: {

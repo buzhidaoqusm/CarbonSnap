@@ -1,3 +1,4 @@
+import { asResponse } from "../helpers/fetch.js";
 import { defineComponent, h, nextTick } from "vue";
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -66,7 +67,7 @@ describe("ProjectDetailView", () => {
     const { fetchProject, contributeToProject } = await import("../../src/api/project/project.js");
     const ProjectDetailView = (await import("../../src/views/project/ProjectDetailView.vue")).default;
 
-    fetchProject.mockResolvedValue({
+    fetchProject.mockResolvedValue(asResponse({
       id: 4,
       title: "Tool Library",
       description: "Shared neighborhood tools.",
@@ -82,8 +83,8 @@ describe("ProjectDetailView", () => {
       contribution_count: 1,
       contributor_count: 1,
       recent_contributions: [],
-    });
-    contributeToProject.mockResolvedValue({
+    }));
+    contributeToProject.mockResolvedValue(asResponse({
       project: {
         id: 4,
         title: "Tool Library",
@@ -110,7 +111,7 @@ describe("ProjectDetailView", () => {
       },
       contribution: { id: 9, points: 25 },
       viewer_current_points: 155,
-    });
+    }));
 
     const wrapper = mount(ProjectDetailView, {
       global: {

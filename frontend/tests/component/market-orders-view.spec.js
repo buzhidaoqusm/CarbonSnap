@@ -1,3 +1,4 @@
+import { asResponse } from "../helpers/fetch.js";
 import { defineComponent, h, nextTick, ref } from "vue";
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -54,7 +55,7 @@ describe("MarketOrdersView", () => {
     const { cancelMarketOrder, confirmMarketOrder, fetchMyOrders, shipMarketOrder } = await import("../../src/api/market/market.js");
     const MarketOrdersView = (await import("../../src/views/market/MarketOrdersView.vue")).default;
 
-    fetchMyOrders.mockResolvedValue({
+    fetchMyOrders.mockResolvedValue(asResponse({
       items: [
         {
           id: 1,
@@ -85,10 +86,10 @@ describe("MarketOrdersView", () => {
         },
       ],
       total: 3,
-    });
-    shipMarketOrder.mockResolvedValue({ ok: true });
-    confirmMarketOrder.mockResolvedValue({ ok: true });
-    cancelMarketOrder.mockResolvedValue({ ok: true });
+    }));
+    shipMarketOrder.mockResolvedValue(asResponse({ ok: true }));
+    confirmMarketOrder.mockResolvedValue(asResponse({ ok: true }));
+    cancelMarketOrder.mockResolvedValue(asResponse({ ok: true }));
 
     const wrapper = mount(MarketOrdersView, {
       global: {

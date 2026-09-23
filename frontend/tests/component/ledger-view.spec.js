@@ -1,3 +1,4 @@
+import { asResponse } from "../helpers/fetch.js";
 import { computed, ref, nextTick } from "vue";
 import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -82,12 +83,12 @@ describe("LedgerView", () => {
     } = await import("../../src/api/ledger/ledger.js");
     const LedgerView = (await import("../../src/views/ledger/LedgerView.vue")).default;
 
-    fetchLedgerSummary.mockResolvedValue({
+    fetchLedgerSummary.mockResolvedValue(asResponse({
       current_points: 124,
       total_points_earned: 320,
       total_co2_saved_kg: 48.67,
-    });
-    fetchLedgerGamification.mockResolvedValue({
+    }));
+    fetchLedgerGamification.mockResolvedValue(asResponse({
       level: 6,
       level_title: "Ocean Protector",
       xp_in_level: 40,
@@ -107,8 +108,8 @@ describe("LedgerView", () => {
           description: "Awarded for sustained, repeatable circular actions.",
         },
       ],
-    });
-    fetchLedgerTransactions.mockResolvedValue({
+    }));
+    fetchLedgerTransactions.mockResolvedValue(asResponse({
       items: [
         {
           id: 9,
@@ -118,8 +119,8 @@ describe("LedgerView", () => {
           co2_delta_kg: 1.5,
         },
       ],
-    });
-    fetchLedgerRecords.mockResolvedValue({
+    }));
+    fetchLedgerRecords.mockResolvedValue(asResponse({
       items: [
         {
           id: 22,
@@ -129,7 +130,7 @@ describe("LedgerView", () => {
           carbon_points: 8,
         },
       ],
-    });
+    }));
 
     const wrapper = mount(LedgerView, {
       global: {

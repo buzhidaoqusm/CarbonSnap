@@ -1,3 +1,4 @@
+import { asResponse } from "../helpers/fetch.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -16,13 +17,13 @@ describe("project API", () => {
   it("fetches project list", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
+      vi.fn().mockResolvedValue(asResponse({
         ok: true,
         json: async () => ({
           code: 0,
           data: { items: [{ id: 1, title: "Repair Cafe" }], total: 1, page: 1, per_page: 12 },
         }),
-      }),
+      })),
     );
 
     const result = await fetchProjects({ page: 1, perPage: 12, token: "token-123" });
@@ -42,13 +43,13 @@ describe("project API", () => {
   it("creates a project with bearer auth", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
+      vi.fn().mockResolvedValue(asResponse({
         ok: true,
         json: async () => ({
           code: 0,
           data: { id: 3, title: "Tool Library" },
         }),
-      }),
+      })),
     );
 
     const result = await createProject(
@@ -77,20 +78,20 @@ describe("project API", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn()
-        .mockResolvedValueOnce({
+        .mockResolvedValueOnce(asResponse({
           ok: true,
           json: async () => ({
             code: 0,
             data: { id: 7, title: "Detail project" },
           }),
-        })
-        .mockResolvedValueOnce({
+        }))
+        .mockResolvedValueOnce(asResponse({
           ok: true,
           json: async () => ({
             code: 0,
             data: { project: { id: 7 }, viewer_current_points: 90 },
           }),
-        }),
+        })),
     );
 
     const detail = await fetchProject(7, "token-123");

@@ -1,3 +1,4 @@
+import { asResponse } from "../helpers/fetch.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -21,7 +22,7 @@ describe("forum API", () => {
   it("fetches the forum list with pagination params", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
+      vi.fn().mockResolvedValue(asResponse({
         ok: true,
         json: async () => ({
           code: 0,
@@ -32,7 +33,7 @@ describe("forum API", () => {
             per_page: 20,
           },
         }),
-      }),
+      })),
     );
 
     const result = await fetchForumPosts({ page: 1, perPage: 20 });
@@ -48,20 +49,20 @@ describe("forum API", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn()
-        .mockResolvedValueOnce({
+        .mockResolvedValueOnce(asResponse({
           ok: true,
           json: async () => ({
             code: 0,
             data: { id: 8, title: "Detail post", content: "Body" },
           }),
-        })
-        .mockResolvedValueOnce({
+        }))
+        .mockResolvedValueOnce(asResponse({
           ok: true,
           json: async () => ({
             code: 0,
             data: { items: [{ id: 3, content: "Nice" }], total: 1 },
           }),
-        }),
+        })),
     );
 
     const post = await fetchForumPost(8);
@@ -84,13 +85,13 @@ describe("forum API", () => {
   it("records a forum long-view with bearer auth", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
+      vi.fn().mockResolvedValue(asResponse({
         ok: true,
         json: async () => ({
           code: 0,
           data: { tracked: true },
         }),
-      }),
+      })),
     );
 
     const result = await trackForumPostLongView(8, "token-123");
@@ -110,13 +111,13 @@ describe("forum API", () => {
   it("creates a post with image urls and bearer auth", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
+      vi.fn().mockResolvedValue(asResponse({
         ok: true,
         json: async () => ({
           code: 0,
           data: { id: 12, title: "New post" },
         }),
-      }),
+      })),
     );
 
     const result = await createForumPostWithImages(
@@ -145,20 +146,20 @@ describe("forum API", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn()
-        .mockResolvedValueOnce({
+        .mockResolvedValueOnce(asResponse({
           ok: true,
           json: async () => ({
             code: 0,
             data: { id: 4, content: "Nice post" },
           }),
-        })
-        .mockResolvedValueOnce({
+        }))
+        .mockResolvedValueOnce(asResponse({
           ok: true,
           json: async () => ({
             code: 0,
             data: { liked: true, like_count: 2 },
           }),
-        }),
+        })),
     );
 
     const comment = await createForumComment(
@@ -187,13 +188,13 @@ describe("forum API", () => {
   it("uploads a forum image to the dedicated upload endpoint", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
+      vi.fn().mockResolvedValue(asResponse({
         ok: true,
         json: async () => ({
           code: 0,
           data: { url: "/api/uploads/forum/demo.png" },
         }),
-      }),
+      })),
     );
 
     const result = await uploadForumImage("data:image/png;base64,abc", "token-123");

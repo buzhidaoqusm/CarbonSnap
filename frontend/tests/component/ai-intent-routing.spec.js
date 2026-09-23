@@ -1,3 +1,4 @@
+import { asResponse } from "../helpers/fetch.js";
 import { defineComponent, h, nextTick } from "vue";
 import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -109,7 +110,7 @@ describe("AiChatView intent routing", () => {
       page: 1,
       per_page: 50,
     }));
-    fetchAiConversationMessages.mockResolvedValue({
+    fetchAiConversationMessages.mockResolvedValue(asResponse({
       conversation: {
         id: 55,
         title: "Routing chat",
@@ -120,11 +121,11 @@ describe("AiChatView intent routing", () => {
       items: [],
       total: 0,
       pending_recycling_case: null,
-    });
-    fetchAiMemory.mockResolvedValue({
+    }));
+    fetchAiMemory.mockResolvedValue(asResponse({
       summary: {},
       items: [],
-    });
+    }));
     streamAiChat.mockImplementation(async (payload, handlers) => {
       requests.push(payload);
       handlers.onMeta({
@@ -182,7 +183,7 @@ describe("AiChatView intent routing", () => {
 
     const requests = [];
 
-    fetchAiConversations.mockResolvedValue({
+    fetchAiConversations.mockResolvedValue(asResponse({
       items: [
         {
           id: 66,
@@ -195,8 +196,8 @@ describe("AiChatView intent routing", () => {
       total: 1,
       page: 1,
       per_page: 50,
-    });
-    fetchAiConversationMessages.mockResolvedValue({
+    }));
+    fetchAiConversationMessages.mockResolvedValue(asResponse({
       conversation: {
         id: 66,
         title: "Audit follow-up chat",
@@ -231,11 +232,11 @@ describe("AiChatView intent routing", () => {
       ],
       total: 1,
       pending_recycling_case: null,
-    });
-    fetchAiMemory.mockResolvedValue({
+    }));
+    fetchAiMemory.mockResolvedValue(asResponse({
       summary: {},
       items: [],
-    });
+    }));
     streamAiChat.mockImplementation(async (payload, handlers) => {
       requests.push(payload);
       handlers.onMeta({

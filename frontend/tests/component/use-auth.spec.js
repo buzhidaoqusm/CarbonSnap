@@ -1,3 +1,4 @@
+import { asResponse } from "../helpers/fetch.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const authApi = vi.hoisted(() => ({
@@ -26,15 +27,15 @@ async function loadAuthAndToast() {
 describe("useAuth", () => {
   beforeEach(() => {
     localStorage.clear();
-    authApi.loginUser.mockResolvedValue({
+    authApi.loginUser.mockResolvedValue(asResponse({
       access_token: "token-123",
       user: { id: 1, username: "Alice" },
-    });
-    authApi.registerUser.mockResolvedValue({
+    }));
+    authApi.registerUser.mockResolvedValue(asResponse({
       access_token: "token-456",
       user: { id: 2, username: "Bob" },
-    });
-    authApi.fetchCurrentUser.mockResolvedValue({ user: { id: 1, username: "Alice" } });
+    }));
+    authApi.fetchCurrentUser.mockResolvedValue(asResponse({ user: { id: 1, username: "Alice" } }));
   });
 
   afterEach(() => {

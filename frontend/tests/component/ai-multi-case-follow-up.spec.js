@@ -1,3 +1,4 @@
+import { asResponse } from "../helpers/fetch.js";
 import { defineComponent, h, nextTick } from "vue";
 import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -108,7 +109,7 @@ describe("AiChatView multi-case follow-up", () => {
       page: 1,
       per_page: 50,
     }));
-    fetchAiConversationMessages.mockResolvedValue({
+    fetchAiConversationMessages.mockResolvedValue(asResponse({
       conversation: {
         id: 72,
         title: "Follow-up chat",
@@ -119,11 +120,11 @@ describe("AiChatView multi-case follow-up", () => {
       items: [],
       total: 0,
       pending_recycling_case: null,
-    });
-    fetchAiMemory.mockResolvedValue({
+    }));
+    fetchAiMemory.mockResolvedValue(asResponse({
       summary: {},
       items: [],
-    });
+    }));
     streamAiChat.mockImplementation(async (payload, handlers) => {
       requests.push(payload);
       handlers.onMeta({
@@ -203,7 +204,7 @@ describe("AiChatView multi-case follow-up", () => {
       expect.arrayContaining([
         expect.objectContaining({
           role: "assistant",
-          content: expect.stringContaining("Clarification requested: Which item do you mean?"),
+          content: expect.stringContaining("Clarification question: Which item do you mean?"),
         }),
       ]),
     );

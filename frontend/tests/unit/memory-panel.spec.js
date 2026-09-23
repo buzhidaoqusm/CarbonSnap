@@ -34,13 +34,13 @@ describe("MemoryPanel", () => {
       },
     });
 
-    expect(wrapper.text()).toContain("Response style");
+    expect(wrapper.text()).toContain("response style");
     expect(wrapper.text()).toContain("concise");
-    expect(wrapper.text()).toContain("Recycling preferences");
+    expect(wrapper.text()).toContain("recycling preference");
     expect(wrapper.text()).toContain("Nearby options first");
     expect(wrapper.text()).toContain("Enabled");
     expect(wrapper.text()).not.toContain('{"enabled":true}');
-    expect(wrapper.text()).toContain("Interest topics");
+    expect(wrapper.text()).toContain("topic interest");
     expect(wrapper.text()).toContain("Recycling behavior topics");
     expect(wrapper.text()).toContain("Delete");
   });

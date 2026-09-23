@@ -1,3 +1,4 @@
+import { asResponse } from "../helpers/fetch.js";
 import { defineComponent, h, nextTick } from "vue";
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -58,7 +59,7 @@ describe("MarketExploreView", () => {
     const { fetchMarketItems, fetchMyOrders } = await import("../../src/api/market/market.js");
     const MarketExploreView = (await import("../../src/views/market/MarketExploreView.vue")).default;
 
-    fetchMarketItems.mockResolvedValue({
+    fetchMarketItems.mockResolvedValue(asResponse({
       items: [
         {
           id: 1,
@@ -72,11 +73,11 @@ describe("MarketExploreView", () => {
       total: 1,
       page: 1,
       per_page: 24,
-    });
-    fetchMyOrders.mockResolvedValue({
+    }));
+    fetchMyOrders.mockResolvedValue(asResponse({
       items: [],
       total: 0,
-    });
+    }));
 
     const wrapper = mount(MarketExploreView, {
       global: {
@@ -92,7 +93,7 @@ describe("MarketExploreView", () => {
     expect(fetchMarketItems).toHaveBeenCalledWith(
       expect.objectContaining({
         page: 1,
-        perPage: 24,
+        perPage: 12,
         token: "token-123",
       }),
     );
@@ -119,7 +120,7 @@ describe("MarketExploreView", () => {
 
     fetchMarketItems
       .mockRejectedValueOnce(new Error("Request failed (500)"))
-      .mockResolvedValueOnce({
+      .mockResolvedValueOnce(asResponse({
         items: [
           {
             id: 9,
@@ -133,11 +134,11 @@ describe("MarketExploreView", () => {
         total: 1,
         page: 1,
         per_page: 24,
-      });
-    fetchMyOrders.mockResolvedValue({
+      }));
+    fetchMyOrders.mockResolvedValue(asResponse({
       items: [],
       total: 0,
-    });
+    }));
 
     const wrapper = mount(MarketExploreView, {
       global: {
@@ -154,7 +155,7 @@ describe("MarketExploreView", () => {
       1,
       expect.objectContaining({
         page: 1,
-        perPage: 24,
+        perPage: 12,
         token: "token-123",
       }),
     );
@@ -162,7 +163,7 @@ describe("MarketExploreView", () => {
       2,
       expect.objectContaining({
         page: 1,
-        perPage: 24,
+        perPage: 12,
       }),
     );
     expect(wrapper.text()).toContain("Recovered alloy frame");

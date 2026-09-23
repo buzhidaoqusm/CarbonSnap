@@ -1,3 +1,4 @@
+import { asResponse } from "../helpers/fetch.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { fetchAiConversationMessages, fetchAiConversations } from "../../src/api/ai/history.js";
@@ -15,7 +16,7 @@ describe("ai history api", () => {
 
   it("requests conversations with auth header and pagination", async () => {
     localStorage.setItem("cs_token", "token-123");
-    fetch.mockResolvedValue({
+    fetch.mockResolvedValue(asResponse({
       ok: true,
       json: async () => ({
         code: 0,
@@ -27,7 +28,7 @@ describe("ai history api", () => {
           per_page: 5,
         },
       }),
-    });
+    }));
 
     const data = await fetchAiConversations({ page: 2, perPage: 5 });
 
@@ -44,7 +45,7 @@ describe("ai history api", () => {
   });
 
   it("requests one conversation message history", async () => {
-    fetch.mockResolvedValue({
+    fetch.mockResolvedValue(asResponse({
       ok: true,
       json: async () => ({
         code: 0,
@@ -55,7 +56,7 @@ describe("ai history api", () => {
           total: 0,
         },
       }),
-    });
+    }));
 
     const data = await fetchAiConversationMessages(9);
 

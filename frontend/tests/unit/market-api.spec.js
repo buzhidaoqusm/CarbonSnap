@@ -1,3 +1,4 @@
+import { asResponse } from "../helpers/fetch.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -16,7 +17,7 @@ describe("market API", () => {
   it("passes bearer auth when fetching market items for a logged-in user", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
+      vi.fn().mockResolvedValue(asResponse({
         ok: true,
         json: async () => ({
           code: 0,
@@ -27,7 +28,7 @@ describe("market API", () => {
             per_page: 20,
           },
         }),
-      }),
+      })),
     );
 
     const result = await fetchMarketItems({ page: 1, perPage: 20, token: "token-123" });
@@ -47,13 +48,13 @@ describe("market API", () => {
   it("passes bearer auth when fetching market item detail", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
+      vi.fn().mockResolvedValue(asResponse({
         ok: true,
         json: async () => ({
           code: 0,
           data: { id: 8, title: "Detail item" },
         }),
-      }),
+      })),
     );
 
     const item = await fetchMarketItem(8, "token-123");
@@ -73,13 +74,13 @@ describe("market API", () => {
   it("posts market long-view tracking", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
+      vi.fn().mockResolvedValue(asResponse({
         ok: true,
         json: async () => ({
           code: 0,
           data: { tracked: true },
         }),
-      }),
+      })),
     );
 
     const result = await recordMarketLongView(12, "token-123");

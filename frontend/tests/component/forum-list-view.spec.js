@@ -1,3 +1,4 @@
+import { asResponse } from "../helpers/fetch.js";
 import { defineComponent, h, nextTick } from "vue";
 import { mount } from "@vue/test-utils";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
@@ -103,16 +104,16 @@ describe("ForumListView", () => {
     const ForumListView = (await import("../../src/views/forum/ForumListView.vue")).default;
 
     fetchForumPosts
-      .mockResolvedValueOnce({
+      .mockResolvedValueOnce(asResponse({
         items: [{ id: 1, title: "Existing post", content: "Existing content", author_id: 9, created_at: "2026-03-26T10:00:00" }],
-      })
-      .mockResolvedValueOnce({
+      }))
+      .mockResolvedValueOnce(asResponse({
         items: [
           { id: 2, title: "New post", content: "Testing content", author_id: 9, created_at: "2026-03-26T11:00:00" },
           { id: 1, title: "Existing post", content: "Existing content", author_id: 9, created_at: "2026-03-26T10:00:00" },
         ],
-    });
-    createForumPostWithImages.mockResolvedValue({ id: 2, title: "New post" });
+    }));
+    createForumPostWithImages.mockResolvedValue(asResponse({ id: 2, title: "New post" }));
     uploadForumImage.mockImplementation((imageDataUrl) => {
       const fileName = imageDataUrl.match(/name=([^;]+)/)?.[1] || "image.jpg";
       return Promise.resolve({ url: `/api/uploads/forum/${fileName}` });
@@ -197,13 +198,13 @@ describe("ForumListView", () => {
     const { fetchForumPosts } = await import("../../src/api/forum/forum.js");
     const ForumListView = (await import("../../src/views/forum/ForumListView.vue")).default;
 
-    fetchForumPosts.mockResolvedValue({
+    fetchForumPosts.mockResolvedValue(asResponse({
       items: [
         { id: 11, title: "First post", content: "Alpha", author_id: 9, like_count: 0, created_at: "2026-03-26T10:00:00" },
         { id: 12, title: "Second post", content: "Beta", author_id: 8, like_count: 10, created_at: "2026-03-26T11:00:00" },
         { id: 13, title: "Third post", content: "Gamma", author_id: 7, like_count: 3, created_at: "2026-03-26T12:00:00" },
       ],
-    });
+    }));
     const wrapper = mount(ForumListView, {
       global: {
         stubs: {

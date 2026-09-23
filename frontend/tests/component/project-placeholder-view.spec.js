@@ -17,13 +17,13 @@ describe("ProjectPlaceholderView", () => {
       },
     });
 
-    expect(wrapper.find("[data-project-sidebar]").exists()).toBe(true);
+    // The sidebar and bottom nav moved into the shared AppHeader shell.
+    expect(wrapper.find("[data-project-main]").exists()).toBe(true);
     expect(wrapper.find("[data-project-header]").exists()).toBe(true);
     expect(wrapper.find("[data-project-grid]").exists()).toBe(true);
     expect(wrapper.find("[data-project-featured]").exists()).toBe(true);
     expect(wrapper.find("[data-project-secondary]").exists()).toBe(true);
     expect(wrapper.find("[data-project-timeline]").exists()).toBe(true);
-    expect(wrapper.find("[data-project-bottom-nav]").exists()).toBe(true);
 
     expect(wrapper.text()).toContain("Community Projects");
     expect(wrapper.text()).toContain("Local Reforestation: Amazon Edge");
@@ -33,10 +33,9 @@ describe("ProjectPlaceholderView", () => {
     expect(wrapper.text()).toContain("Contribute Carbon Credits");
     expect(wrapper.text()).toContain("Join Project");
 
-    expect(wrapper.find('[data-to="/ledger"]').exists()).toBe(true);
     expect(wrapper.find('[data-to="/project"]').exists()).toBe(true);
     expect(wrapper.find('[data-to="/ai"]').exists()).toBe(true);
-    expect(wrapper.find('[data-to="/notification"]').exists()).toBe(true);
+    // /notification and /ledger now live in the avatar menu, not the top bar.
     expect(wrapper.find('[data-to="/forum"]').exists()).toBe(true);
     expect(wrapper.find('[data-to="/market"]').exists()).toBe(true);
     expect(wrapper.find("[data-app-shell-avatar-link]").exists()).toBe(true);

@@ -1,3 +1,4 @@
+import { asResponse } from "../helpers/fetch.js";
 import { defineComponent, h, nextTick } from "vue";
 import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -127,7 +128,7 @@ describe("AiChatView", () => {
       latest_audit_attempt_no: 1,
     };
 
-    fetchAiConversations.mockResolvedValue({
+    fetchAiConversations.mockResolvedValue(asResponse({
       items: [
         {
           id: 1,
@@ -140,9 +141,9 @@ describe("AiChatView", () => {
       total: 1,
       page: 1,
       per_page: 50,
-    });
+    }));
 
-    fetchAiConversationMessages.mockResolvedValue({
+    fetchAiConversationMessages.mockResolvedValue(asResponse({
       conversation: {
         id: 1,
         title: "Stored recycling chat",
@@ -231,11 +232,11 @@ describe("AiChatView", () => {
       ],
       total: 6,
       pending_recycling_case: firstCase,
-    });
-    fetchAiMemory.mockResolvedValue({
+    }));
+    fetchAiMemory.mockResolvedValue(asResponse({
       summary: {},
       items: [],
-    });
+    }));
 
     const wrapper = mount(AiChatView, {
       global: {
@@ -289,7 +290,7 @@ describe("AiChatView", () => {
       latest_audit_attempt_no: 0,
     };
 
-    fetchAiConversations.mockResolvedValue({
+    fetchAiConversations.mockResolvedValue(asResponse({
       items: [
         {
           id: 1,
@@ -302,9 +303,9 @@ describe("AiChatView", () => {
       total: 1,
       page: 1,
       per_page: 50,
-    });
+    }));
 
-    fetchAiConversationMessages.mockResolvedValue({
+    fetchAiConversationMessages.mockResolvedValue(asResponse({
       conversation: {
         id: 1,
         title: "Nearby map ready chat",
@@ -329,11 +330,11 @@ describe("AiChatView", () => {
       ],
       total: 1,
       pending_recycling_case: firstCase,
-    });
-    fetchAiMemory.mockResolvedValue({
+    }));
+    fetchAiMemory.mockResolvedValue(asResponse({
       summary: {},
       items: [],
-    });
+    }));
 
     const DelayedNearbyMapCardStub = defineComponent({
       name: "DelayedNearbyMapCardStub",
@@ -402,7 +403,7 @@ describe("AiChatView", () => {
       ],
     };
 
-    fetchAiConversations.mockResolvedValue({
+    fetchAiConversations.mockResolvedValue(asResponse({
       items: [
         {
           id: 1,
@@ -415,9 +416,9 @@ describe("AiChatView", () => {
       total: 1,
       page: 1,
       per_page: 50,
-    });
+    }));
 
-    fetchAiConversationMessages.mockResolvedValue({
+    fetchAiConversationMessages.mockResolvedValue(asResponse({
       conversation: {
         id: 1,
         title: "Duplicate audit attempt chat",
@@ -467,11 +468,11 @@ describe("AiChatView", () => {
       ],
       total: 2,
       pending_recycling_case: null,
-    });
-    fetchAiMemory.mockResolvedValue({
+    }));
+    fetchAiMemory.mockResolvedValue(asResponse({
       summary: {},
       items: [],
-    });
+    }));
 
     const wrapper = mount(AiChatView, {
       global: {
@@ -520,7 +521,7 @@ describe("AiChatView", () => {
       ],
     };
 
-    fetchAiConversations.mockResolvedValue({
+    fetchAiConversations.mockResolvedValue(asResponse({
       items: [
         {
           id: 18,
@@ -533,8 +534,8 @@ describe("AiChatView", () => {
       total: 1,
       page: 1,
       per_page: 50,
-    });
-    fetchAiConversationMessages.mockResolvedValue({
+    }));
+    fetchAiConversationMessages.mockResolvedValue(asResponse({
       conversation: {
         id: 18,
         title: "Audit history chat",
@@ -559,11 +560,11 @@ describe("AiChatView", () => {
       ],
       total: 1,
       pending_recycling_case: null,
-    });
-    fetchAiMemory.mockResolvedValue({
+    }));
+    fetchAiMemory.mockResolvedValue(asResponse({
       summary: {},
       items: [],
-    });
+    }));
 
     const wrapper = mount(AiChatView, {
       global: {
@@ -596,7 +597,7 @@ describe("AiChatView", () => {
       latest_audit_attempt_no: 0,
     };
 
-    fetchAiConversations.mockResolvedValue({
+    fetchAiConversations.mockResolvedValue(asResponse({
       items: [
         {
           id: 5,
@@ -609,9 +610,9 @@ describe("AiChatView", () => {
       total: 1,
       page: 1,
       per_page: 50,
-    });
+    }));
 
-    fetchAiConversationMessages.mockResolvedValue({
+    fetchAiConversationMessages.mockResolvedValue(asResponse({
       conversation: {
         id: 5,
         title: "Awaiting location chat",
@@ -633,12 +634,12 @@ describe("AiChatView", () => {
       ],
       total: 1,
       pending_recycling_case: pendingCase,
-    });
-    fetchAiMemory.mockResolvedValue({
+    }));
+    fetchAiMemory.mockResolvedValue(asResponse({
       summary: {},
       items: [],
-    });
-    submitLocationContext.mockResolvedValue({ ok: true });
+    }));
+    submitLocationContext.mockResolvedValue(asResponse({ ok: true }));
     resumeRecyclingAnalysis.mockImplementation(async (payload, handlers) => {
       expect(payload.session_id).toBe("session-222");
       handlers.onNearbyResults({
@@ -699,7 +700,7 @@ describe("AiChatView", () => {
       latest_audit_attempt_no: 0,
     };
 
-    fetchAiConversations.mockResolvedValue({
+    fetchAiConversations.mockResolvedValue(asResponse({
       items: [
         {
           id: 7,
@@ -712,9 +713,9 @@ describe("AiChatView", () => {
       total: 1,
       page: 1,
       per_page: 50,
-    });
+    }));
 
-    fetchAiConversationMessages.mockResolvedValue({
+    fetchAiConversationMessages.mockResolvedValue(asResponse({
       conversation: {
         id: 7,
         title: "Missing case id chat",
@@ -725,12 +726,12 @@ describe("AiChatView", () => {
       items: [],
       total: 0,
       pending_recycling_case: pendingCase,
-    });
-    fetchAiMemory.mockResolvedValue({
+    }));
+    fetchAiMemory.mockResolvedValue(asResponse({
       summary: {},
       items: [],
-    });
-    submitLocationContext.mockResolvedValue({ ok: true });
+    }));
+    submitLocationContext.mockResolvedValue(asResponse({ ok: true }));
     resumeRecyclingAnalysis.mockImplementation(async (_payload, handlers) => {
       handlers.onNearbyResults({
         data: {
@@ -781,7 +782,7 @@ describe("AiChatView", () => {
       latest_audit_attempt_no: 0,
     };
 
-    fetchAiConversations.mockResolvedValue({
+    fetchAiConversations.mockResolvedValue(asResponse({
       items: [
         {
           id: 8,
@@ -794,9 +795,9 @@ describe("AiChatView", () => {
       total: 1,
       page: 1,
       per_page: 50,
-    });
+    }));
 
-    fetchAiConversationMessages.mockResolvedValue({
+    fetchAiConversationMessages.mockResolvedValue(asResponse({
       conversation: {
         id: 8,
         title: "Skipped nearby chat",
@@ -818,12 +819,12 @@ describe("AiChatView", () => {
       ],
       total: 1,
       pending_recycling_case: pendingCase,
-    });
-    fetchAiMemory.mockResolvedValue({
+    }));
+    fetchAiMemory.mockResolvedValue(asResponse({
       summary: {},
       items: [],
-    });
-    submitLocationContext.mockResolvedValue({ ok: true });
+    }));
+    submitLocationContext.mockResolvedValue(asResponse({ ok: true }));
     resumeRecyclingAnalysis.mockImplementation(async (_payload, handlers) => {
       handlers.onStageStart({ stage: "completed" });
       handlers.onDelta("Nearby recycling search was skipped at your request.");
@@ -866,7 +867,7 @@ describe("AiChatView", () => {
     const { fetchAiMemory } = await import("../../src/api/ai/memory.js");
     const AiChatView = (await import("../../src/views/ai/AiChatView.vue")).default;
 
-    fetchAiConversations.mockResolvedValue({
+    fetchAiConversations.mockResolvedValue(asResponse({
       items: [
         {
           id: 12,
@@ -886,7 +887,7 @@ describe("AiChatView", () => {
       total: 2,
       page: 1,
       per_page: 50,
-    });
+    }));
     fetchAiConversationMessages.mockImplementation(async (conversationId) => ({
       conversation: {
         id: conversationId,
@@ -910,11 +911,11 @@ describe("AiChatView", () => {
       total: 1,
       pending_recycling_case: null,
     }));
-    deleteAiConversation.mockResolvedValue({ deleted_conversation_id: 12 });
-    fetchAiMemory.mockResolvedValue({
+    deleteAiConversation.mockResolvedValue(asResponse({ deleted_conversation_id: 12 }));
+    fetchAiMemory.mockResolvedValue(asResponse({
       summary: {},
       items: [],
-    });
+    }));
 
     const wrapper = mount(AiChatView, {
       global: {
@@ -967,7 +968,7 @@ describe("AiChatView", () => {
       page: 1,
       per_page: 50,
     }));
-    fetchAiConversationMessages.mockResolvedValue({
+    fetchAiConversationMessages.mockResolvedValue(asResponse({
       conversation: {
         id: 88,
         title: "Memory update chat",
@@ -978,11 +979,11 @@ describe("AiChatView", () => {
       items: [],
       total: 0,
       pending_recycling_case: null,
-    });
-    fetchAiMemory.mockResolvedValue({
+    }));
+    fetchAiMemory.mockResolvedValue(asResponse({
       summary: {},
       items: [],
-    });
+    }));
     streamAiChat.mockImplementation(async (payload, handlers) => {
       expect(payload.message).toBe("Please answer concisely from now on.");
       handlers.onMeta({
@@ -1055,22 +1056,22 @@ describe("AiChatView", () => {
     const imageDataUrl =
       "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Z0vcAAAAASUVORK5CYII=";
 
-    fetchAiConversations.mockResolvedValue({
+    fetchAiConversations.mockResolvedValue(asResponse({
       items: [],
       total: 0,
       page: 1,
       per_page: 50,
-    });
-    fetchAiConversationMessages.mockResolvedValue({
+    }));
+    fetchAiConversationMessages.mockResolvedValue(asResponse({
       conversation: null,
       items: [],
       total: 0,
       pending_recycling_case: null,
-    });
-    fetchAiMemory.mockResolvedValue({
+    }));
+    fetchAiMemory.mockResolvedValue(asResponse({
       summary: {},
       items: [],
-    });
+    }));
     readCompressedImageDataUrl.mockResolvedValue(imageDataUrl);
     streamAiChat.mockImplementation(async (payload, handlers) => {
       expect(payload.message).toBe("");
@@ -1125,22 +1126,22 @@ describe("AiChatView", () => {
     const { streamAiChat } = await import("../../src/api/ai/chat.js");
     const AiChatView = (await import("../../src/views/ai/AiChatView.vue")).default;
 
-    fetchAiConversations.mockResolvedValue({
+    fetchAiConversations.mockResolvedValue(asResponse({
       items: [],
       total: 0,
       page: 1,
       per_page: 50,
-    });
-    fetchAiConversationMessages.mockResolvedValue({
+    }));
+    fetchAiConversationMessages.mockResolvedValue(asResponse({
       conversation: null,
       items: [],
       total: 0,
       pending_recycling_case: null,
-    });
-    fetchAiMemory.mockResolvedValue({
+    }));
+    fetchAiMemory.mockResolvedValue(asResponse({
       summary: {},
       items: [],
-    });
+    }));
 
     const wrapper = mount(AiChatView, {
       global: {
@@ -1173,7 +1174,7 @@ describe("AiChatView", () => {
     const { fetchAiMemory } = await import("../../src/api/ai/memory.js");
     const AiChatView = (await import("../../src/views/ai/AiChatView.vue")).default;
 
-    fetchAiConversations.mockResolvedValue({
+    fetchAiConversations.mockResolvedValue(asResponse({
       items: [
         {
           id: 91,
@@ -1186,8 +1187,8 @@ describe("AiChatView", () => {
       total: 1,
       page: 1,
       per_page: 50,
-    });
-    fetchAiConversationMessages.mockResolvedValue({
+    }));
+    fetchAiConversationMessages.mockResolvedValue(asResponse({
       conversation: {
         id: 91,
         title: "Stored memory update chat",
@@ -1218,11 +1219,11 @@ describe("AiChatView", () => {
       ],
       total: 1,
       pending_recycling_case: null,
-    });
-    fetchAiMemory.mockResolvedValue({
+    }));
+    fetchAiMemory.mockResolvedValue(asResponse({
       summary: {},
       items: [],
-    });
+    }));
 
     const wrapper = mount(AiChatView, {
       global: {
@@ -1247,7 +1248,7 @@ describe("AiChatView", () => {
     const { fetchAiMemory } = await import("../../src/api/ai/memory.js");
     const AiChatView = (await import("../../src/views/ai/AiChatView.vue")).default;
 
-    fetchAiConversations.mockResolvedValue({
+    fetchAiConversations.mockResolvedValue(asResponse({
       items: [
         {
           id: 91,
@@ -1260,8 +1261,8 @@ describe("AiChatView", () => {
       total: 1,
       page: 1,
       per_page: 50,
-    });
-    fetchAiConversationMessages.mockResolvedValue({
+    }));
+    fetchAiConversationMessages.mockResolvedValue(asResponse({
       conversation: {
         id: 91,
         title: "Forum citation chat",
@@ -1292,11 +1293,11 @@ describe("AiChatView", () => {
       ],
       total: 1,
       pending_recycling_case: null,
-    });
-    fetchAiMemory.mockResolvedValue({
+    }));
+    fetchAiMemory.mockResolvedValue(asResponse({
       summary: {},
       items: [],
-    });
+    }));
 
     const wrapper = mount(AiChatView, {
       global: {
@@ -1323,7 +1324,7 @@ describe("AiChatView", () => {
     const { fetchAiMemory } = await import("../../src/api/ai/memory.js");
     const AiChatView = (await import("../../src/views/ai/AiChatView.vue")).default;
 
-    fetchAiConversations.mockResolvedValue({
+    fetchAiConversations.mockResolvedValue(asResponse({
       items: [
         {
           id: 92,
@@ -1336,8 +1337,8 @@ describe("AiChatView", () => {
       total: 1,
       page: 1,
       per_page: 50,
-    });
-    fetchAiConversationMessages.mockResolvedValue({
+    }));
+    fetchAiConversationMessages.mockResolvedValue(asResponse({
       conversation: {
         id: 92,
         title: "Trace chat",
@@ -1386,11 +1387,11 @@ describe("AiChatView", () => {
       ],
       total: 1,
       pending_recycling_case: null,
-    });
-    fetchAiMemory.mockResolvedValue({
+    }));
+    fetchAiMemory.mockResolvedValue(asResponse({
       summary: {},
       items: [],
-    });
+    }));
 
     const wrapper = mount(AiChatView, {
       global: {

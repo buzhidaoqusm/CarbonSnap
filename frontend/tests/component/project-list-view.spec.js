@@ -1,3 +1,4 @@
+import { asResponse } from "../helpers/fetch.js";
 import { defineComponent, h, nextTick } from "vue";
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -60,7 +61,7 @@ describe("ProjectListView", () => {
     const { fetchProjects } = await import("../../src/api/project/project.js");
     const ProjectListView = (await import("../../src/views/project/ProjectListView.vue")).default;
 
-    fetchProjects.mockResolvedValue({
+    fetchProjects.mockResolvedValue(asResponse({
       items: [
         {
           id: 1,
@@ -87,7 +88,7 @@ describe("ProjectListView", () => {
         completed_count: 0,
         points_raised_total: 80,
       },
-    });
+    }));
 
     const wrapper = mount(ProjectListView, {
       global: {
@@ -118,7 +119,7 @@ describe("ProjectListView", () => {
     const { createProject, fetchProjects } = await import("../../src/api/project/project.js");
     const ProjectListView = (await import("../../src/views/project/ProjectListView.vue")).default;
 
-    fetchProjects.mockResolvedValue({
+    fetchProjects.mockResolvedValue(asResponse({
       items: [],
       total: 0,
       page: 1,
@@ -128,8 +129,8 @@ describe("ProjectListView", () => {
         completed_count: 0,
         points_raised_total: 0,
       },
-    });
-    createProject.mockResolvedValue({ id: 9, title: "Compost Hub" });
+    }));
+    createProject.mockResolvedValue(asResponse({ id: 9, title: "Compost Hub" }));
 
     const wrapper = mount(ProjectListView, {
       global: {
