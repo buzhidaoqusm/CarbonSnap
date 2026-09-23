@@ -1,0 +1,83 @@
+# Local development stack.
+#
+#   docker compose up -d                  api + postgres + redis
+#   docker compose --profile graph up -d  also starts neo4j for Graph Agent mode
+#
+# Postgres and Redis are already here because P1/P2 of docs/REFACTOR_ROADMAP.md
+# move the app onto them. Until that migration lands the API still defaults to
+# SQLite under ./data, so the stack is useful today and ready for the switch.
+
+services:
+  api:
+    build:
+      context: ./backend
+    ports:
+      - "127.0.0.1:5000:5000"
+    environment:
+      # Swap to the postgres service in P1:
+      #   DATABASE_URL: postgresql+psycopg://carbonsnap:carbonsnap@postgres:5432/carbonsnap
+      DATABASE_URL: sqlite:////data/carbonsnap.db
+      UPLOAD_ROOT: /data/uploads
+      FORUM_RAG_FAISS_DIR: /data/faiss
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-secret-change-in-production}
+      LLM_PROVIDER: ${LLM_PROVIDER:-openrouter}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      QWEN_API_KEY: ${QWEN_API_KEY:-}
+      # Containers get their configuration from the environment, never from a
+      # developer's backend/.env.
+      ENV_FILE: /dev/null
+    volumes:
+      - ./data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    # pgvector image: P4 stores forum embeddings here instead of a JSON manifest.
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: carbonsnap
+      POSTGRES_PASSWORD: carbonsnap
+      POSTGRES_DB: carbonsnap
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U carbonsnap -d carbonsnap"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  neo4j:
+    profiles: ["graph"]
+    image: neo4j:5
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-carbonsnap-dev}
+    ports:
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7687:7687"
+    volumes:
+      - neo4j-data:/data
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  neo4j-data:
