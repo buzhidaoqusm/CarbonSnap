@@ -66,6 +66,23 @@ services:
       retries: 10
     restart: unless-stopped
 
+  # Deterministic stand-in provider for load tests (tools/fake_llm). Start the
+  # stack with `--profile bench` and set the api's OPENROUTER_BASE_URL to
+  # http://fake-llm:9800/v1 so benchmark numbers describe this server, not a
+  # third-party provider.
+  fake-llm:
+    profiles: ["bench"]
+    image: python:3.12-slim
+    command: ["python", "/app/tools/fake_llm/server.py"]
+    environment:
+      FAKE_LLM_FIRST_TOKEN_MS: "400"
+      FAKE_LLM_TOKEN_INTERVAL_MS: "25"
+      FAKE_LLM_TOKEN_COUNT: "120"
+    ports:
+      - "127.0.0.1:9800:9800"
+    volumes:
+      - ./tools:/app/tools:ro
+
   neo4j:
     profiles: ["graph"]
     image: neo4j:5
