@@ -2,7 +2,7 @@ import json
 from collections.abc import Callable, Generator
 from typing import Any
 
-from flask import Blueprint, Response, jsonify, request, stream_with_context
+from flask import Blueprint, Response, current_app, jsonify, request, stream_with_context
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from app.services.ai.ai_conversation_service import (
@@ -21,6 +21,10 @@ from app.services.ai.recycling_analysis_service import (
 from app.services.ai.recycling_audit_service import stream_recycling_audit
 
 ai_bp = Blueprint("ai", __name__)
+
+# Internal failures are logged server-side; clients get a stable, opaque message
+# so stack traces and provider details never reach the browser.
+_GENERIC_ERROR_MESSAGE = "The AI service is temporarily unavailable. Please try again."
 
 
 def _parse_pagination() -> tuple[int, int]:
@@ -47,8 +51,9 @@ def _json_sse_response(
         except OpenRouterConfigError as exc:
             error_event = {"type": "error", "code": 50000, "message": str(exc)}
             yield f"data: {json.dumps(error_event, ensure_ascii=False)}\n\n".encode()
-        except Exception as exc:
-            error_event = {"type": "error", "code": 50000, "message": f"AI stream failed: {exc}"}
+        except Exception:
+            current_app.logger.exception("AI stream failed.")
+            error_event = {"type": "error", "code": 50000, "message": _GENERIC_ERROR_MESSAGE}
             yield f"data: {json.dumps(error_event, ensure_ascii=False)}\n\n".encode()
 
     return Response(
@@ -225,8 +230,9 @@ def ai_chat():
         return _error_response(40001 if http_status == 400 else 40400, message, http_status)
     except OpenRouterConfigError as exc:
         return _error_response(50000, str(exc), 500)
-    except Exception as exc:
-        return _error_response(50000, f"AI request failed: {exc}", 502)
+    except Exception:
+        current_app.logger.exception("AI request failed.")
+        return _error_response(50000, _GENERIC_ERROR_MESSAGE, 502)
 
     return jsonify({"code": 0, "message": "ok", "data": result})
 
@@ -252,6 +258,7 @@ def ai_chat_stream():
 
 
 @ai_bp.post("/ai/analyze-image")
+@jwt_required()
 def ai_analyze_image():
     parsed, error_response = _parse_recycling_payload()
     if error_response:
@@ -268,19 +275,22 @@ def ai_analyze_image():
 
 
 @ai_bp.post("/ai/location-context")
+@jwt_required()
 def ai_location_context():
     payload = request.get_json(silent=True) or {}
     try:
         result = store_location_context(payload)
     except ValueError as exc:
         return _error_response(40001, str(exc), 400)
-    except Exception as exc:
-        return _error_response(50000, f"Location context update failed: {exc}", 502)
+    except Exception:
+        current_app.logger.exception("Location context update failed.")
+        return _error_response(50000, _GENERIC_ERROR_MESSAGE, 502)
 
     return jsonify({"code": 0, "message": "ok", "data": result})
 
 
 @ai_bp.post("/ai/chat/resume")
+@jwt_required()
 def ai_chat_resume():
     payload = request.get_json(silent=True) or {}
     session_id = str(payload.get("session_id", "")).strip()
