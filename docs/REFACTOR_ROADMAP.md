@@ -88,11 +88,13 @@ docs/adr/
 
 ## 2. P0 工程地基（3–4 天）
 
-> ✅ **已完成（2026-09-23）**，除 0.6 的基线实测外。提交见 `24bc36c..bed2639`。
+> ✅ **已完成（2026-09-23）**。提交见 `24bc36c..bed2639` 及之后的基线提交。
 > 过程中多出来的工作：后端 12 个、前端 18 个失败测试全部修复（它们依赖开发者本机的
 > `.env` 和真实网络），现在后端 515、前端 84 全绿。
-> **待办**：0.6 的基线数字需要 Linux 或 Docker（gunicorn 不支持 Windows），
-> 见 `docs/benchmarks.md` 里空着的表格。
+> 0.6 基线已在 Docker 里测完：**最大稳定并发 = 3**（等于 worker 数），20 用户时
+> ttft p95 从 10 s 涨到 91 s，连注册接口都要排队 14 s。另外发现单用户 ttft 就有
+> 10 s——首 token 前串行了 3 次非流式 LLM 调用（留给 P2）。实测时还修了镜像的
+> 3 个运行时 bug（`/data` 权限、容器不建表、压测脚本密码不合规）。
 
 - [x] **0.1 提交现有改动**：未提交的 A6/A7 工作拆成 2–3 个 commit（shadow 模块 + 测试 / 接入 conversation service / 报告脚本 + 文档）。
 - [x] **0.2 依赖管理换成 uv**：`backend/pyproject.toml` + `uv.lock`，替代 `requirements.txt`。Python 固定 3.12（本机系统 Python 是 3.14，部分依赖可能没有对应 wheel）。删除损坏的 `.venv`（指向已不存在的 `D:\anaconda3`）并重建。
@@ -102,7 +104,7 @@ docs/adr/
   - 前端暂时保持本地 `vite`。
 - [x] **0.4 代码质量**：ruff（lint + format）、mypy（先只检查 `app/services/ai`，逐步扩大范围）、pre-commit。
 - [x] **0.5 CI**：GitHub Actions `ci.yml`，依次跑 ruff → mypy → pytest → vitest。
-- [~] **0.6 压测基线**（工具就绪，数字待测）（后面做对比全靠它）：
+- [x] **0.6 压测基线**（后面做对比全靠它）：
   - 写一个假的 OpenAI 兼容服务 `tools/fake_llm/`：固定延迟，按固定速度流式吐 token。压测不花钱，结果可复现。
   - 用 locust 压 `/api/ai/chat/stream`，记录最大并发流式会话数、p50/p95 首 token 延迟、错误率。
   - 结果写进 `docs/benchmarks.md`。
