@@ -45,9 +45,7 @@ def test_execute_tool_call_injects_user_id_for_read_user_memory(monkeypatch):
 
     monkeypatch.setattr(tool_registry, "run_tool", fake_run_tool)
 
-    result = tool_registry.execute_tool_call(
-        "read_user_memory", {}, context={"user_id": 7}
-    )
+    result = tool_registry.execute_tool_call("read_user_memory", {}, context={"user_id": 7})
 
     assert captured["payload"]["user_id"] == 7
     assert result["arguments"]["user_id"] == 7
@@ -94,11 +92,7 @@ def test_execute_tool_call_injects_nearby_coordinates(monkeypatch):
     result = tool_registry.execute_tool_call(
         "find_nearby_recycling_places",
         {},
-        context={
-            "client_context": {
-                "location_state": {"coordinates": {"lat": 53.3, "lng": -6.2}}
-            }
-        },
+        context={"client_context": {"location_state": {"coordinates": {"lat": 53.3, "lng": -6.2}}}},
     )
 
     assert captured["payload"]["lat"] == 53.3
@@ -108,9 +102,7 @@ def test_execute_tool_call_injects_nearby_coordinates(monkeypatch):
 
 
 def test_execute_tool_call_blocks_high_risk_without_allow_flag():
-    result = tool_registry.execute_tool_call(
-        "record_recycling_completion", {"case_id": 1}
-    )
+    result = tool_registry.execute_tool_call("record_recycling_completion", {"case_id": 1})
 
     assert result["blocked"] is True
     assert result["ok"] is False

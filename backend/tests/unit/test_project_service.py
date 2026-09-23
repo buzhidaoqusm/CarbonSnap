@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -11,7 +11,7 @@ from app.services.project.project_service import ProjectError
 
 
 def _future_deadline(days: int = 10) -> str:
-    return (datetime.now(timezone.utc) + timedelta(days=days)).isoformat()
+    return (datetime.now(UTC) + timedelta(days=days)).isoformat()
 
 
 def test_create_project_returns_serialized_project(app, make_user):
@@ -70,7 +70,9 @@ def test_contribute_to_project_deducts_points_and_marks_completed(app, make_user
 
 
 def test_contribute_to_project_rejects_expired_project(app, make_user):
-    creator_id, _ = make_user(username="creator-expired", email="creator-expired@example.com", points=0)
+    creator_id, _ = make_user(
+        username="creator-expired", email="creator-expired@example.com", points=0
+    )
     supporter_id, _ = make_user(
         username="supporter-expired",
         email="supporter-expired@example.com",
@@ -83,7 +85,7 @@ def test_contribute_to_project_rejects_expired_project(app, make_user):
             title="Expired project",
             description="Too late",
             points_target=80,
-            deadline_at=datetime.now(timezone.utc) - timedelta(days=1),
+            deadline_at=datetime.now(UTC) - timedelta(days=1),
         )
         db.session.add(project)
         db.session.commit()
@@ -97,7 +99,9 @@ def test_contribute_to_project_rejects_expired_project(app, make_user):
 
 
 def test_contribute_to_project_rejects_points_above_remaining(app, make_user):
-    creator_id, _ = make_user(username="creator-remaining", email="creator-remaining@example.com", points=0)
+    creator_id, _ = make_user(
+        username="creator-remaining", email="creator-remaining@example.com", points=0
+    )
     supporter_id, _ = make_user(
         username="supporter-remaining",
         email="supporter-remaining@example.com",

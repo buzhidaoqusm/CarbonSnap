@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -12,10 +12,10 @@ from app.models.recommendation import UserBehaviorEvent
 
 def _ensure_aware_utc(value: datetime | None) -> datetime:
     if value is None:
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
     if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def create_behavior_event(
@@ -38,9 +38,7 @@ def create_behavior_event(
         topic_payload_json=json.dumps(topic_payload or [], ensure_ascii=False)
         if topic_payload is not None
         else None,
-        context_json=json.dumps(context or {}, ensure_ascii=False)
-        if context is not None
-        else None,
+        context_json=json.dumps(context or {}, ensure_ascii=False) if context is not None else None,
     )
     event.created_at = _ensure_aware_utc(created_at)
     db.session.add(event)
@@ -59,7 +57,9 @@ def list_behavior_events_for_user(
     if domain:
         stmt = stmt.where(UserBehaviorEvent.domain == str(domain).strip().lower())
     if action_types:
-        normalized_actions = [str(item).strip().lower() for item in action_types if str(item).strip()]
+        normalized_actions = [
+            str(item).strip().lower() for item in action_types if str(item).strip()
+        ]
         if normalized_actions:
             stmt = stmt.where(UserBehaviorEvent.action_type.in_(normalized_actions))
 
@@ -101,11 +101,16 @@ def list_recent_topic_exposure_counts_for_user(
 
     normalized_actions = None
     if action_types:
-        normalized_actions = {str(item).strip().lower() for item in action_types if str(item).strip()}
+        normalized_actions = {
+            str(item).strip().lower() for item in action_types if str(item).strip()
+        }
 
     counts: dict[str, int] = {}
     for event in events:
-        if normalized_actions is not None and str(event.action_type or "").strip().lower() not in normalized_actions:
+        if (
+            normalized_actions is not None
+            and str(event.action_type or "").strip().lower() not in normalized_actions
+        ):
             continue
         try:
             payload = json.loads(event.topic_payload_json or "[]")
@@ -160,7 +165,9 @@ def get_latest_behavior_event_for_target(
     if target_type:
         stmt = stmt.where(UserBehaviorEvent.target_type == str(target_type).strip().lower())
     if action_types:
-        normalized_actions = [str(item).strip().lower() for item in action_types if str(item).strip()]
+        normalized_actions = [
+            str(item).strip().lower() for item in action_types if str(item).strip()
+        ]
         if normalized_actions:
             stmt = stmt.where(UserBehaviorEvent.action_type.in_(normalized_actions))
     return db.session.scalar(
@@ -181,7 +188,9 @@ def list_behavior_target_ids_for_user(
     if target_type:
         stmt = stmt.where(UserBehaviorEvent.target_type == str(target_type).strip().lower())
     if action_types:
-        normalized_actions = [str(item).strip().lower() for item in action_types if str(item).strip()]
+        normalized_actions = [
+            str(item).strip().lower() for item in action_types if str(item).strip()
+        ]
         if normalized_actions:
             stmt = stmt.where(UserBehaviorEvent.action_type.in_(normalized_actions))
     return {int(target_id) for target_id in db.session.scalars(stmt).all() if target_id is not None}

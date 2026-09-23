@@ -5,7 +5,6 @@ from typing import Any
 
 from app.services.ai.openrouter_service import complete_json_diagnostic
 
-
 INTENTS = {"general_chat", "recycling_analysis", "recycling_follow_up"}
 FOLLOW_UP_TYPES = {"guidance_follow_up", "nearby_search", "task_verification"}
 ROUTER_FEW_SHOTS: tuple[dict[str, Any], ...] = (
@@ -147,7 +146,10 @@ ROUTER_FEW_SHOTS: tuple[dict[str, Any], ...] = (
         "case_count": 1,
         "conversation_state": {"current_pending_action": "none"},
         "recent_history": [
-            {"role": "user", "content": "Can you give me another recycling method besides putting it in the recycling bin?"},
+            {
+                "role": "user",
+                "content": "Can you give me another recycling method besides putting it in the recycling bin?",
+            },
             {"role": "assistant", "content": "You could upcycle the bottle into a DIY lantern."},
         ],
         "expected": {
@@ -239,7 +241,10 @@ ROUTER_FEW_SHOTS: tuple[dict[str, Any], ...] = (
         "case_count": 1,
         "conversation_state": {"current_pending_action": "none"},
         "recent_history": [
-            {"role": "user", "content": "Can you give me another recycling method besides putting it in the recycling bin?"},
+            {
+                "role": "user",
+                "content": "Can you give me another recycling method besides putting it in the recycling bin?",
+            },
             {"role": "assistant", "content": "You could upcycle it into a decorative DIY lantern."},
         ],
         "expected": {
@@ -321,7 +326,9 @@ def classify_intent_detailed(
         failure_reason = "invalid_intent"
 
     result = (
-        _business_fallback_route(message=message, case_summaries=case_summaries, conversation_state=conversation_state)
+        _business_fallback_route(
+            message=message, case_summaries=case_summaries, conversation_state=conversation_state
+        )
         if allow_business_fallback
         else _safe_default_route()
     )
@@ -403,7 +410,10 @@ def _business_fallback_route(
             "clarification_options": [],
         }
 
-    if any(token in normalized for token in ("nearby", "location", "map", "where can i recycle")) and case_summaries:
+    if (
+        any(token in normalized for token in ("nearby", "location", "map", "where can i recycle"))
+        and case_summaries
+    ):
         return {
             "intent": "recycling_follow_up",
             "follow_up_type": "nearby_search",
@@ -414,7 +424,10 @@ def _business_fallback_route(
             "clarification_options": [],
         }
 
-    if any(token in normalized for token in ("verify", "audit", "completed", "did i finish")) and case_summaries:
+    if (
+        any(token in normalized for token in ("verify", "audit", "completed", "did i finish"))
+        and case_summaries
+    ):
         return {
             "intent": "recycling_follow_up",
             "follow_up_type": "task_verification",
@@ -425,7 +438,9 @@ def _business_fallback_route(
             "clarification_options": [],
         }
 
-    pending_action = str((conversation_state or {}).get("current_pending_action") or "").strip().lower()
+    pending_action = (
+        str((conversation_state or {}).get("current_pending_action") or "").strip().lower()
+    )
     if pending_action == "location_permission" and case_summaries:
         return {
             "intent": "recycling_follow_up",

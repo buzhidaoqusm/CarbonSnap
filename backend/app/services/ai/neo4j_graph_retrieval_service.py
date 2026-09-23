@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 from flask import current_app, has_app_context
 
 from app.services.ai.entity_extraction_service import extract_recycling_entities
-
 
 GRAPH_CONTEXT_CYPHER = """
 MATCH (item:Item)
@@ -165,9 +165,7 @@ def query_graph_context(
             active_driver = owned_driver
         with active_driver.session() as session:
             records = (
-                list(session.run(GRAPH_CONTEXT_CYPHER, items=entity_names))
-                if entity_names
-                else []
+                list(session.run(GRAPH_CONTEXT_CYPHER, items=entity_names)) if entity_names else []
             )
             open_records = list(
                 session.run(
@@ -349,7 +347,9 @@ def _context_from_records(
         "facility_types": facility_types,
         "knowledge_chunks": knowledge_chunks,
         **open_context,
-        "confidence": "medium" if paths or rules or risks or open_context["relation_facts"] else "low",
+        "confidence": "medium"
+        if paths or rules or risks or open_context["relation_facts"]
+        else "low",
     }
 
 
@@ -457,7 +457,8 @@ def _open_context_from_records(records: list[Any]) -> dict[str, Any]:
             "subject_key": _record_get(record, "subject_key"),
             "subject": _record_get(record, "subject_name") or _record_get(record, "subject_key"),
             "relation_key": _record_get(record, "relation_key"),
-            "relation": _record_get(record, "relation_label") or _record_get(record, "relation_key"),
+            "relation": _record_get(record, "relation_label")
+            or _record_get(record, "relation_key"),
             "object_key": _record_get(record, "object_key"),
             "object": _record_get(record, "object_name") or _record_get(record, "object_key"),
             "support_count": int(_record_get(record, "support_count") or len(evidence_items) or 0),

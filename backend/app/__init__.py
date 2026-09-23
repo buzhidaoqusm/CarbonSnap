@@ -2,6 +2,8 @@ from flask import Flask
 from flask_cors import CORS
 from flask_migrate import Migrate
 
+# Import all models at module level so Flask-Migrate can detect them.
+import app.models  # noqa: F401
 from app.api.ai.chat import ai_bp
 from app.api.ai.memory import ai_memory_bp
 from app.api.forum.routes import forum_bp
@@ -15,9 +17,6 @@ from app.api.uploads.routes import uploads_bp
 from app.config.settings import load_app_settings
 from app.extensions.db import db
 from app.extensions.jwt import jwt
-
-# Import all models at module level so Flask-Migrate can detect them.
-import app.models  # noqa: F401
 
 
 def create_app() -> Flask:

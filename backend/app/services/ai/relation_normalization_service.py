@@ -4,7 +4,6 @@ import re
 from difflib import SequenceMatcher
 from typing import Any
 
-
 _NON_WORD_RE = re.compile(r"[^\w\u4e00-\u9fff]+", re.UNICODE)
 _SPACE_RE = re.compile(r"\s+")
 

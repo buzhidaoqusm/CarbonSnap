@@ -5,7 +5,9 @@ from typing import Any
 from app.services.ai import tool_calling_agent
 
 
-def _assistant_tool_call(name: str, arguments_json: str, *, call_id: str = "call_1") -> dict[str, Any]:
+def _assistant_tool_call(
+    name: str, arguments_json: str, *, call_id: str = "call_1"
+) -> dict[str, Any]:
     """Provider response shell that requests one tool call."""
     return {
         "content": None,
@@ -17,7 +19,11 @@ def _assistant_tool_call(name: str, arguments_json: str, *, call_id: str = "call
             "role": "assistant",
             "content": None,
             "tool_calls": [
-                {"id": call_id, "type": "function", "function": {"name": name, "arguments": arguments_json}}
+                {
+                    "id": call_id,
+                    "type": "function",
+                    "function": {"name": name, "arguments": arguments_json},
+                }
             ],
         },
     }
@@ -162,7 +168,10 @@ def test_agent_loop_runs_multiple_tools_across_turns():
         execute_fn=_fake_execute,
     )
 
-    assert [entry["name"] for entry in result["tool_trace"]] == ["search_forum", "estimate_carbon_saving"]
+    assert [entry["name"] for entry in result["tool_trace"]] == [
+        "search_forum",
+        "estimate_carbon_saving",
+    ]
     assert result["tool_trace"][0]["step"] == 1
     assert result["tool_trace"][1]["step"] == 2
     assert result["nodes"] == ["agent", "tools", "agent", "tools", "agent"]

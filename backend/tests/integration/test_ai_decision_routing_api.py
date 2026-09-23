@@ -112,7 +112,9 @@ class TestAiDecisionRoutingApi:
             yield {"type": "delta", "content": "Bottle analysis"}
             yield {"type": "done", "stream_stage": "completed"}
 
-        monkeypatch.setattr(recycling_analysis_service, "stream_recycling_analysis", fake_recycling_stream)
+        monkeypatch.setattr(
+            recycling_analysis_service, "stream_recycling_analysis", fake_recycling_stream
+        )
 
         response = _post_json(
             client,
@@ -182,6 +184,8 @@ class TestAiDecisionRoutingApi:
         assert history["items"][1]["content_json"]["clarification_options"][0]["label"] == "Bottle"
 
         decision_count = db.session.scalar(
-            select(db.func.count(AIMessageDecision.id)).where(AIMessageDecision.conversation_id == conversation_id)
+            select(db.func.count(AIMessageDecision.id)).where(
+                AIMessageDecision.conversation_id == conversation_id
+            )
         )
         assert decision_count == 1

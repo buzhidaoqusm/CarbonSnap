@@ -6,7 +6,6 @@ from typing import Any
 from app.services.ai.openrouter_service import complete_json_diagnostic
 from app.services.ai.relation_normalization_service import normalize_graph_key
 
-
 MIN_RELATION_CONFIDENCE = 0.55
 
 

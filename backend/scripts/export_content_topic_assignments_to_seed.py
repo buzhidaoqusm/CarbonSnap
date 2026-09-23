@@ -10,7 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -28,7 +28,6 @@ from app.models.project import Project
 from app.models.recommendation import ContentTopicAssignment
 from app.models.user import User
 
-
 SEEDS_ROOT = _REPO_ROOT / "data" / "seeds"
 FORUM_POST_SEEDS_ROOT = SEEDS_ROOT / "forum_posts"
 MARKET_ITEM_SEEDS_ROOT = SEEDS_ROOT / "market_items"
@@ -37,7 +36,9 @@ TOPIC_ASSIGNMENT_SEEDS_ROOT = SEEDS_ROOT / "content_topic_assignments"
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Export content topic assignments into seed files.")
+    parser = argparse.ArgumentParser(
+        description="Export content topic assignments into seed files."
+    )
     parser.add_argument("--replace-existing", action="store_true")
     return parser.parse_args()
 
@@ -73,12 +74,12 @@ def _normalize_datetime_signature(value: Any) -> str | None:
     if isinstance(value, datetime):
         if value.tzinfo is None:
             return value.isoformat(sep=" ")
-        return value.astimezone(timezone.utc).replace(tzinfo=None).isoformat(sep=" ")
+        return value.astimezone(UTC).replace(tzinfo=None).isoformat(sep=" ")
     if isinstance(value, str):
         parsed = datetime.fromisoformat(value)
         if parsed.tzinfo is None:
             return parsed.isoformat(sep=" ")
-        return parsed.astimezone(timezone.utc).replace(tzinfo=None).isoformat(sep=" ")
+        return parsed.astimezone(UTC).replace(tzinfo=None).isoformat(sep=" ")
     return str(value)
 
 
@@ -96,7 +97,9 @@ def _load_user_seed_key_by_identity() -> dict[tuple[str, str], str]:
     return mapping
 
 
-def _build_forum_seed_lookup(user_seed_keys: dict[tuple[str, str], str]) -> dict[tuple[str, str, str, tuple[str, ...], str], str]:
+def _build_forum_seed_lookup(
+    user_seed_keys: dict[tuple[str, str], str],
+) -> dict[tuple[str, str, str, tuple[str, ...], str], str]:
     lookup: dict[tuple[str, str, str, tuple[str, ...], str], str] = {}
     for seed_path in sorted(FORUM_POST_SEEDS_ROOT.glob("*.json")):
         if seed_path.name == "template.json":
@@ -133,7 +136,9 @@ def _build_market_seed_lookup() -> dict[tuple[str, str, str, tuple[str, ...], in
     return lookup
 
 
-def _build_project_seed_lookup() -> dict[tuple[str, str, str, str | None, int, int, str, str | None], str]:
+def _build_project_seed_lookup() -> dict[
+    tuple[str, str, str, str | None, int, int, str, str | None], str
+]:
     lookup: dict[tuple[str, str, str, str | None, int, int, str, str | None], str] = {}
     for seed_path in sorted(PROJECT_SEEDS_ROOT.glob("*.json")):
         if seed_path.name == "template.json":
@@ -154,13 +159,19 @@ def _build_project_seed_lookup() -> dict[tuple[str, str, str, str | None, int, i
     return lookup
 
 
-def _resolve_forum_post_seed_key(post: ForumPost, user_seed_keys: dict[tuple[str, str], str], lookup: dict[tuple[str, str, str, tuple[str, ...], str], str]) -> str:
+def _resolve_forum_post_seed_key(
+    post: ForumPost,
+    user_seed_keys: dict[tuple[str, str], str],
+    lookup: dict[tuple[str, str, str, tuple[str, ...], str], str],
+) -> str:
     author = db.session.get(User, post.author_id)
     if author is None:
         raise ValueError(f"Author {post.author_id} not found for forum post {post.id}.")
     author_seed_key = user_seed_keys.get((str(author.username), str(author.email)))
     if not author_seed_key:
-        raise ValueError(f"Could not map forum post author {author.username}/{author.email} to a user seed.")
+        raise ValueError(
+            f"Could not map forum post author {author.username}/{author.email} to a user seed."
+        )
     signature = (
         f"users.{author_seed_key}",
         str(post.title or ""),
@@ -174,13 +185,19 @@ def _resolve_forum_post_seed_key(post: ForumPost, user_seed_keys: dict[tuple[str
     return seed_key
 
 
-def _resolve_market_item_seed_key(item: MarketItem, user_seed_keys: dict[tuple[str, str], str], lookup: dict[tuple[str, str, str, tuple[str, ...], int, str], str]) -> str:
+def _resolve_market_item_seed_key(
+    item: MarketItem,
+    user_seed_keys: dict[tuple[str, str], str],
+    lookup: dict[tuple[str, str, str, tuple[str, ...], int, str], str],
+) -> str:
     seller = db.session.get(User, item.seller_id)
     if seller is None:
         raise ValueError(f"Seller {item.seller_id} not found for market item {item.id}.")
     seller_seed_key = user_seed_keys.get((str(seller.username), str(seller.email)))
     if not seller_seed_key:
-        raise ValueError(f"Could not map market item seller {seller.username}/{seller.email} to a user seed.")
+        raise ValueError(
+            f"Could not map market item seller {seller.username}/{seller.email} to a user seed."
+        )
     signature = (
         f"users.{seller_seed_key}",
         str(item.title or ""),
@@ -195,13 +212,19 @@ def _resolve_market_item_seed_key(item: MarketItem, user_seed_keys: dict[tuple[s
     return seed_key
 
 
-def _resolve_project_seed_key(project: Project, user_seed_keys: dict[tuple[str, str], str], lookup: dict[tuple[str, str, str, str | None, int, int, str, str | None], str]) -> str:
+def _resolve_project_seed_key(
+    project: Project,
+    user_seed_keys: dict[tuple[str, str], str],
+    lookup: dict[tuple[str, str, str, str | None, int, int, str, str | None], str],
+) -> str:
     creator = db.session.get(User, project.creator_user_id)
     if creator is None:
         raise ValueError(f"Creator {project.creator_user_id} not found for project {project.id}.")
     creator_seed_key = user_seed_keys.get((str(creator.username), str(creator.email)))
     if not creator_seed_key:
-        raise ValueError(f"Could not map project creator {creator.username}/{creator.email} to a user seed.")
+        raise ValueError(
+            f"Could not map project creator {creator.username}/{creator.email} to a user seed."
+        )
     signature = (
         f"users.{creator_seed_key}",
         str(project.title or ""),

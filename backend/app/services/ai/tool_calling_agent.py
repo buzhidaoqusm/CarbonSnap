@@ -23,7 +23,6 @@ from typing import Any, TypedDict
 
 from flask import current_app
 
-
 DEFAULT_MAX_ITERATIONS = 4
 
 CompletionFn = Callable[..., dict[str, Any]]
@@ -81,8 +80,12 @@ def run_tool_calling_agent(
     """
     resolved_completion = completion_fn or _default_completion_fn
     resolved_execute = execute_fn or _default_execute_fn
-    resolved_tools = tools if tools is not None else _default_tools_schema(exclude_high_risk=exclude_high_risk)
-    resolved_max = int(max_iterations if max_iterations is not None else _configured_max_iterations())
+    resolved_tools = (
+        tools if tools is not None else _default_tools_schema(exclude_high_risk=exclude_high_risk)
+    )
+    resolved_max = int(
+        max_iterations if max_iterations is not None else _configured_max_iterations()
+    )
     resolved_max = max(1, resolved_max)
 
     initial_state: AgentLoopState = {
@@ -283,7 +286,10 @@ def _default_tools_schema(*, exclude_high_risk: bool) -> list[dict[str, Any]]:
 
 def _configured_max_iterations() -> int:
     try:
-        return int(current_app.config.get("AI_AGENT_MAX_ITERATIONS", DEFAULT_MAX_ITERATIONS) or DEFAULT_MAX_ITERATIONS)
+        return int(
+            current_app.config.get("AI_AGENT_MAX_ITERATIONS", DEFAULT_MAX_ITERATIONS)
+            or DEFAULT_MAX_ITERATIONS
+        )
     except Exception:
         return DEFAULT_MAX_ITERATIONS
 

@@ -5,7 +5,6 @@ from typing import Any
 
 from flask import current_app
 
-
 _PARAGRAPH_SPLIT_RE = re.compile(r"\n\s*\n+")
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?。！？])\s+")
 _WHITESPACE_RE = re.compile(r"\s+")
@@ -72,7 +71,9 @@ def chunk_forum_post(*, title: str, content: str, version: int) -> list[dict[str
 
 
 def _build_segments(content: str, *, target_tokens: int) -> list[str]:
-    paragraphs = [normalize_forum_text(item) for item in _PARAGRAPH_SPLIT_RE.split(content) if item.strip()]
+    paragraphs = [
+        normalize_forum_text(item) for item in _PARAGRAPH_SPLIT_RE.split(content) if item.strip()
+    ]
     segments: list[str] = []
 
     for paragraph in paragraphs:
@@ -81,7 +82,11 @@ def _build_segments(content: str, *, target_tokens: int) -> list[str]:
             segments.append(paragraph)
             continue
 
-        sentences = [normalize_forum_text(item) for item in _SENTENCE_SPLIT_RE.split(paragraph) if item.strip()]
+        sentences = [
+            normalize_forum_text(item)
+            for item in _SENTENCE_SPLIT_RE.split(paragraph)
+            if item.strip()
+        ]
         if not sentences:
             sentences = [paragraph]
 

@@ -31,7 +31,9 @@ class _FakeIndex:
 def test_reindex_post_persists_chunks_and_updates_rag_index(monkeypatch, app):
     with app.app_context():
         user = _make_user()
-        post = ForumPost(author_id=user.id, title="Bottle", content="Recycle this bottle carefully.")
+        post = ForumPost(
+            author_id=user.id, title="Bottle", content="Recycle this bottle carefully."
+        )
         db.session.add(post)
         db.session.commit()
 
@@ -68,7 +70,9 @@ def test_reindex_post_persists_chunks_and_updates_rag_index(monkeypatch, app):
 def test_remove_post_index_deletes_chunk_rows_and_vector_entries(monkeypatch, app):
     with app.app_context():
         user = _make_user()
-        post = ForumPost(author_id=user.id, title="Bottle", content="Recycle this bottle carefully.")
+        post = ForumPost(
+            author_id=user.id, title="Bottle", content="Recycle this bottle carefully."
+        )
         db.session.add(post)
         db.session.commit()
         forum_repository.save_post_chunks(

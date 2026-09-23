@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -31,7 +31,6 @@ from app.models.ai import (
 )
 from app.models.memory import UserMemoryItem
 from app.models.user import User
-
 
 SEEDS_ROOT = _REPO_ROOT / "data" / "seeds"
 _SEED_REF_PLACEHOLDER = "__seed_ref__:"
@@ -131,7 +130,7 @@ def _coerce_seed_value(field_name: str, value: Any) -> Any:
         parsed = datetime.fromisoformat(value)
         if parsed.tzinfo is None:
             return parsed
-        return parsed.astimezone(timezone.utc)
+        return parsed.astimezone(UTC)
     if field_name.endswith("_json") and isinstance(value, (list, dict)):
         return json.dumps(value, ensure_ascii=False)
     return value
@@ -255,10 +254,7 @@ def _replace_json_seed_refs(
 
 def _resolve_json_placeholders(value: Any, registry: dict[str, dict[str, int]]) -> Any:
     if isinstance(value, dict):
-        return {
-            key: _resolve_json_placeholders(child, registry)
-            for key, child in value.items()
-        }
+        return {key: _resolve_json_placeholders(child, registry) for key, child in value.items()}
     if isinstance(value, list):
         return [_resolve_json_placeholders(item, registry) for item in value]
     if isinstance(value, str) and value.startswith(_SEED_REF_PLACEHOLDER):
@@ -329,9 +325,7 @@ def _load_seed_files_for_table(table_name: str) -> list[Path]:
     if not table_dir.exists():
         raise FileNotFoundError(f"Seed directory not found: {table_dir}")
     return sorted(
-        path
-        for path in table_dir.glob("*.json")
-        if path.is_file() and path.name != "template.json"
+        path for path in table_dir.glob("*.json") if path.is_file() and path.name != "template.json"
     )
 
 
@@ -358,11 +352,13 @@ def _seed_table(
 
     for seed_key in TARGET_SEED_KEYS_BY_TABLE.get(table_name, []):
         raw_record = _load_seed_record_for_key(table_name, seed_key)
-        normalized_seed_key, payload, deferred_ref_fields, deferred_json_fields = _normalize_seed_record(
-            table_name=table_name,
-            raw_record=raw_record,
-            registry=registry,
-            target_tables=target_tables,
+        normalized_seed_key, payload, deferred_ref_fields, deferred_json_fields = (
+            _normalize_seed_record(
+                table_name=table_name,
+                raw_record=raw_record,
+                registry=registry,
+                target_tables=target_tables,
+            )
         )
 
         row = model_class(**payload)
@@ -424,7 +420,9 @@ def _apply_deferred_updates(
 
         if update["kind"] == "json_ref":
             raw_value = getattr(row, update["field_name"])
-            parsed_value = json.loads(raw_value) if isinstance(raw_value, str) and raw_value else raw_value
+            parsed_value = (
+                json.loads(raw_value) if isinstance(raw_value, str) and raw_value else raw_value
+            )
             resolved_value = _resolve_json_placeholders(parsed_value, registry)
             setattr(row, update["field_name"], json.dumps(resolved_value, ensure_ascii=False))
             continue

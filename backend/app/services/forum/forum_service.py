@@ -6,11 +6,11 @@ Responsibilities:
 - Trigger RAG chunk persistence after post create / update / delete.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-from app.repositories.recommendation import behavior_event_repository
 from app.repositories.forum import forum_repository
 from app.repositories.profile import user_repository
+from app.repositories.recommendation import behavior_event_repository
 from app.services.forum import forum_background_job_service
 from app.services.notification import notification_service
 from app.services.recommendation import behavior_event_service, preference_profile_service
@@ -31,15 +31,15 @@ FORUM_LONG_VIEW_DEDUP_WINDOW = timedelta(minutes=30)
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _ensure_aware_utc(value: datetime | None) -> datetime | None:
     if value is None:
         return None
     if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _username_for_user(user_id: int) -> str:
@@ -57,7 +57,9 @@ def _notify_post_liked(*, post_id: int, recipient_user_id: int | None, liker_use
     )
 
 
-def _notify_post_commented(*, post_id: int, recipient_user_id: int | None, commenter_user_id: int) -> None:
+def _notify_post_commented(
+    *, post_id: int, recipient_user_id: int | None, commenter_user_id: int
+) -> None:
     if recipient_user_id is None or recipient_user_id == commenter_user_id:
         return
     notification_service.on_post_commented(
@@ -67,7 +69,9 @@ def _notify_post_commented(*, post_id: int, recipient_user_id: int | None, comme
     )
 
 
-def _notify_comment_replied(*, comment_id: int, recipient_user_id: int | None, replier_user_id: int) -> None:
+def _notify_comment_replied(
+    *, comment_id: int, recipient_user_id: int | None, replier_user_id: int
+) -> None:
     if recipient_user_id is None or recipient_user_id == replier_user_id:
         return
     notification_service.on_comment_replied(
@@ -77,7 +81,9 @@ def _notify_comment_replied(*, comment_id: int, recipient_user_id: int | None, r
     )
 
 
-def _notify_comment_liked(*, comment_id: int, recipient_user_id: int | None, liker_user_id: int) -> None:
+def _notify_comment_liked(
+    *, comment_id: int, recipient_user_id: int | None, liker_user_id: int
+) -> None:
     if recipient_user_id is None or recipient_user_id == liker_user_id:
         return
     notification_service.on_comment_liked(
@@ -91,6 +97,7 @@ def _notify_comment_liked(*, comment_id: int, recipient_user_id: int | None, lik
 # Serializers (keep presentation logic out of the repository layer)
 # ---------------------------------------------------------------------------
 
+
 def _serialize_post(
     post,
     *,
@@ -98,7 +105,11 @@ def _serialize_post(
     like_count: int | None = None,
     comment_count: int | None = None,
 ) -> dict:
-    author = user_repository.get_by_id(int(post.author_id)) if getattr(post, "author_id", None) is not None else None
+    author = (
+        user_repository.get_by_id(int(post.author_id))
+        if getattr(post, "author_id", None) is not None
+        else None
+    )
     return {
         "id": post.id,
         "author_id": post.author_id,
@@ -115,8 +126,14 @@ def _serialize_post(
     }
 
 
-def _serialize_comment(comment, *, liked_by_user: bool | None = None, like_count: int | None = None) -> dict:
-    author = user_repository.get_by_id(int(comment.user_id)) if getattr(comment, "user_id", None) is not None else None
+def _serialize_comment(
+    comment, *, liked_by_user: bool | None = None, like_count: int | None = None
+) -> dict:
+    author = (
+        user_repository.get_by_id(int(comment.user_id))
+        if getattr(comment, "user_id", None) is not None
+        else None
+    )
     return {
         "id": comment.id,
         "post_id": comment.post_id,
@@ -136,7 +153,10 @@ def _serialize_comment(comment, *, liked_by_user: bool | None = None, like_count
 # Post operations
 # ---------------------------------------------------------------------------
 
-def create_post(*, author_id: int, title: str, content: str, image_urls_json: str | None = None) -> dict:
+
+def create_post(
+    *, author_id: int, title: str, content: str, image_urls_json: str | None = None
+) -> dict:
     post = forum_repository.create_post(
         author_id=author_id,
         title=title,
@@ -168,7 +188,9 @@ def get_post(post_id: int, *, viewer_user_id: int | None = None) -> dict:
         if viewer_user_id is not None
         else None
     )
-    return _serialize_post(post, like_count=like_count, comment_count=comment_count, liked_by_user=liked)
+    return _serialize_post(
+        post, like_count=like_count, comment_count=comment_count, liked_by_user=liked
+    )
 
 
 def record_post_long_view(post_id: int, *, viewer_user_id: int) -> dict:
@@ -185,7 +207,10 @@ def record_post_long_view(post_id: int, *, viewer_user_id: int) -> dict:
     )
     if latest_event is not None:
         latest_created_at = _ensure_aware_utc(latest_event.created_at)
-        if latest_created_at is not None and (_utc_now() - latest_created_at) < FORUM_LONG_VIEW_DEDUP_WINDOW:
+        if (
+            latest_created_at is not None
+            and (_utc_now() - latest_created_at) < FORUM_LONG_VIEW_DEDUP_WINDOW
+        ):
             return {"tracked": False, "reason": "deduplicated"}
 
     try:
@@ -206,10 +231,12 @@ def list_posts(
     if viewer_user_id is not None:
         total = forum_repository.count_all_published_posts()
         candidate_limit = max(total, per_page)
-        candidate_posts = forum_repository.list_published_posts_for_ranking(candidate_limit=candidate_limit)
+        candidate_posts = forum_repository.list_published_posts_for_ranking(
+            candidate_limit=candidate_limit
+        )
         ranked_posts = rank_posts_for_user(posts=candidate_posts, user_id=viewer_user_id)
         start = (page - 1) * per_page
-        posts = ranked_posts[start:start + per_page]
+        posts = ranked_posts[start : start + per_page]
     else:
         posts, total = forum_repository.list_posts_page_by_impact(page, per_page)
 
@@ -222,7 +249,11 @@ def list_posts(
             if viewer_user_id is not None
             else None
         )
-        items.append(_serialize_post(post, like_count=like_count, comment_count=comment_count, liked_by_user=liked))
+        items.append(
+            _serialize_post(
+                post, like_count=like_count, comment_count=comment_count, liked_by_user=liked
+            )
+        )
     return {"items": items, "total": total, "page": page, "per_page": per_page}
 
 
@@ -268,6 +299,7 @@ def delete_post(post_id: int, *, operator_user_id: int) -> None:
 # ---------------------------------------------------------------------------
 # Comment operations
 # ---------------------------------------------------------------------------
+
 
 def create_comment(
     *,
@@ -345,9 +377,8 @@ def delete_comment(comment_id: int, *, operator_user_id: int) -> None:
 # Like operations (post & comment, unified)
 # ---------------------------------------------------------------------------
 
-def toggle_like(
-    *, user_id: int, target_type: str, target_id: int
-) -> dict:
+
+def toggle_like(*, user_id: int, target_type: str, target_id: int) -> dict:
     if target_type not in ("post", "comment"):
         raise ForumError("target_type must be 'post' or 'comment'.")
 
@@ -394,5 +425,3 @@ def toggle_like(
         )
     like_count = forum_repository.count_likes(target_type, target_id)
     return {"liked": liked, "like_count": like_count}
-
-

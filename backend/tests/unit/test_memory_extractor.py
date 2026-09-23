@@ -21,7 +21,9 @@ class TestMemoryExtractor:
                 "error": None,
             },
         )
-        items = memory_extractor.extract_explicit_memory_candidates("Please answer more concisely next time.")
+        items = memory_extractor.extract_explicit_memory_candidates(
+            "Please answer more concisely next time."
+        )
 
         assert items == [
             {

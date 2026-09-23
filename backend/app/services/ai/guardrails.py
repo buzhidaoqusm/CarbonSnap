@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 INJECTION_PATTERNS: dict[str, tuple[str, ...]] = {
     "instruction_override": (
         "ignore previous instructions",

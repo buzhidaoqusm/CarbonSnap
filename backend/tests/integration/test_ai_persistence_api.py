@@ -8,8 +8,8 @@ from sqlalchemy import select
 
 from app.extensions.db import db
 from app.models.ai import AIConversation, AIMessage, RecyclingCase
-from app.models.memory import UserMemoryItem
 from app.models.ledger import Transaction
+from app.models.memory import UserMemoryItem
 from app.services.ai import ai_conversation_service, ai_decision_engine, recycling_analysis_service
 
 _VALID_IMAGE_DATA_URL = (
@@ -61,7 +61,9 @@ def _extract_sse_payloads(response) -> list[dict]:
 
 
 class TestChatPersistenceApi:
-    def test_authenticated_chat_persists_conversation_and_messages(self, client, make_auth_headers, monkeypatch, app):
+    def test_authenticated_chat_persists_conversation_and_messages(
+        self, client, make_auth_headers, monkeypatch, app
+    ):
         app.config["AI_DEMO_REPLAY_ENABLED"] = False
         _, headers = make_auth_headers()
 
@@ -77,7 +79,9 @@ class TestChatPersistenceApi:
             }
 
         monkeypatch.setattr(ai_decision_engine, "decide_message", _fake_general_chat_decision)
-        monkeypatch.setattr(ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter)
+        monkeypatch.setattr(
+            ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter
+        )
 
         response = _post_json(client, "/api/ai/chat", {"message": "Hello"}, headers)
 
@@ -103,9 +107,14 @@ class TestChatPersistenceApi:
         assert history["items"][1]["content_text"] == "Persisted reply"
         assert history["items"][1]["trace"]["schema_version"] == "graph-agent-trace-v1"
         assert history["items"][1]["trace"]["conversation_id"] == data["conversation_id"]
-        assert history["items"][1]["trace"]["prompt_versions"]["general_chat_answer"] == "general-chat-answer-v1"
+        assert (
+            history["items"][1]["trace"]["prompt_versions"]["general_chat_answer"]
+            == "general-chat-answer-v1"
+        )
 
-    def test_authenticated_chat_history_exposes_uploaded_image_url(self, client, make_auth_headers, monkeypatch):
+    def test_authenticated_chat_history_exposes_uploaded_image_url(
+        self, client, make_auth_headers, monkeypatch
+    ):
         _, headers = make_auth_headers()
 
         monkeypatch.setattr(
@@ -136,7 +145,9 @@ class TestChatPersistenceApi:
         image_response = client.get(image_url)
         assert image_response.status_code == 200
 
-    def test_authenticated_chat_accepts_image_without_text(self, client, make_auth_headers, monkeypatch):
+    def test_authenticated_chat_accepts_image_without_text(
+        self, client, make_auth_headers, monkeypatch
+    ):
         _, headers = make_auth_headers()
         captured_request = {}
 
@@ -145,7 +156,9 @@ class TestChatPersistenceApi:
             return {"reply": "Image-only reply", "model": "test-model", "usage": {}}
 
         monkeypatch.setattr(ai_decision_engine, "decide_message", _fake_general_chat_decision)
-        monkeypatch.setattr(ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter)
+        monkeypatch.setattr(
+            ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter
+        )
 
         response = _post_json(
             client,
@@ -177,7 +190,9 @@ class TestChatPersistenceApi:
         def fake_chat_with_openrouter(**kwargs):
             return {"reply": "Anonymous reply", "model": "test-model", "usage": {}}
 
-        monkeypatch.setattr(ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter)
+        monkeypatch.setattr(
+            ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter
+        )
 
         response = _post_json(client, "/api/ai/chat", {"message": "Hi"})
 
@@ -197,7 +212,9 @@ class TestChatPersistenceApi:
 
         assert response.status_code == 401
 
-    def test_stream_chat_persists_after_completion(self, client, make_auth_headers, monkeypatch, app):
+    def test_stream_chat_persists_after_completion(
+        self, client, make_auth_headers, monkeypatch, app
+    ):
         app.config["AI_DEMO_REPLAY_ENABLED"] = False
         _, headers = make_auth_headers()
 
@@ -214,7 +231,9 @@ class TestChatPersistenceApi:
         )
         monkeypatch.setattr(ai_decision_engine, "decide_message", _fake_general_chat_decision)
 
-        response = _post_json(client, "/api/ai/chat/stream", {"message": "Hello"}, headers, buffered=True)
+        response = _post_json(
+            client, "/api/ai/chat/stream", {"message": "Hello"}, headers, buffered=True
+        )
 
         assert response.status_code == 200
         payloads = _extract_sse_payloads(response)
@@ -231,7 +250,10 @@ class TestChatPersistenceApi:
         assert conversation_id is not None
         assert done_payload["trace"]["schema_version"] == "graph-agent-trace-v1"
         assert done_payload["trace"]["conversation_id"] == conversation_id
-        assert done_payload["trace"]["prompt_versions"]["general_chat_answer"] == "general-chat-answer-v1"
+        assert (
+            done_payload["trace"]["prompt_versions"]["general_chat_answer"]
+            == "general-chat-answer-v1"
+        )
 
         history_response = client.get(
             f"/api/ai/conversations/{conversation_id}/messages",
@@ -257,13 +279,17 @@ class TestConversationListingApi:
         def fake_chat_with_openrouter(**kwargs):
             return {"reply": f"reply:{kwargs['user_message']}", "model": "test-model", "usage": {}}
 
-        monkeypatch.setattr(ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter)
+        monkeypatch.setattr(
+            ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter
+        )
 
         first_response = _post_json(client, "/api/ai/chat", {"message": "First"}, user1_headers)
         second_response = _post_json(client, "/api/ai/chat", {"message": "Second"}, user1_headers)
         _post_json(client, "/api/ai/chat", {"message": "Other user"}, user2_headers)
 
-        list_response = client.get("/api/ai/conversations?page=1&per_page=20", headers=user1_headers)
+        list_response = client.get(
+            "/api/ai/conversations?page=1&per_page=20", headers=user1_headers
+        )
         assert list_response.status_code == 200
         payload = list_response.get_json()["data"]
 
@@ -280,7 +306,9 @@ class TestConversationListingApi:
         response = client.get("/api/ai/conversations/1/messages")
         assert response.status_code == 401
 
-    def test_delete_conversation_removes_history_and_unlinks_memory(self, client, make_auth_headers, monkeypatch):
+    def test_delete_conversation_removes_history_and_unlinks_memory(
+        self, client, make_auth_headers, monkeypatch
+    ):
         _, headers = make_auth_headers()
 
         monkeypatch.setattr(
@@ -289,12 +317,16 @@ class TestConversationListingApi:
             lambda **kwargs: {"reply": "Delete me", "model": "test-model", "usage": {}},
         )
 
-        create_response = _post_json(client, "/api/ai/chat", {"message": "Delete this chat"}, headers)
+        create_response = _post_json(
+            client, "/api/ai/chat", {"message": "Delete this chat"}, headers
+        )
         conversation_id = create_response.get_json()["data"]["conversation_id"]
         conversation = db.session.get(AIConversation, conversation_id)
 
         first_message = db.session.scalar(
-            select(AIMessage).where(AIMessage.conversation_id == conversation_id).order_by(AIMessage.id.asc())
+            select(AIMessage)
+            .where(AIMessage.conversation_id == conversation_id)
+            .order_by(AIMessage.id.asc())
         )
         memory_item = UserMemoryItem(
             user_id=conversation.user_id,
@@ -438,7 +470,9 @@ class TestRecyclingPersistenceApi:
             buffered=True,
         )
         analyze_payloads = _extract_sse_payloads(analyze_response)
-        persisted_payload = [payload for payload in analyze_payloads if payload.get("type") == "stage_payload"][-1]["data"]
+        persisted_payload = [
+            payload for payload in analyze_payloads if payload.get("type") == "stage_payload"
+        ][-1]["data"]
         conversation_id = persisted_payload["conversation_id"]
 
         location_response = _post_json(
@@ -463,7 +497,8 @@ class TestRecyclingPersistenceApi:
         assert resume_response.status_code == 200
         resume_payloads = _extract_sse_payloads(resume_response)
         assert any(
-            payload.get("type") == "delta" and payload.get("content") == "Nearby search skipped follow-up"
+            payload.get("type") == "delta"
+            and payload.get("content") == "Nearby search skipped follow-up"
             for payload in resume_payloads
         )
 
@@ -472,7 +507,11 @@ class TestRecyclingPersistenceApi:
             headers=headers,
         )
         history = history_response.get_json()["data"]
-        assert [item["message_type"] for item in history["items"]] == ["image", "analysis_result", "tool_result"]
+        assert [item["message_type"] for item in history["items"]] == [
+            "image",
+            "analysis_result",
+            "tool_result",
+        ]
         assert history["items"][-1]["content_text"] == "Nearby search skipped follow-up"
         assert history["pending_recycling_case"]["id"] == persisted_payload["recycling_case_id"]
         assert history["pending_recycling_case"]["status"] == "pending_audit"

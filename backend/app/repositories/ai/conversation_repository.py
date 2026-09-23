@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import delete, select, update
 
@@ -17,7 +17,7 @@ from app.models.memory import UserMemoryItem
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def create_conversation(*, user_id: int, title: str | None = None) -> AIConversation:
@@ -133,9 +133,7 @@ def delete_conversation(conversation_id: int, user_id: int) -> bool:
         return False
 
     message_ids = list(
-        db.session.scalars(
-            select(AIMessage.id).where(AIMessage.conversation_id == conversation_id)
-        )
+        db.session.scalars(select(AIMessage.id).where(AIMessage.conversation_id == conversation_id))
     )
     case_ids = list(
         db.session.scalars(
@@ -187,7 +185,9 @@ def delete_conversation(conversation_id: int, user_id: int) -> bool:
         delete(AIMessageDecision).where(AIMessageDecision.conversation_id == conversation_id)
     )
     db.session.execute(
-        delete(RecyclingAuditAttempt).where(RecyclingAuditAttempt.conversation_id == conversation_id)
+        delete(RecyclingAuditAttempt).where(
+            RecyclingAuditAttempt.conversation_id == conversation_id
+        )
     )
     db.session.execute(
         delete(RecyclingCase).where(RecyclingCase.conversation_id == conversation_id)

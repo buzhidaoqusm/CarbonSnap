@@ -8,8 +8,9 @@ from typing import Any, TypedDict
 from app.services.ai.agent_trace_service import build_trace_shell
 from app.services.ai.guardrails import scan_retrieved_text_for_injection
 
-
-DEFAULT_CASES_PATH = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "ai_eval_cases.json"
+DEFAULT_CASES_PATH = (
+    Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "ai_eval_cases.json"
+)
 
 
 class EvalCase(TypedDict):
@@ -267,7 +268,11 @@ def _observed_properties(output: dict[str, Any]) -> dict[str, Any]:
     return {
         "intent": str(router.get("intent") or decision.get("intent") or ""),
         "guardrail": bool(guardrails.get("injection_flagged") or guardrails.get("reasons")),
-        "fallback": bool(guardrails.get("fallback_applied") or neo4j.get("fallback_reason") or output.get("fallback_applied")),
+        "fallback": bool(
+            guardrails.get("fallback_applied")
+            or neo4j.get("fallback_reason")
+            or output.get("fallback_applied")
+        ),
         "citation": bool(forum.get("citations")),
         "graph_path": bool(neo4j.get("paths")),
         "open_claim": bool(neo4j.get("open_claims") or neo4j.get("relation_facts")),
@@ -286,9 +291,7 @@ def _ratio(results: list[EvalResult], key: str) -> float:
 
 
 def _conditional_ratio(results: list[EvalResult], expected_key: str, passed_key: str) -> float:
-    required = [
-        result for result in results if bool(result["expected"].get(expected_key))
-    ]
+    required = [result for result in results if bool(result["expected"].get(expected_key))]
     if not required:
         return 1.0
     return round(

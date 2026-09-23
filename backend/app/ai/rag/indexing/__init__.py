@@ -5,4 +5,3 @@ from .forum_index import (
     ForumRagSearchHit,
     build_forum_rag_index,
 )
-

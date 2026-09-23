@@ -57,4 +57,3 @@ def test_embed_texts_rejects_blank_input(monkeypatch):
         openrouter_service.embed_texts(["   "], model="forum-rag-embed")
 
     assert fake_client.embeddings.calls == []
-

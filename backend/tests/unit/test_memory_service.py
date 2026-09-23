@@ -97,16 +97,24 @@ class TestMemoryService:
         stored = json.loads(db.session.get(User, user.id).preferences_json)
 
         assert summary["action_preferences"]["response_style"] == "concise"
-        assert summary["content_interest_preferences"]["topics"][0]["topic_id"] == "battery-recycling"
+        assert (
+            summary["content_interest_preferences"]["topics"][0]["topic_id"] == "battery-recycling"
+        )
         assert stored["action_preferences"]["response_style"] == "concise"
 
     def test_behavior_profiles_are_promoted_into_preferences_json(self):
         user = _make_user("behavior", "behavior@example.com")
         case = _make_recycling_case(user, waste_type_predicted="battery")
 
-        behavior_event_service.record_ai_recycling_case_pending_audit(user_id=user.id, recycling_case_id=case.id)
-        behavior_event_service.record_ai_recycling_case_failed_audit(user_id=user.id, recycling_case_id=case.id)
-        behavior_event_service.record_ai_recycling_case_passed_audit(user_id=user.id, recycling_case_id=case.id)
+        behavior_event_service.record_ai_recycling_case_pending_audit(
+            user_id=user.id, recycling_case_id=case.id
+        )
+        behavior_event_service.record_ai_recycling_case_failed_audit(
+            user_id=user.id, recycling_case_id=case.id
+        )
+        behavior_event_service.record_ai_recycling_case_passed_audit(
+            user_id=user.id, recycling_case_id=case.id
+        )
         preference_profile_service.recompute_user_preference_profiles(user.id)
 
         summary = memory_service.rebuild_user_preferences_summary(user.id)
@@ -131,7 +139,9 @@ class TestMemoryService:
 
         behavior_event_service.record_market_view(user_id=buyer.id, item_id=item.id)
         behavior_event_service.record_market_long_view(user_id=buyer.id, item_id=item.id)
-        behavior_event_service.record_market_order(user_id=buyer.id, order_id=order.id, item_id=item.id)
+        behavior_event_service.record_market_order(
+            user_id=buyer.id, order_id=order.id, item_id=item.id
+        )
         preference_profile_service.recompute_user_preference_profiles(buyer.id)
 
         summary = memory_service.rebuild_user_preferences_summary(buyer.id)

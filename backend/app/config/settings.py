@@ -24,25 +24,21 @@ def load_app_settings(app: Flask) -> None:
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "dev-secret-change-in-production")
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=7)
 
-    app.config["LLM_PROVIDER"] = os.getenv("LLM_PROVIDER", "openrouter").strip().lower() or "openrouter"
+    app.config["LLM_PROVIDER"] = (
+        os.getenv("LLM_PROVIDER", "openrouter").strip().lower() or "openrouter"
+    )
     app.config["OPENROUTER_API_KEY"] = os.getenv("OPENROUTER_API_KEY", "").strip()
     app.config["OPENROUTER_BASE_URL"] = os.getenv(
         "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
     ).strip()
-    app.config["OPENROUTER_MODEL"] = os.getenv(
-        "OPENROUTER_MODEL", "openai/gpt-5.2"
-    ).strip()
+    app.config["OPENROUTER_MODEL"] = os.getenv("OPENROUTER_MODEL", "openai/gpt-5.2").strip()
     app.config["OPENROUTER_SITE_URL"] = os.getenv("OPENROUTER_SITE_URL", "").strip()
-    app.config["OPENROUTER_SITE_NAME"] = os.getenv(
-        "OPENROUTER_SITE_NAME", "CarbonSnap"
-    ).strip()
+    app.config["OPENROUTER_SITE_NAME"] = os.getenv("OPENROUTER_SITE_NAME", "CarbonSnap").strip()
     app.config["QWEN_API_KEY"] = os.getenv("QWEN_API_KEY", "").strip()
     app.config["QWEN_BASE_URL"] = os.getenv(
         "QWEN_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"
     ).strip()
-    app.config["QWEN_MODEL"] = os.getenv(
-        "QWEN_MODEL", "qwen-plus"
-    ).strip()
+    app.config["QWEN_MODEL"] = os.getenv("QWEN_MODEL", "qwen-plus").strip()
     app.config["OSM_NOMINATIM_URL"] = os.getenv(
         "OSM_NOMINATIM_URL", "https://nominatim.openstreetmap.org"
     ).strip()
@@ -76,9 +72,7 @@ def load_app_settings(app: Flask) -> None:
     app.config["AI_MAP_SEARCH_RADIUS_METERS"] = int(
         os.getenv("AI_MAP_SEARCH_RADIUS_METERS", "3000").strip()
     )
-    app.config["AI_MAP_SEARCH_LIMIT"] = int(
-        os.getenv("AI_MAP_SEARCH_LIMIT", "12").strip()
-    )
+    app.config["AI_MAP_SEARCH_LIMIT"] = int(os.getenv("AI_MAP_SEARCH_LIMIT", "12").strip())
     app.config["AI_SHORT_TERM_MEMORY_TURNS"] = int(
         os.getenv("AI_SHORT_TERM_MEMORY_TURNS", "10").strip()
     )
@@ -88,15 +82,9 @@ def load_app_settings(app: Flask) -> None:
     app.config["FORUM_RAG_CHUNK_OVERLAP_TOKENS"] = int(
         os.getenv("FORUM_RAG_CHUNK_OVERLAP_TOKENS", "70").strip()
     )
-    app.config["FORUM_RAG_KEYWORD_TOP_K"] = int(
-        os.getenv("FORUM_RAG_KEYWORD_TOP_K", "8").strip()
-    )
-    app.config["FORUM_RAG_VECTOR_TOP_K"] = int(
-        os.getenv("FORUM_RAG_VECTOR_TOP_K", "8").strip()
-    )
-    app.config["FORUM_RAG_FINAL_TOP_K"] = int(
-        os.getenv("FORUM_RAG_FINAL_TOP_K", "4").strip()
-    )
+    app.config["FORUM_RAG_KEYWORD_TOP_K"] = int(os.getenv("FORUM_RAG_KEYWORD_TOP_K", "8").strip())
+    app.config["FORUM_RAG_VECTOR_TOP_K"] = int(os.getenv("FORUM_RAG_VECTOR_TOP_K", "8").strip())
+    app.config["FORUM_RAG_FINAL_TOP_K"] = int(os.getenv("FORUM_RAG_FINAL_TOP_K", "4").strip())
     forum_rag_faiss_dir = Path(
         os.getenv("FORUM_RAG_FAISS_DIR", backend_root.parent / "data" / "faiss")
     )
@@ -123,9 +111,7 @@ def load_app_settings(app: Flask) -> None:
     # Tool-selection rollout mode: "rule" (v1, default) | "model" (v2, A6) |
     # "shadow" (serve v1, compare against v2's selection, A7). Empty falls back
     # to the legacy AI_TOOL_CALLING_AGENT_ENABLED boolean (true -> "model").
-    app.config["AI_TOOL_SELECTION_MODE"] = (
-        os.getenv("AI_TOOL_SELECTION_MODE", "").strip().lower()
-    )
+    app.config["AI_TOOL_SELECTION_MODE"] = os.getenv("AI_TOOL_SELECTION_MODE", "").strip().lower()
     # JSONL sink for rule-vs-model tool-selection comparisons. Empty (default)
     # disables logging so no file is written unless explicitly opted in.
     app.config["AI_TOOL_SELECTION_SHADOW_LOG"] = os.getenv(
@@ -139,18 +125,12 @@ def load_app_settings(app: Flask) -> None:
     )
     # Provider-side retries for transient failures (429/5xx/timeouts), handled
     # by the OpenAI SDK. Tests set 0 so a blocked call fails immediately.
-    app.config["AI_LLM_MAX_RETRIES"] = int(
-        os.getenv("AI_LLM_MAX_RETRIES", "2").strip() or "2"
-    )
-    app.config["AI_NEO4J_GRAPHRAG_ENABLED"] = _get_bool_env(
-        "AI_NEO4J_GRAPHRAG_ENABLED", False
-    )
+    app.config["AI_LLM_MAX_RETRIES"] = int(os.getenv("AI_LLM_MAX_RETRIES", "2").strip() or "2")
+    app.config["AI_NEO4J_GRAPHRAG_ENABLED"] = _get_bool_env("AI_NEO4J_GRAPHRAG_ENABLED", False)
     app.config["NEO4J_URI"] = os.getenv("NEO4J_URI", "").strip()
     app.config["NEO4J_USERNAME"] = os.getenv("NEO4J_USERNAME", "").strip()
     app.config["NEO4J_PASSWORD"] = os.getenv("NEO4J_PASSWORD", "").strip()
-    app.config["AI_PROMPTOPS_SHADOW_ENABLED"] = _get_bool_env(
-        "AI_PROMPTOPS_SHADOW_ENABLED", False
-    )
+    app.config["AI_PROMPTOPS_SHADOW_ENABLED"] = _get_bool_env("AI_PROMPTOPS_SHADOW_ENABLED", False)
     app.config["AI_TRACE_INCLUDE_RETRIEVAL_EXCERPTS"] = _get_bool_env(
         "AI_TRACE_INCLUDE_RETRIEVAL_EXCERPTS", True
     )
@@ -163,7 +143,9 @@ def load_app_settings(app: Flask) -> None:
     upload_root = Path(os.getenv("UPLOAD_ROOT", backend_root.parent / "data" / "uploads"))
     upload_root.mkdir(parents=True, exist_ok=True)
     app.config["UPLOAD_ROOT"] = str(upload_root)
-    app.config["UPLOAD_URL_PREFIX"] = os.getenv("UPLOAD_URL_PREFIX", "/api/uploads").strip() or "/api/uploads"
+    app.config["UPLOAD_URL_PREFIX"] = (
+        os.getenv("UPLOAD_URL_PREFIX", "/api/uploads").strip() or "/api/uploads"
+    )
     app.config["AI_EMISSION_FACTORS"] = _load_emission_factors()
     app.config["AI_OSM_RECYCLING_TAGS"] = _load_osm_recycling_tags()
 

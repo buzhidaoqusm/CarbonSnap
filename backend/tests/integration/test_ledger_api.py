@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from app.extensions.db import db
 from app.models.ledger import Transaction
@@ -46,7 +46,7 @@ def _seed_transaction(
     days_ago: int = 0,
     hours_ago: int = 0,
 ) -> None:
-    created_at = datetime.now(timezone.utc) - timedelta(days=days_ago, hours=hours_ago)
+    created_at = datetime.now(UTC) - timedelta(days=days_ago, hours=hours_ago)
     db.session.add(
         Transaction(
             user_id=user_id,

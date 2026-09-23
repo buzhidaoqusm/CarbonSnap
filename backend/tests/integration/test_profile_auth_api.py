@@ -2,7 +2,9 @@ class TestProfileAuthApi:
     def test_authenticated_user_can_update_bio(self, client, make_auth_headers):
         _, headers = make_auth_headers()
 
-        response = client.patch("/api/auth/me", json={"bio": "Building a lower-waste routine."}, headers=headers)
+        response = client.patch(
+            "/api/auth/me", json={"bio": "Building a lower-waste routine."}, headers=headers
+        )
 
         assert response.status_code == 200
         data = response.get_json()["data"]

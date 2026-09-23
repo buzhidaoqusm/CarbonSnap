@@ -1,15 +1,19 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from math import ceil
 
 from app.extensions.db import db
+from app.models.user import User
 from app.repositories.ledger.ledger_repository import InsufficientPointsError, spend_points
 from app.repositories.project import project_repository
-from app.models.user import User
 from app.services.ai import memory_service
 from app.services.notification import notification_service
-from app.services.recommendation import behavior_event_service, preference_profile_service, topic_mapping_service
+from app.services.recommendation import (
+    behavior_event_service,
+    preference_profile_service,
+    topic_mapping_service,
+)
 from app.services.recommendation.project_recommendation_service import rank_projects_for_user
 
 
@@ -22,15 +26,15 @@ class ProjectError(Exception):
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _ensure_aware_utc(value: datetime | None) -> datetime | None:
     if value is None:
         return None
     if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _parse_deadline(deadline_at: str | None) -> datetime:
@@ -105,7 +109,9 @@ def _serialize_project(
     if include_recent_contributions:
         payload["recent_contributions"] = [
             _serialize_contribution(contribution, username)
-            for contribution, username in project_repository.list_recent_contributions(project.id, limit=12)
+            for contribution, username in project_repository.list_recent_contributions(
+                project.id, limit=12
+            )
         ]
     return payload
 
@@ -168,9 +174,13 @@ def list_projects(page: int, per_page: int, *, viewer_user_id: int | None = None
         all_items = project_repository.list_all_projects()
         total = len(all_items)
         own_items = [item for item in all_items if int(item.creator_user_id) == int(viewer_user_id)]
-        candidate_items = [item for item in all_items if int(item.creator_user_id) != int(viewer_user_id)]
+        candidate_items = [
+            item for item in all_items if int(item.creator_user_id) != int(viewer_user_id)
+        ]
         try:
-            ranked_candidate_items = rank_projects_for_user(projects=candidate_items, user_id=viewer_user_id)
+            ranked_candidate_items = rank_projects_for_user(
+                projects=candidate_items, user_id=viewer_user_id
+            )
         except Exception:
             ranked_candidate_items = candidate_items
         ordered_items = own_items + ranked_candidate_items
@@ -178,9 +188,15 @@ def list_projects(page: int, per_page: int, *, viewer_user_id: int | None = None
         items = ordered_items[start : start + per_page]
     else:
         items, total = project_repository.list_projects_page(page, per_page)
-    creator_map = project_repository.list_creator_usernames([item.creator_user_id for item in items])
-    contribution_counts = project_repository.list_contribution_counts_for_project_ids([item.id for item in items])
-    contributor_counts = project_repository.list_unique_contributor_counts_for_project_ids([item.id for item in items])
+    creator_map = project_repository.list_creator_usernames(
+        [item.creator_user_id for item in items]
+    )
+    contribution_counts = project_repository.list_contribution_counts_for_project_ids(
+        [item.id for item in items]
+    )
+    contributor_counts = project_repository.list_unique_contributor_counts_for_project_ids(
+        [item.id for item in items]
+    )
     serialized_items = [
         _serialize_project(
             item,
@@ -209,7 +225,9 @@ def get_project(project_id: int, *, viewer_user_id: int | None = None) -> dict:
         raise ProjectError("Project not found.", code=40400, http_status=404)
     if viewer_user_id is not None and viewer_user_id != project.creator_user_id:
         try:
-            behavior_event_service.record_project_view(user_id=viewer_user_id, project_id=project.id)
+            behavior_event_service.record_project_view(
+                user_id=viewer_user_id, project_id=project.id
+            )
             _refresh_recommendation_state(viewer_user_id)
         except Exception:
             pass
@@ -252,8 +270,10 @@ def contribute_to_project(*, project_id: int, user_id: int, points: int) -> dict
             points=int(points),
             source_type="project",
         )
-    except InsufficientPointsError:
-        raise ProjectError("Insufficient points for this contribution.", code=40200, http_status=402)
+    except InsufficientPointsError as exc:
+        raise ProjectError(
+            "Insufficient points for this contribution.", code=40200, http_status=402
+        ) from exc
 
     contribution = project_repository.create_contribution(
         project_id=project.id,
@@ -294,7 +314,9 @@ def contribute_to_project(*, project_id: int, user_id: int, points: int) -> dict
         pass
 
     creator_map = project_repository.list_creator_usernames([project.creator_user_id])
-    contribution_username = project_repository.list_creator_usernames([user_id]).get(user_id, f"User {user_id}")
+    contribution_username = project_repository.list_creator_usernames([user_id]).get(
+        user_id, f"User {user_id}"
+    )
     viewer = db.session.get(User, user_id)
     return {
         "project": _serialize_project(

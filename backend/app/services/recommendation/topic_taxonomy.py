@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 from typing import Any
 
-
 PHASE1_TOPIC_DEFINITIONS: tuple[dict[str, Any], ...] = (
     {
         "topic_id": "plastic-recycling",
@@ -246,7 +245,12 @@ def _topic_alias_lookup() -> dict[str, str]:
     lookup: dict[str, str] = {}
     for definition in PHASE1_TOPIC_DEFINITIONS:
         topic_id = definition["topic_id"]
-        aliases = {topic_id, definition["label"], *definition["keywords"], *definition["recycling_aliases"]}
+        aliases = {
+            topic_id,
+            definition["label"],
+            *definition["keywords"],
+            *definition["recycling_aliases"],
+        }
         for alias in aliases:
             normalized = _normalize_text(alias)
             if normalized:

@@ -21,7 +21,6 @@ from app.extensions.db import db
 from app.models.user import User
 from scripts import seed_example_data
 
-
 AI_TABLE_LOAD_ORDER = [
     "user_memory_items",
     "ai_conversations",
@@ -93,7 +92,11 @@ def _find_existing_user(*, email: str, username: str) -> User | None:
     email_match = db.session.query(User).filter(User.email == email).one_or_none()
     username_match = db.session.query(User).filter(User.username == username).one_or_none()
 
-    if email_match is not None and username_match is not None and email_match.id != username_match.id:
+    if (
+        email_match is not None
+        and username_match is not None
+        and email_match.id != username_match.id
+    ):
         raise ValueError(
             "Seeded AI user matches two different existing users: "
             f"email={email!r}, username={username!r}."
@@ -152,7 +155,9 @@ def _clear_ai_tables() -> dict[str, int]:
 
     if "recycling_cases" in existing_table_names:
         db.session.execute(
-            text("UPDATE recycling_cases SET approved_analysis_id = NULL WHERE approved_analysis_id IS NOT NULL")
+            text(
+                "UPDATE recycling_cases SET approved_analysis_id = NULL WHERE approved_analysis_id IS NOT NULL"
+            )
         )
     if "waste_analysis_records" in existing_table_names:
         db.session.execute(
@@ -164,7 +169,9 @@ def _clear_ai_tables() -> dict[str, int]:
         )
     if "ai_messages" in existing_table_names:
         db.session.execute(
-            text("UPDATE ai_messages SET related_analysis_id = NULL WHERE related_analysis_id IS NOT NULL")
+            text(
+                "UPDATE ai_messages SET related_analysis_id = NULL WHERE related_analysis_id IS NOT NULL"
+            )
         )
 
     if "transactions" in existing_table_names:

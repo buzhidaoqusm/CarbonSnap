@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.extensions.db import db
 
@@ -17,7 +17,7 @@ class ForumPost(db.Model):
     created_at = db.Column(
         db.DateTime,
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
 
 
@@ -35,7 +35,7 @@ class ForumComment(db.Model):
     created_at = db.Column(
         db.DateTime,
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
 
 
@@ -50,14 +50,12 @@ class Like(db.Model):
     created_at = db.Column(
         db.DateTime,
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
 
     # Prevent duplicate likes: one user can only like a target once.
     __table_args__ = (
-        db.UniqueConstraint(
-            "user_id", "target_type", "target_id", name="uq_likes_user_target"
-        ),
+        db.UniqueConstraint("user_id", "target_type", "target_id", name="uq_likes_user_target"),
     )
 
 

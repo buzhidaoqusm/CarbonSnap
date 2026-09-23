@@ -113,7 +113,9 @@ def list_recent_contributions(
 def count_contributions(project_id: int) -> int:
     return (
         db.session.scalar(
-            select(func.count(ProjectContribution.id)).where(ProjectContribution.project_id == project_id)
+            select(func.count(ProjectContribution.id)).where(
+                ProjectContribution.project_id == project_id
+            )
         )
         or 0
     )
@@ -166,7 +168,9 @@ def list_unique_contributor_counts_for_project_ids(project_ids: list[int]) -> di
     if not normalized_ids:
         return {}
     rows = db.session.execute(
-        select(ProjectContribution.project_id, func.count(func.distinct(ProjectContribution.user_id)))
+        select(
+            ProjectContribution.project_id, func.count(func.distinct(ProjectContribution.user_id))
+        )
         .where(ProjectContribution.project_id.in_(normalized_ids))
         .group_by(ProjectContribution.project_id)
     ).all()

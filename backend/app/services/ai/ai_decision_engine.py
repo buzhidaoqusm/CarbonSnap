@@ -41,6 +41,7 @@ _FORUM_QUERY_HINTS = (
     "如何回收",
 )
 
+
 def decide_message(
     *,
     user_id: int | None,
@@ -159,7 +160,9 @@ def _run_decision_pipeline(
         target_case_id = None
         needs_clarification = True
         if not clarification_question:
-            clarification_question = "I found multiple recycling tasks in this chat. Which one do you mean?"
+            clarification_question = (
+                "I found multiple recycling tasks in this chat. Which one do you mean?"
+            )
         if not clarification_options:
             clarification_options = [
                 {
@@ -227,17 +230,24 @@ def _serialize_shadow_decision(decision: dict[str, Any]) -> dict[str, Any]:
 
 
 def _get_engine_mode() -> str:
-    mode = str(current_app.config.get("AI_DECISION_ENGINE_MODE", "llm_first") or "llm_first").strip().lower()
+    mode = (
+        str(current_app.config.get("AI_DECISION_ENGINE_MODE", "llm_first") or "llm_first")
+        .strip()
+        .lower()
+    )
     if mode not in {"compat", "shadow", "llm_first"}:
         return "llm_first"
     return mode
 
 
 def _get_engine_version() -> str:
-    return str(
-        current_app.config.get("AI_DECISION_ENGINE_VERSION", "decision-engine-v2")
+    return (
+        str(
+            current_app.config.get("AI_DECISION_ENGINE_VERSION", "decision-engine-v2")
+            or "decision-engine-v2"
+        ).strip()
         or "decision-engine-v2"
-    ).strip() or "decision-engine-v2"
+    )
 
 
 def _trace_enabled() -> bool:
@@ -334,9 +344,7 @@ def persist_message_decision(
     decision: dict[str, Any],
 ) -> Any:
     payload = {
-        key: value
-        for key, value in decision.items()
-        if key not in {"context", "prompt_memory"}
+        key: value for key, value in decision.items() if key not in {"context", "prompt_memory"}
     }
     return message_decision_repository.create_message_decision(
         conversation_id=conversation_id,

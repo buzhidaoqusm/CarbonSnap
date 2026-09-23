@@ -25,7 +25,6 @@ from app.extensions.db import db
 from app.models.forum import ForumPost, ForumPostChunk
 from app.models.user import User
 
-
 SEEDS_ROOT = _REPO_ROOT / "data" / "seeds"
 FORUM_POST_SEEDS_ROOT = SEEDS_ROOT / "forum_posts"
 FORUM_POST_CHUNK_SEEDS_ROOT = SEEDS_ROOT / "forum_post_chunks"
@@ -34,7 +33,9 @@ FAISS_ROOT = _REPO_ROOT / "data" / "faiss"
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Export forum RAG chunks and FAISS assets into seed files.")
+    parser = argparse.ArgumentParser(
+        description="Export forum RAG chunks and FAISS assets into seed files."
+    )
     parser.add_argument("--replace-existing", action="store_true")
     return parser.parse_args()
 
@@ -227,8 +228,7 @@ def main() -> None:
 
         chunks = list(
             db.session.scalars(
-                select(ForumPostChunk)
-                .order_by(
+                select(ForumPostChunk).order_by(
                     ForumPostChunk.post_id.asc(),
                     ForumPostChunk.chunk_version.asc(),
                     ForumPostChunk.chunk_index.asc(),
@@ -253,10 +253,7 @@ def main() -> None:
         else:
             chunk_rows = _load_manifest_chunk_rows()
             if chunk_rows and not post_seed_keys:
-                post_seed_keys = {
-                    index: seed_key
-                    for index, seed_key in enumerate(forum_post_seed_keys_in_load_order, start=1)
-                }
+                post_seed_keys = dict(enumerate(forum_post_seed_keys_in_load_order, start=1))
 
         exported_chunks = 0
         for chunk in chunk_rows:
@@ -267,9 +264,7 @@ def main() -> None:
                     f"chunk_version={chunk['chunk_version']} chunk_index={chunk['chunk_index']}."
                 )
 
-            chunk_seed_key = (
-                f"{post_seed_key}-chunk-v{int(chunk['chunk_version']):02d}-i{int(chunk['chunk_index']):02d}"
-            )
+            chunk_seed_key = f"{post_seed_key}-chunk-v{int(chunk['chunk_version']):02d}-i{int(chunk['chunk_index']):02d}"
             payload = {
                 "_seed_key": chunk_seed_key,
                 "post_ref": f"forum_posts.{post_seed_key}",

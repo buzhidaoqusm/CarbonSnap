@@ -3,13 +3,12 @@ from __future__ import annotations
 import json
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from math import exp
 from typing import Any
 
 from app.repositories.recommendation import behavior_event_repository, preference_profile_repository
 from app.services.recommendation.topic_taxonomy import PHASE1_TOPIC_IDS, normalize_topic_id
-
 
 FORUM_ACTION_WEIGHTS = {
     "view": 1.0,
@@ -61,15 +60,15 @@ class TopicContribution:
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _ensure_aware_utc(value: datetime | None) -> datetime:
     if value is None:
         return _utc_now()
     if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _load_topic_payload(event: Any) -> list[TopicContribution]:
@@ -225,7 +224,11 @@ def _aggregate_topic_rows(user_id: int) -> list[dict[str, Any]]:
         )
 
     rows.sort(
-        key=lambda item: (-float(item["normalized_score"]), -int(item["event_count"]), item["profile_key"])
+        key=lambda item: (
+            -float(item["normalized_score"]),
+            -int(item["event_count"]),
+            item["profile_key"],
+        )
     )
     return rows
 
@@ -278,7 +281,9 @@ def is_promotable_profile(
     )
 
 
-def has_sufficient_history(user_id: int, *, min_event_count: int = DEFAULT_PROFILE_EVENT_THRESHOLD) -> bool:
+def has_sufficient_history(
+    user_id: int, *, min_event_count: int = DEFAULT_PROFILE_EVENT_THRESHOLD
+) -> bool:
     profiles = list_content_interest_profiles(user_id)
     return any(int(profile.event_count or 0) >= min_event_count for profile in profiles)
 

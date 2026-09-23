@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.services.ai import forum_graph_sync_service
 
@@ -47,7 +47,9 @@ def test_sync_forum_post_graph_upserts_entities_relation_fact_and_evidence(monke
         forum_graph_sync_service.forum_graph_extraction_service,
         "extract_forum_graph_payload",
         lambda **kwargs: {
-            "entities": [{"key": "plastic_bottle", "name": "plastic bottle", "entity_type": "item"}],
+            "entities": [
+                {"key": "plastic_bottle", "name": "plastic bottle", "entity_type": "item"}
+            ],
             "relations": [
                 {
                     "subject": "plastic bottle",
@@ -69,7 +71,7 @@ def test_sync_forum_post_graph_upserts_entities_relation_fact_and_evidence(monke
         title="Bottle lantern ideas",
         content="Plastic bottles can be upcycled into lanterns.",
         author_id=7,
-        created_at=datetime(2026, 5, 12, tzinfo=timezone.utc),
+        created_at=datetime(2026, 5, 12, tzinfo=UTC),
         chunks=[
             FakeChunk(
                 id=1,
@@ -84,9 +86,7 @@ def test_sync_forum_post_graph_upserts_entities_relation_fact_and_evidence(monke
     )
 
     relation_calls = [
-        params
-        for query, params in driver.session_obj.calls
-        if "MERGE (fact:RelationFact" in query
+        params for query, params in driver.session_obj.calls if "MERGE (fact:RelationFact" in query
     ]
     assert result["synced"] is True
     assert result["relation_fact_count"] == 1
@@ -132,9 +132,7 @@ def test_sync_forum_post_graph_aggregates_same_fact_with_distinct_evidence(monke
     )
 
     relation_calls = [
-        params
-        for query, params in driver.session_obj.calls
-        if "MERGE (fact:RelationFact" in query
+        params for query, params in driver.session_obj.calls if "MERGE (fact:RelationFact" in query
     ]
     assert result["relation_fact_count"] == 2
     assert relation_calls[0]["fact_id"] == relation_calls[1]["fact_id"]
@@ -170,7 +168,11 @@ def test_sync_forum_post_graph_reuses_fixed_made_of_relationship(monkeypatch):
         content="Coffee cups are composed of plastic-lined paper.",
         author_id=7,
         created_at=None,
-        chunks=[FakeChunk(1, 22, "Coffee cups are composed of plastic-lined paper.", 0, 1, "post-22-v1-c0")],
+        chunks=[
+            FakeChunk(
+                1, 22, "Coffee cups are composed of plastic-lined paper.", 0, 1, "post-22-v1-c0"
+            )
+        ],
         driver=driver,
     )
 
@@ -187,6 +189,5 @@ def test_remove_forum_post_graph_marks_evidence_inactive():
 
     assert result["removed"] is True
     assert any(
-        "SET evidence.active = false" in query
-        for query, _params in driver.session_obj.calls
+        "SET evidence.active = false" in query for query, _params in driver.session_obj.calls
     )

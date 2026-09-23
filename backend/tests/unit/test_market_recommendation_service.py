@@ -79,8 +79,12 @@ class TestMarketRecommendationService:
             market_recommendation_service.preference_profile_repository,
             "list_content_topic_assignments_for_content_ids",
             lambda **kwargs: {
-                matching_item.id: [SimpleNamespace(topic_id="battery-recycling", confidence_score=1.0)],
-                non_matching_item.id: [SimpleNamespace(topic_id="plastic-recycling", confidence_score=1.0)],
+                matching_item.id: [
+                    SimpleNamespace(topic_id="battery-recycling", confidence_score=1.0)
+                ],
+                non_matching_item.id: [
+                    SimpleNamespace(topic_id="plastic-recycling", confidence_score=1.0)
+                ],
             },
         )
         monkeypatch.setattr(
@@ -122,7 +126,11 @@ class TestMarketRecommendationService:
             "app.services.recommendation.preference_profile_service.has_sufficient_history",
             lambda user_id: False,
         )
-        monkeypatch.setattr(market_recommendation_service, "_recency_score", lambda item: 0.6 if item.id == older_popular_item.id else 0.3)
+        monkeypatch.setattr(
+            market_recommendation_service,
+            "_recency_score",
+            lambda item: 0.6 if item.id == older_popular_item.id else 0.3,
+        )
 
         ranked = market_recommendation_service.rank_items_for_user(
             items=[newer_item, older_popular_item],
@@ -148,7 +156,9 @@ class TestMarketRecommendationService:
 
         assert score > 0.0
 
-    def test_rank_items_for_user_inserts_alternate_topic_before_third_consecutive_match(self, monkeypatch):
+    def test_rank_items_for_user_inserts_alternate_topic_before_third_consecutive_match(
+        self, monkeypatch
+    ):
         seller = _make_user("mix-seller", "mix-seller@example.com")
         buyer = _make_user("mix-buyer", "mix-buyer@example.com")
         upcycling_1 = _make_item(seller.id, "Upcycling A")
@@ -171,7 +181,9 @@ class TestMarketRecommendationService:
                 upcycling_1.id: [SimpleNamespace(topic_id="upcycling", confidence_score=0.85)],
                 upcycling_2.id: [SimpleNamespace(topic_id="upcycling", confidence_score=0.75)],
                 upcycling_3.id: [SimpleNamespace(topic_id="upcycling", confidence_score=0.65)],
-                alternate.id: [SimpleNamespace(topic_id="battery-recycling", confidence_score=0.95)],
+                alternate.id: [
+                    SimpleNamespace(topic_id="battery-recycling", confidence_score=0.95)
+                ],
             },
         )
         monkeypatch.setattr(

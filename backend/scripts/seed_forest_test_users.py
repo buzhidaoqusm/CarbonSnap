@@ -22,7 +22,7 @@ Login credentials (all accounts share the same password format):
 from __future__ import annotations
 
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[1]
@@ -69,9 +69,9 @@ _TEST_ACCOUNTS: list[dict] = [
         "total_carbon_amount": 0.30,
         "transactions": [
             {"points": 10, "co2": 0.10, "source_type": "waste_analysis", "days_ago": 21},
-            {"points":  8, "co2": 0.08, "source_type": "waste_analysis", "days_ago": 14},
-            {"points":  7, "co2": 0.07, "source_type": "waste_analysis", "days_ago": 7},
-            {"points":  5, "co2": 0.05, "source_type": "project",        "days_ago": 3},
+            {"points": 8, "co2": 0.08, "source_type": "waste_analysis", "days_ago": 14},
+            {"points": 7, "co2": 0.07, "source_type": "waste_analysis", "days_ago": 7},
+            {"points": 5, "co2": 0.05, "source_type": "project", "days_ago": 3},
         ],
     },
     {
@@ -83,9 +83,9 @@ _TEST_ACCOUNTS: list[dict] = [
         "transactions": [
             {"points": 20, "co2": 0.20, "source_type": "waste_analysis", "days_ago": 30},
             {"points": 18, "co2": 0.18, "source_type": "waste_analysis", "days_ago": 21},
-            {"points": 15, "co2": 0.15, "source_type": "project",        "days_ago": 14},
+            {"points": 15, "co2": 0.15, "source_type": "project", "days_ago": 14},
             {"points": 12, "co2": 0.12, "source_type": "waste_analysis", "days_ago": 7},
-            {"points":  7, "co2": 0.07, "source_type": "market_order",   "days_ago": 3},
+            {"points": 7, "co2": 0.07, "source_type": "market_order", "days_ago": 3},
         ],
     },
     {
@@ -97,9 +97,9 @@ _TEST_ACCOUNTS: list[dict] = [
         "transactions": [
             {"points": 32, "co2": 0.32, "source_type": "waste_analysis", "days_ago": 60},
             {"points": 28, "co2": 0.28, "source_type": "waste_analysis", "days_ago": 45},
-            {"points": 25, "co2": 0.25, "source_type": "project",        "days_ago": 30},
+            {"points": 25, "co2": 0.25, "source_type": "project", "days_ago": 30},
             {"points": 20, "co2": 0.20, "source_type": "waste_analysis", "days_ago": 14},
-            {"points": 15, "co2": 0.15, "source_type": "market_order",   "days_ago": 7},
+            {"points": 15, "co2": 0.15, "source_type": "market_order", "days_ago": 7},
         ],
     },
 ]
@@ -108,6 +108,7 @@ _SOURCE_TYPE_TAG = "forest_test_seed"
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
+
 
 def _upsert_user(account: dict) -> tuple[User, bool]:
     """Return (user, created). Updates all fields if the user already exists."""
@@ -124,7 +125,7 @@ def _upsert_user(account: dict) -> tuple[User, bool]:
     user.total_carbon_amount = account["total_carbon_amount"]
     user.avatar_url = f"https://api.dicebear.com/9.x/shapes/svg?seed={account['username']}"
     if created:
-        user.created_at = datetime.now(timezone.utc) - timedelta(days=120)
+        user.created_at = datetime.now(UTC) - timedelta(days=120)
 
     return user, created
 
@@ -136,7 +137,7 @@ def _replace_transactions(user: User, txn_defs: list[dict]) -> int:
         source_type=_SOURCE_TYPE_TAG,
     ).delete(synchronize_session=False)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for index, txn_def in enumerate(txn_defs):
         txn = Transaction(
             user_id=user.id,
@@ -153,6 +154,7 @@ def _replace_transactions(user: User, txn_defs: list[dict]) -> int:
 
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
+
 
 def main() -> None:
     app = create_app()
@@ -183,7 +185,7 @@ def main() -> None:
         print(f"  Shared password : {_PASSWORD}")
         print("─" * 62)
         print(f"  {'Email':<35}  {'Points':>7}  {'Trees':>6}")
-        print(f"  {'─'*35}  {'─'*7}  {'─'*6}")
+        print(f"  {'─' * 35}  {'─' * 7}  {'─' * 6}")
         for acct in _TEST_ACCOUNTS:
             trees = min(60, acct["current_points"] // 2)
             print(f"  {acct['email']:<35}  {acct['current_points']:>7}  {trees:>5}🌲")

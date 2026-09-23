@@ -40,14 +40,14 @@ tools/        Tooling placeholders
 
 ### Backend Setup
 
+Dependencies are managed with [uv](https://docs.astral.sh/uv/) (Python 3.12):
+
 ```powershell
 cd backend
-python -m venv .venv
-.\.venv\Scripts\activate
-pip install -r requirements.txt
+uv sync
 Copy-Item .env.example .env
-flask --app run.py db upgrade
-python run.py
+uv run flask --app run.py db upgrade
+uv run python run.py
 ```
 
 The backend runs at `http://127.0.0.1:5000` by default.
@@ -108,8 +108,7 @@ Seed the graph:
 
 ```powershell
 cd backend
-.\.venv\Scripts\activate
-python scripts\seed_recycling_graph.py
+uv run python scripts\seed_recycling_graph.py
 ```
 
 If Neo4j is not available, keep `AI_NEO4J_GRAPHRAG_ENABLED=false`. The application will continue to use the standard chat, forum RAG, memory, and recycling flows.
@@ -122,25 +121,22 @@ Import the full demo dataset:
 
 ```powershell
 cd backend
-.\.venv\Scripts\activate
-python scripts\seed_example_data.py
+uv run python scripts\seed_example_data.py
 ```
 
 Import only AI demo conversations and related records:
 
 ```powershell
 cd backend
-.\.venv\Scripts\activate
-python scripts\seed_ai_example_data.py
+uv run python scripts\seed_ai_example_data.py
 ```
 
 Reset local data and re-import seeds:
 
 ```powershell
 cd backend
-.\.venv\Scripts\activate
-python scripts\reset_all_data.py
-python scripts\seed_example_data.py
+uv run python scripts\reset_all_data.py
+uv run python scripts\seed_example_data.py
 ```
 
 ## Testing
@@ -149,8 +145,20 @@ Run backend tests:
 
 ```powershell
 cd backend
-.\.venv\Scripts\activate
-python -m pytest tests -q
+uv run pytest -q
+```
+
+Tests run against a throwaway database in a temp directory and block outbound
+network access, so they never touch `data/carbonsnap.db` and never call a real
+provider.
+
+Lint, format and type checks:
+
+```powershell
+cd backend
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy
 ```
 
 Run frontend tests:
@@ -164,7 +172,7 @@ Run the deterministic AI evaluation suite:
 
 ```powershell
 cd backend
-.\.venv\Scripts\python.exe -m pytest tests\unit\test_eval_suite.py -q
+uv run pytest tests/unit/test_eval_suite.py -q
 ```
 
 ## Security Notes

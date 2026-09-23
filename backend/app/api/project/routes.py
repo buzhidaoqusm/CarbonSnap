@@ -53,7 +53,9 @@ def upload_project_image():
 @jwt_required(optional=True)
 def list_projects():
     page, per_page = _parse_pagination()
-    return ok(project_service.list_projects(page, per_page, viewer_user_id=_optional_current_user_id()))
+    return ok(
+        project_service.list_projects(page, per_page, viewer_user_id=_optional_current_user_id())
+    )
 
 
 @project_bp.post("/projects")
@@ -84,7 +86,9 @@ def create_project():
 @jwt_required(optional=True)
 def get_project(project_id: int):
     try:
-        return ok(project_service.get_project(project_id, viewer_user_id=_optional_current_user_id()))
+        return ok(
+            project_service.get_project(project_id, viewer_user_id=_optional_current_user_id())
+        )
     except ProjectError as exc:
         return fail(exc.code, exc.message, exc.http_status)
 

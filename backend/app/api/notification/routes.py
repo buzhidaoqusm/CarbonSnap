@@ -10,8 +10,8 @@ Endpoints:
 from flask import Blueprint, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
-from app.services.notification.notification_service import NotificationError
 from app.services.notification import notification_service
+from app.services.notification.notification_service import NotificationError
 from app.utils.response import fail, ok
 
 notification_bp = Blueprint("notification", __name__)
@@ -37,6 +37,7 @@ def _parse_pagination() -> tuple[int, int]:
 # Routes
 # ---------------------------------------------------------------------------
 
+
 @notification_bp.get("/notifications")
 @jwt_required()
 def list_notifications():
@@ -58,9 +59,7 @@ def unread_count():
 @jwt_required()
 def mark_as_read(notification_id: int):
     try:
-        result = notification_service.mark_as_read(
-            notification_id, user_id=_current_user_id()
-        )
+        result = notification_service.mark_as_read(notification_id, user_id=_current_user_id())
     except NotificationError as exc:
         return fail(exc.code, exc.message, exc.http_status)
     return ok(result)

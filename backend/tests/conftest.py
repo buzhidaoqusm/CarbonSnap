@@ -76,10 +76,10 @@ from app import create_app  # noqa: E402
 from app.extensions.db import db as _db  # noqa: E402
 from app.models.user import User  # noqa: E402
 
-
 # ---------------------------------------------------------------------------
 # App fixture  (session-scoped — created once per test run)
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="session")
 def app():
@@ -151,6 +151,7 @@ def block_network(monkeypatch):
 # flips with app.config.update() would otherwise leak into every later test)
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture(autouse=True)
 def restore_app_config(app):
     original = dict(app.config)
@@ -162,6 +163,7 @@ def restore_app_config(app):
 # ---------------------------------------------------------------------------
 # DB isolation  (function-scoped — fresh tables for every test)
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(autouse=True)
 def db_session(app):
@@ -177,6 +179,7 @@ def db_session(app):
 # HTTP client
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture()
 def client(app):
     return app.test_client()
@@ -186,6 +189,7 @@ def client(app):
 # User / auth helpers
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture()
 def make_user(app):
     """Factory: make_user(username, email, password) -> (User, token).
@@ -193,6 +197,7 @@ def make_user(app):
     Runs inside the current app context so the user is visible to the
     same db session used by the test.
     """
+
     def _factory(
         username: str = "testuser",
         email: str = "test@example.com",
@@ -208,7 +213,7 @@ def make_user(app):
             )
             _db.session.add(user)
             _db.session.flush()
-            _db.session.commit()          # commit so HTTP requests see the row
+            _db.session.commit()  # commit so HTTP requests see the row
             token = create_access_token(identity=str(user.id))
             # Re-fetch to get a detached-safe copy with the real PK.
             user_id = user.id

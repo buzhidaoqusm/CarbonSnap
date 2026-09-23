@@ -28,8 +28,12 @@ class _FakeIndex:
 def test_retrieve_forum_references_fuses_keyword_and_vector_hits(monkeypatch, app):
     with app.app_context():
         user = _make_user()
-        bottle_post = ForumPost(author_id=user.id, title="Bottle Recycling Tips", content="Rinse and sort your bottle.")
-        glass_post = ForumPost(author_id=user.id, title="Glass Jar Ideas", content="Take jars to a community drop-off.")
+        bottle_post = ForumPost(
+            author_id=user.id, title="Bottle Recycling Tips", content="Rinse and sort your bottle."
+        )
+        glass_post = ForumPost(
+            author_id=user.id, title="Glass Jar Ideas", content="Take jars to a community drop-off."
+        )
         db.session.add_all([bottle_post, glass_post])
         db.session.commit()
 
@@ -64,7 +68,9 @@ def test_retrieve_forum_references_fuses_keyword_and_vector_hits(monkeypatch, ap
             lambda: _FakeIndex([SimpleNamespace(chunk_id="post-1-v1-c0", score=0.91)]),
         )
 
-        result = forum_retrieval_service.retrieve_forum_references(query="How do I recycle a bottle?")
+        result = forum_retrieval_service.retrieve_forum_references(
+            query="How do I recycle a bottle?"
+        )
 
         assert result["candidates"]
         assert result["candidates"][0]["post_id"] == bottle_post.id

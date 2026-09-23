@@ -1,5 +1,6 @@
 import json
-from typing import Any, Callable, Generator
+from collections.abc import Callable, Generator
+from typing import Any
 
 from flask import Blueprint, Response, jsonify, request, stream_with_context
 from flask_jwt_extended import get_jwt_identity, jwt_required
@@ -12,12 +13,12 @@ from app.services.ai.ai_conversation_service import (
     stream_routed_chat_message,
 )
 from app.services.ai.openrouter_service import OpenRouterConfigError
-from app.services.ai.recycling_audit_service import stream_recycling_audit
 from app.services.ai.recycling_analysis_service import (
     store_location_context,
     stream_recycling_analysis,
     stream_recycling_resume,
 )
+from app.services.ai.recycling_audit_service import stream_recycling_audit
 
 ai_bp = Blueprint("ai", __name__)
 
@@ -34,7 +35,9 @@ def _parse_pagination() -> tuple[int, int]:
     return page, per_page
 
 
-def _json_sse_response(event_generator: Callable[[], Generator[dict[str, Any], None, None]]) -> Response:
+def _json_sse_response(
+    event_generator: Callable[[], Generator[dict[str, Any], None, None]],
+) -> Response:
     def generate():
         yield b'data: {"type":"heartbeat","stream_stage":"accepted"}\n\n'
         try:
@@ -43,10 +46,10 @@ def _json_sse_response(event_generator: Callable[[], Generator[dict[str, Any], N
                 yield payload.encode("utf-8")
         except OpenRouterConfigError as exc:
             error_event = {"type": "error", "code": 50000, "message": str(exc)}
-            yield f"data: {json.dumps(error_event, ensure_ascii=False)}\n\n".encode("utf-8")
+            yield f"data: {json.dumps(error_event, ensure_ascii=False)}\n\n".encode()
         except Exception as exc:
             error_event = {"type": "error", "code": 50000, "message": f"AI stream failed: {exc}"}
-            yield f"data: {json.dumps(error_event, ensure_ascii=False)}\n\n".encode("utf-8")
+            yield f"data: {json.dumps(error_event, ensure_ascii=False)}\n\n".encode()
 
     return Response(
         stream_with_context(generate()),

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.extensions.db import db
 
@@ -12,26 +12,24 @@ class AIConversation(db.Model):
     # active | awaiting_location | completed | archived
     status = db.Column(db.String(32), nullable=False, default="active")
     # none | location_permission | manual_area_input
-    current_pending_action = db.Column(
-        db.String(32), nullable=False, default="none"
-    )
+    current_pending_action = db.Column(db.String(32), nullable=False, default="none")
     # Stores session-scoped chat context such as location permission/cache state.
     session_context_json = db.Column(db.Text)
     last_message_at = db.Column(
         db.DateTime,
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     created_at = db.Column(
         db.DateTime,
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     updated_at = db.Column(
         db.DateTime,
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
 
@@ -42,9 +40,7 @@ class WasteAnalysisRecord(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     conversation_id = db.Column(db.Integer, db.ForeignKey("ai_conversations.id"))
     recycling_case_id = db.Column(db.Integer, db.ForeignKey("recycling_cases.id"))
-    approved_audit_attempt_id = db.Column(
-        db.Integer, db.ForeignKey("recycling_audit_attempts.id")
-    )
+    approved_audit_attempt_id = db.Column(db.Integer, db.ForeignKey("recycling_audit_attempts.id"))
     image_url = db.Column(db.String(256))
     waste_type = db.Column(db.String(64))
     confidence = db.Column(db.Float, nullable=False, default=0.0)
@@ -56,7 +52,7 @@ class WasteAnalysisRecord(db.Model):
     created_at = db.Column(
         db.DateTime,
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
 
 
@@ -65,13 +61,9 @@ class RecyclingCase(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    conversation_id = db.Column(
-        db.Integer, db.ForeignKey("ai_conversations.id"), nullable=False
-    )
+    conversation_id = db.Column(db.Integer, db.ForeignKey("ai_conversations.id"), nullable=False)
     # Links back to the assistant/user message that created this recycling case.
-    origin_message_id = db.Column(
-        db.Integer, db.ForeignKey("ai_messages.id"), nullable=False
-    )
+    origin_message_id = db.Column(db.Integer, db.ForeignKey("ai_messages.id"), nullable=False)
     waste_type_predicted = db.Column(db.String(64), nullable=False)
     confidence = db.Column(db.Float, nullable=False, default=0.0)
     estimated_weight_kg = db.Column(db.Float, nullable=False, default=0.0)
@@ -80,19 +72,17 @@ class RecyclingCase(db.Model):
     # pending_audit | audit_failed | audit_passed | cancelled
     status = db.Column(db.String(32), nullable=False, default="pending_audit")
     latest_audit_attempt_no = db.Column(db.Integer, nullable=False, default=0)
-    approved_analysis_id = db.Column(
-        db.Integer, db.ForeignKey("waste_analysis_records.id")
-    )
+    approved_analysis_id = db.Column(db.Integer, db.ForeignKey("waste_analysis_records.id"))
     created_at = db.Column(
         db.DateTime,
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     updated_at = db.Column(
         db.DateTime,
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
 
@@ -107,13 +97,9 @@ class RecyclingAuditAttempt(db.Model):
     )
 
     id = db.Column(db.Integer, primary_key=True)
-    recycling_case_id = db.Column(
-        db.Integer, db.ForeignKey("recycling_cases.id"), nullable=False
-    )
+    recycling_case_id = db.Column(db.Integer, db.ForeignKey("recycling_cases.id"), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    conversation_id = db.Column(
-        db.Integer, db.ForeignKey("ai_conversations.id"), nullable=False
-    )
+    conversation_id = db.Column(db.Integer, db.ForeignKey("ai_conversations.id"), nullable=False)
     audit_image_url = db.Column(db.String(256), nullable=False)
     attempt_no = db.Column(db.Integer, nullable=False)
     # passed | failed | unclear
@@ -124,7 +110,7 @@ class RecyclingAuditAttempt(db.Model):
     created_at = db.Column(
         db.DateTime,
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
 
 
@@ -139,23 +125,19 @@ class AIMessage(db.Model):
     )
 
     id = db.Column(db.Integer, primary_key=True)
-    conversation_id = db.Column(
-        db.Integer, db.ForeignKey("ai_conversations.id"), nullable=False
-    )
+    conversation_id = db.Column(db.Integer, db.ForeignKey("ai_conversations.id"), nullable=False)
     # user | assistant | tool | system
     role = db.Column(db.String(16), nullable=False)
     # text | image | analysis_result | recycling_case | audit_result | tool_call | tool_result | user_action
     message_type = db.Column(db.String(32), nullable=False, default="text")
     content_text = db.Column(db.Text)
     content_json = db.Column(db.Text)
-    related_analysis_id = db.Column(
-        db.Integer, db.ForeignKey("waste_analysis_records.id")
-    )
+    related_analysis_id = db.Column(db.Integer, db.ForeignKey("waste_analysis_records.id"))
     sequence_no = db.Column(db.Integer, nullable=False)
     created_at = db.Column(
         db.DateTime,
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
 
 
@@ -167,12 +149,8 @@ class AIMessageDecision(db.Model):
     )
 
     id = db.Column(db.Integer, primary_key=True)
-    conversation_id = db.Column(
-        db.Integer, db.ForeignKey("ai_conversations.id"), nullable=False
-    )
-    user_message_id = db.Column(
-        db.Integer, db.ForeignKey("ai_messages.id"), nullable=False
-    )
+    conversation_id = db.Column(db.Integer, db.ForeignKey("ai_conversations.id"), nullable=False)
+    user_message_id = db.Column(db.Integer, db.ForeignKey("ai_messages.id"), nullable=False)
     intent = db.Column(db.String(32), nullable=False)
     follow_up_type = db.Column(db.String(32))
     target_case_id = db.Column(db.Integer, db.ForeignKey("recycling_cases.id"))
@@ -183,5 +161,5 @@ class AIMessageDecision(db.Model):
     created_at = db.Column(
         db.DateTime,
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )

@@ -8,10 +8,10 @@ import pytest
 
 from app.services.ai import ai_conversation_service, tool_selection_shadow
 
-
 # ---------------------------------------------------------------------------
 # Mode resolution
 # ---------------------------------------------------------------------------
+
 
 def test_resolve_mode_defaults_to_rule(app, monkeypatch):
     monkeypatch.setitem(app.config, "AI_TOOL_SELECTION_MODE", "")
@@ -40,6 +40,7 @@ def test_resolve_mode_ignores_garbage(app, monkeypatch):
 # ---------------------------------------------------------------------------
 # Comparison metrics
 # ---------------------------------------------------------------------------
+
 
 def test_compare_exact_match():
     result = tool_selection_shadow.compare_tool_selections(
@@ -75,6 +76,7 @@ def test_compare_both_empty_is_full_agreement():
 # Selection strategies
 # ---------------------------------------------------------------------------
 
+
 def test_rule_tool_selection_reads_decision(app):
     tools = tool_selection_shadow.rule_tool_selection({"should_retrieve_forum": True})
     assert tools == ["search_forum"]
@@ -106,6 +108,7 @@ def test_model_tool_selection_extracts_and_dedups(app):
 # JSONL logging
 # ---------------------------------------------------------------------------
 
+
 def test_record_shadow_comparison_writes_jsonl(app, monkeypatch, tmp_path):
     log_path = tmp_path / "shadow.jsonl"
     monkeypatch.setitem(app.config, "AI_TOOL_SELECTION_SHADOW_LOG", str(log_path))
@@ -127,6 +130,7 @@ def test_record_shadow_comparison_noop_when_unconfigured(app, monkeypatch, tmp_p
 # ---------------------------------------------------------------------------
 # Orchestrator dispatch
 # ---------------------------------------------------------------------------
+
 
 def _decision():
     return {"should_retrieve_forum": True, "prompt_memory": {}, "memory_candidates": []}
@@ -165,9 +169,7 @@ def test_mode_model_serves_loop_and_attaches_free_comparison(app, monkeypatch):
             "tool_trace": [{"name": "search_forum"}],
         }
 
-    monkeypatch.setattr(
-        ai_conversation_service, "complete_tool_calling_agent_message", fake_loop
-    )
+    monkeypatch.setattr(ai_conversation_service, "complete_tool_calling_agent_message", fake_loop)
 
     result = ai_conversation_service.complete_general_chat_with_mode(
         user_id=1, message="hi", decision=_decision()

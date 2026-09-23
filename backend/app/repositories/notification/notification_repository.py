@@ -45,24 +45,23 @@ def list_notifications_page(
     if unread_only:
         base = base.where(Notification.is_read.is_(False))
 
-    total = db.session.scalar(
-        select(func.count()).select_from(base.subquery())
-    ) or 0
+    total = db.session.scalar(select(func.count()).select_from(base.subquery())) or 0
     items = db.session.scalars(
-        base.order_by(Notification.created_at.desc())
-        .limit(per_page)
-        .offset((page - 1) * per_page)
+        base.order_by(Notification.created_at.desc()).limit(per_page).offset((page - 1) * per_page)
     ).all()
     return list(items), total
 
 
 def count_unread(user_id: int) -> int:
-    return db.session.scalar(
-        select(func.count(Notification.id)).where(
-            Notification.recipient_user_id == user_id,
-            Notification.is_read.is_(False),
+    return (
+        db.session.scalar(
+            select(func.count(Notification.id)).where(
+                Notification.recipient_user_id == user_id,
+                Notification.is_read.is_(False),
+            )
         )
-    ) or 0
+        or 0
+    )
 
 
 def mark_as_read(notification: Notification) -> Notification:

@@ -4,7 +4,7 @@ Tests go through the full HTTP stack: Flask test client -> Blueprint -> Service 
 """
 
 import json
-import pytest
+
 from flask_jwt_extended import create_access_token
 
 from app.extensions.db import db
@@ -14,6 +14,7 @@ from app.services.forum import forum_service
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _post_json(client, url, data, headers=None):
     return client.post(url, data=json.dumps(data), content_type="application/json", headers=headers)
@@ -54,6 +55,7 @@ _ONE_PIXEL_PNG = (
 # POST /api/forum/uploads
 # ---------------------------------------------------------------------------
 
+
 class TestUploadForumImage:
     def test_authenticated_user_can_upload_image(self, client, make_auth_headers):
         _, headers = make_auth_headers()
@@ -75,6 +77,7 @@ class TestUploadForumImage:
 # ---------------------------------------------------------------------------
 # POST /api/forum/posts
 # ---------------------------------------------------------------------------
+
 
 class TestCreatePost:
     def test_authenticated_user_can_create_post(self, client, make_auth_headers):
@@ -103,6 +106,7 @@ class TestCreatePost:
 # ---------------------------------------------------------------------------
 # GET /api/forum/posts
 # ---------------------------------------------------------------------------
+
 
 class TestListPosts:
     def test_returns_paginated_list(self, client, make_auth_headers):
@@ -139,7 +143,9 @@ class TestListPosts:
         assert item["author_username"] == "eco_writer"
         assert "author_avatar_url" in item
 
-    def test_authenticated_list_uses_personalized_backend_order(self, client, make_auth_headers, monkeypatch):
+    def test_authenticated_list_uses_personalized_backend_order(
+        self, client, make_auth_headers, monkeypatch
+    ):
         _, headers = make_auth_headers()
         first = _create_post(client, headers, title="First", content="C")
         second = _create_post(client, headers, title="Second", content="C")
@@ -155,7 +161,9 @@ class TestListPosts:
         ids = [item["id"] for item in resp.get_json()["data"]["items"]]
         assert ids[:2] == [first["id"], second["id"]]
 
-    def test_authenticated_list_slices_after_global_ranking_for_later_pages(self, client, make_auth_headers, monkeypatch):
+    def test_authenticated_list_slices_after_global_ranking_for_later_pages(
+        self, client, make_auth_headers, monkeypatch
+    ):
         _, headers = make_auth_headers()
         created_posts = [
             _create_post(client, headers, title=f"Post {index}", content="C")
@@ -184,7 +192,9 @@ class TestListPosts:
         for index in range(1, 8):
             _create_post(client, headers, title=f"Post {index}", content="C")
 
-        bounded_candidates = forum_service.forum_repository.list_published_posts_for_ranking(candidate_limit=5)
+        bounded_candidates = forum_service.forum_repository.list_published_posts_for_ranking(
+            candidate_limit=5
+        )
 
         monkeypatch.setattr(
             forum_service.forum_repository,
@@ -227,9 +237,11 @@ class TestListPosts:
         assert data["items"][0]["id"] == created["id"]
         assert data["items"][0]["author_id"] == user_id
 
+
 # ---------------------------------------------------------------------------
 # GET /api/forum/posts/<id>
 # ---------------------------------------------------------------------------
+
 
 class TestGetPost:
     def test_get_existing_post(self, client, make_auth_headers):
@@ -268,6 +280,7 @@ class TestRecordPostLongView:
 # PUT /api/forum/posts/<id>
 # ---------------------------------------------------------------------------
 
+
 class TestUpdatePost:
     def test_author_can_update(self, client, make_auth_headers):
         _, headers = make_auth_headers()
@@ -287,6 +300,7 @@ class TestUpdatePost:
 # ---------------------------------------------------------------------------
 # DELETE /api/forum/posts/<id>
 # ---------------------------------------------------------------------------
+
 
 class TestDeletePost:
     def test_author_can_delete(self, client, make_auth_headers):
@@ -308,6 +322,7 @@ class TestDeletePost:
 # ---------------------------------------------------------------------------
 # POST /api/forum/posts/<id>/comments
 # ---------------------------------------------------------------------------
+
 
 class TestCreateComment:
     def test_create_top_level_comment(self, client, make_auth_headers):
@@ -360,15 +375,14 @@ class TestCreateComment:
 
     def test_comment_on_nonexistent_post_returns_404(self, client, make_auth_headers):
         _, headers = make_auth_headers()
-        resp = _post_json(
-            client, "/api/forum/posts/99999/comments", {"content": "X"}, headers
-        )
+        resp = _post_json(client, "/api/forum/posts/99999/comments", {"content": "X"}, headers)
         assert resp.status_code == 404
 
 
 # ---------------------------------------------------------------------------
 # GET /api/forum/posts/<id>/comments
 # ---------------------------------------------------------------------------
+
 
 class TestListComments:
     def test_returns_all_comments(self, client, make_auth_headers):
@@ -411,6 +425,7 @@ class TestListComments:
 # DELETE /api/forum/comments/<id>
 # ---------------------------------------------------------------------------
 
+
 class TestDeleteComment:
     def test_author_can_delete_comment(self, client, make_auth_headers):
         _, headers = make_auth_headers()
@@ -432,6 +447,7 @@ class TestDeleteComment:
 # POST /api/forum/likes
 # ---------------------------------------------------------------------------
 
+
 class TestToggleLike:
     def test_like_post(self, client, make_auth_headers):
         _, headers = make_auth_headers()
@@ -450,7 +466,9 @@ class TestToggleLike:
     def test_unlike_post(self, client, make_auth_headers):
         _, headers = make_auth_headers()
         post = _create_post(client, headers)
-        _post_json(client, "/api/forum/likes", {"target_type": "post", "target_id": post["id"]}, headers)
+        _post_json(
+            client, "/api/forum/likes", {"target_type": "post", "target_id": post["id"]}, headers
+        )
         resp = _post_json(
             client,
             "/api/forum/likes",
@@ -486,9 +504,7 @@ class TestToggleLike:
         assert resp.status_code == 400
 
     def test_unauthenticated_returns_401(self, client):
-        resp = _post_json(
-            client, "/api/forum/likes", {"target_type": "post", "target_id": 1}
-        )
+        resp = _post_json(client, "/api/forum/likes", {"target_type": "post", "target_id": 1})
         assert resp.status_code == 401
 
 

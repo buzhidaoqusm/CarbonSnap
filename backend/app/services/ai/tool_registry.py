@@ -5,7 +5,6 @@ from typing import Any, Literal, TypedDict
 
 from flask import current_app
 
-
 RiskLevel = Literal["low", "medium", "high"]
 
 
@@ -156,7 +155,9 @@ def select_tools_for_decision(
 
     location_state = (client_context or {}).get("location_state") or {}
     if follow_up_type == "nearby_search" or location_state.get("coordinates"):
-        _append_selected(selected, "find_nearby_recycling_places", reason="nearby_recycling_request")
+        _append_selected(
+            selected, "find_nearby_recycling_places", reason="nearby_recycling_request"
+        )
 
     return selected
 
@@ -328,7 +329,8 @@ def _find_nearby_recycling_places(payload: dict[str, Any]) -> dict[str, Any]:
 
     provider = OSMPublicMapProvider()
     area_label = str(payload.get("area") or payload.get("area_label") or "").strip() or None
-    coordinates = payload.get("coordinates") if isinstance(payload.get("coordinates"), dict) else {}
+    raw_coordinates = payload.get("coordinates")
+    coordinates: dict[str, Any] = raw_coordinates if isinstance(raw_coordinates, dict) else {}
     lat = payload.get("lat", coordinates.get("lat"))
     lng = payload.get("lng", coordinates.get("lng"))
     if (lat is None or lng is None) and area_label:

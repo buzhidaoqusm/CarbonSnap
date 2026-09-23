@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from app.repositories.market import market_repository
 from app.repositories.ai import recycling_case_repository
 from app.repositories.forum import forum_repository
+from app.repositories.market import market_repository
 from app.repositories.project import project_repository
 from app.repositories.recommendation import behavior_event_repository, preference_profile_repository
 from app.services.recommendation.topic_taxonomy import map_recycling_item_to_topics
@@ -370,7 +370,6 @@ def record_market_order_completed_as_seller(
 ):
     _require_order_exists(order_id)
     _require_item_exists(item_id)
-    item = market_repository.get_item_by_id(item_id)
     order = market_repository.get_order_by_id(order_id)
     if order.item_id != item_id:
         raise ValueError(f"Market order {order_id} does not belong to item {item_id}.")

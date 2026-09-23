@@ -60,9 +60,15 @@ class TestConversationContextBuilder:
         conversation = _make_conversation(user, title="Primary")
         other = _make_conversation(user, title="Other")
 
-        _append_message(conversation, role="user", message_type="text", content_text="hello", sequence_no=1)
-        _append_message(conversation, role="assistant", message_type="text", content_text="hi", sequence_no=2)
-        _append_message(other, role="user", message_type="text", content_text="other chat", sequence_no=1)
+        _append_message(
+            conversation, role="user", message_type="text", content_text="hello", sequence_no=1
+        )
+        _append_message(
+            conversation, role="assistant", message_type="text", content_text="hi", sequence_no=2
+        )
+        _append_message(
+            other, role="user", message_type="text", content_text="other chat", sequence_no=1
+        )
 
         bundle = build_context_bundle(conversation_id=conversation.id, max_turns=5)
 

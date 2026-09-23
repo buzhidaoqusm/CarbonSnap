@@ -13,8 +13,8 @@ from werkzeug.security import generate_password_hash
 from app.extensions.db import db
 from app.models.ai import (
     AIConversation,
-    AIMessageDecision,
     AIMessage,
+    AIMessageDecision,
     RecyclingAuditAttempt,
     RecyclingCase,
     WasteAnalysisRecord,
@@ -246,8 +246,12 @@ class TestConversationRepository:
 
     def test_update_conversation_state_and_list_order(self):
         user = _make_user("frank", "frank@example.com")
-        first_conversation = conversation_repository.create_conversation(user_id=user.id, title="First")
-        second_conversation = conversation_repository.create_conversation(user_id=user.id, title="Second")
+        first_conversation = conversation_repository.create_conversation(
+            user_id=user.id, title="First"
+        )
+        second_conversation = conversation_repository.create_conversation(
+            user_id=user.id, title="Second"
+        )
 
         conversation_repository.append_message(
             conversation_id=first_conversation.id,
@@ -313,8 +317,12 @@ class TestMessageDecisionRepository:
             engine_version="decision-engine-v1",
         )
 
-        latest = message_decision_repository.get_latest_message_decision_for_message(user_message.id)
-        all_for_conversation = message_decision_repository.list_message_decisions_for_conversation(conversation.id)
+        latest = message_decision_repository.get_latest_message_decision_for_message(
+            user_message.id
+        )
+        all_for_conversation = message_decision_repository.list_message_decisions_for_conversation(
+            conversation.id
+        )
 
         assert decision.target_case_id == recycling_case.id
         assert decision.intent == "recycling_follow_up"

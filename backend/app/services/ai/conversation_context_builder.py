@@ -35,7 +35,9 @@ def build_recent_history(
     if conversation_id is None:
         history = supplied_history or []
     else:
-        history = history_from_message_records(conversation_repository.list_messages(conversation_id))
+        history = history_from_message_records(
+            conversation_repository.list_messages(conversation_id)
+        )
 
     cleaned: list[dict[str, str]] = []
     for item in history:
@@ -67,7 +69,9 @@ def build_case_summaries(conversation_id: int | None) -> list[dict[str, Any]]:
                 "has_nearby_results": False,
                 "has_verification_attempts": int(case.latest_audit_attempt_no or 0) > 0,
                 "expected_carbon_points": case.expected_carbon_points,
-                "user_original_request": _resolve_case_origin_request(conversation_id, case.origin_message_id),
+                "user_original_request": _resolve_case_origin_request(
+                    conversation_id, case.origin_message_id
+                ),
             }
         )
     return summaries
@@ -157,14 +161,14 @@ def build_runtime_reply_context(
         "paused_context": paused_context,
         "selected_audit_attempt": selected_audit_attempt,
         "long_term_memory": (
-            dict(prompt_memory)
-            if prompt_memory is not None
-            else get_prompt_memory_summary(user_id)
+            dict(prompt_memory) if prompt_memory is not None else get_prompt_memory_summary(user_id)
         ),
     }
 
 
-def _normalize_selected_audit_attempt(client_context: dict[str, Any] | None) -> dict[str, Any] | None:
+def _normalize_selected_audit_attempt(
+    client_context: dict[str, Any] | None,
+) -> dict[str, Any] | None:
     if not isinstance(client_context, dict):
         return None
 

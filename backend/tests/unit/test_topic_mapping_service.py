@@ -24,7 +24,9 @@ class TestTopicMappingService:
         assert topics[0]["topic_id"] == "upcycling"
         assert topics[0]["confidence_score"] == 0.84
 
-    def test_assign_forum_post_topics_falls_back_to_uncategorized_when_no_candidates(self, monkeypatch):
+    def test_assign_forum_post_topics_falls_back_to_uncategorized_when_no_candidates(
+        self, monkeypatch
+    ):
         called = {"value": False}
 
         def _fail_if_called(**kwargs):
@@ -51,7 +53,9 @@ class TestTopicMappingService:
         monkeypatch.setattr(
             topic_mapping_service,
             "complete_json_diagnostic",
-            lambda **kwargs: {"payload": {"selected_topics": [{"topic_id": "unknown", "confidence_score": 0.9}]}},
+            lambda **kwargs: {
+                "payload": {"selected_topics": [{"topic_id": "unknown", "confidence_score": 0.9}]}
+            },
         )
 
         topics = topic_mapping_service.assign_forum_post_topics(

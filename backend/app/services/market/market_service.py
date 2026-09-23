@@ -14,7 +14,7 @@ All multi-step mutations (item status + order write + transaction write)
 are wrapped in a single db.session commit for atomicity.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from app.extensions.db import db
 from app.repositories.ledger.ledger_repository import (
@@ -25,10 +25,13 @@ from app.repositories.ledger.ledger_repository import (
 from app.repositories.market import market_repository
 from app.repositories.recommendation import behavior_event_repository
 from app.services.ai import memory_service
-from app.services.recommendation import topic_mapping_service
-from app.services.recommendation import behavior_event_service, preference_profile_service
-from app.services.recommendation.market_recommendation_service import rank_items_for_user
 from app.services.notification import notification_service
+from app.services.recommendation import (
+    behavior_event_service,
+    preference_profile_service,
+    topic_mapping_service,
+)
+from app.services.recommendation.market_recommendation_service import rank_items_for_user
 
 
 class MarketError(Exception):
@@ -45,15 +48,15 @@ MARKET_LONG_VIEW_DEDUP_WINDOW = timedelta(minutes=30)
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _ensure_aware_utc(value: datetime | None) -> datetime | None:
     if value is None:
         return None
     if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _refresh_recommendation_state(user_id: int) -> None:
@@ -64,6 +67,7 @@ def _refresh_recommendation_state(user_id: int) -> None:
 # ---------------------------------------------------------------------------
 # Serializers
 # ---------------------------------------------------------------------------
+
 
 def _serialize_item(item) -> dict:
     return {
@@ -93,6 +97,7 @@ def _serialize_order(order) -> dict:
 # ---------------------------------------------------------------------------
 # Item operations
 # ---------------------------------------------------------------------------
+
 
 def create_item(
     *,
@@ -151,7 +156,10 @@ def record_item_long_view(item_id: int, *, viewer_user_id: int) -> dict:
     )
     if latest_event is not None:
         latest_created_at = _ensure_aware_utc(latest_event.created_at)
-        if latest_created_at is not None and (_utc_now() - latest_created_at) < MARKET_LONG_VIEW_DEDUP_WINDOW:
+        if (
+            latest_created_at is not None
+            and (_utc_now() - latest_created_at) < MARKET_LONG_VIEW_DEDUP_WINDOW
+        ):
             return {"tracked": False, "reason": "deduplicated"}
 
     try:
@@ -164,13 +172,11 @@ def record_item_long_view(item_id: int, *, viewer_user_id: int) -> dict:
 
 def list_active_items(page: int, per_page: int, *, viewer_user_id: int | None = None) -> dict:
     if viewer_user_id is not None:
-        all_items = market_repository.list_all_active_items_excluding_seller(seller_id=viewer_user_id)
+        all_items = market_repository.list_all_active_items_excluding_seller(
+            seller_id=viewer_user_id
+        )
         ordered_item_ids = market_repository.list_ordered_item_ids_by_buyer(viewer_user_id)
-        candidate_items = [
-            item
-            for item in all_items
-            if int(item.id) not in ordered_item_ids
-        ]
+        candidate_items = [item for item in all_items if int(item.id) not in ordered_item_ids]
         total = len(candidate_items)
         try:
             ordered_items = rank_items_for_user(items=candidate_items, user_id=viewer_user_id)
@@ -208,7 +214,8 @@ def remove_item(item_id: int, *, operator_user_id: int) -> None:
     if item.status != "active":
         raise MarketError(
             f"Cannot remove an item with status '{item.status}'.",
-            code=40901, http_status=409,
+            code=40901,
+            http_status=409,
         )
     market_repository.update_item_status(item, "removed")
     db.session.commit()
@@ -217,6 +224,7 @@ def remove_item(item_id: int, *, operator_user_id: int) -> None:
 # ---------------------------------------------------------------------------
 # Order operations
 # ---------------------------------------------------------------------------
+
 
 def place_order(*, buyer_id: int, item_id: int) -> dict:
     """Buyer purchases an item.
@@ -242,11 +250,12 @@ def place_order(*, buyer_id: int, item_id: int) -> dict:
             points=item.price_points,
             source_type="market_order",
         )
-    except InsufficientPointsError:
+    except InsufficientPointsError as exc:
         raise MarketError(
             "Insufficient points to purchase this item.",
-            code=40200, http_status=402,
-        )
+            code=40200,
+            http_status=402,
+        ) from exc
 
     # Mark item sold before creating the order so source_id can be set.
     market_repository.update_item_status(item, "sold_out")
@@ -290,16 +299,15 @@ def ship_order(order_id: int, *, operator_user_id: int) -> dict:
     if order.status != "paid":
         raise MarketError(
             f"Order cannot be shipped from status '{order.status}'.",
-            code=40901, http_status=409,
+            code=40901,
+            http_status=409,
         )
 
     market_repository.update_order_status(order, "shipped")
     db.session.commit()
 
     # Notify buyer.
-    notification_service.on_order_shipped(
-        recipient_user_id=order.buyer_id, order_id=order.id
-    )
+    notification_service.on_order_shipped(recipient_user_id=order.buyer_id, order_id=order.id)
     return _serialize_order(order)
 
 
@@ -320,7 +328,8 @@ def confirm_receipt(order_id: int, *, operator_user_id: int) -> dict:
     if order.status != "shipped":
         raise MarketError(
             f"Cannot confirm receipt for order with status '{order.status}'.",
-            code=40901, http_status=409,
+            code=40901,
+            http_status=409,
         )
 
     earn_points(
@@ -343,9 +352,7 @@ def confirm_receipt(order_id: int, *, operator_user_id: int) -> dict:
         pass
 
     # Notify seller.
-    notification_service.on_order_completed(
-        recipient_user_id=order.seller_id, order_id=order.id
-    )
+    notification_service.on_order_completed(recipient_user_id=order.seller_id, order_id=order.id)
     return _serialize_order(order)
 
 
@@ -362,7 +369,8 @@ def cancel_order(order_id: int, *, operator_user_id: int) -> dict:
     if order.status != "paid":
         raise MarketError(
             "Only orders in 'paid' state can be cancelled.",
-            code=40901, http_status=409,
+            code=40901,
+            http_status=409,
         )
 
     # Refund buyer.

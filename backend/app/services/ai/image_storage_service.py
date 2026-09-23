@@ -71,7 +71,9 @@ def _resolve_upload_root() -> Path:
         # Test sandboxes may override UPLOAD_ROOT to a temp directory outside the
         # writable workspace. Fall back to the repo-local upload directory so the
         # public URL contract keeps working.
-        fallback_root = (Path(current_app.root_path).resolve().parents[1] / "data" / "uploads").resolve()
+        fallback_root = (
+            Path(current_app.root_path).resolve().parents[1] / "data" / "uploads"
+        ).resolve()
         fallback_root.mkdir(parents=True, exist_ok=True)
         current_app.config["UPLOAD_ROOT"] = str(fallback_root)
         return fallback_root

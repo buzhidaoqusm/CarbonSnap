@@ -17,7 +17,9 @@ class OSMPublicMapProvider:
         self.nominatim_url = current_app.config["OSM_NOMINATIM_URL"].rstrip("/")
         self.overpass_url = current_app.config["OSM_OVERPASS_URL"]
         self.overpass_fallback_urls = list(current_app.config.get("OSM_OVERPASS_FALLBACK_URLS", []))
-        self.overpass_timeout_seconds = float(current_app.config.get("OSM_OVERPASS_TIMEOUT_SECONDS", 30.0))
+        self.overpass_timeout_seconds = float(
+            current_app.config.get("OSM_OVERPASS_TIMEOUT_SECONDS", 30.0)
+        )
         self.overpass_connect_timeout_seconds = float(
             current_app.config.get("OSM_OVERPASS_CONNECT_TIMEOUT_SECONDS", 8.0)
         )
@@ -104,7 +106,9 @@ class OSMPublicMapProvider:
                         response.raise_for_status()
                         return response.json()
                 except (httpx.HTTPError, ValueError) as exc:
-                    errors.append(f"{url} (attempt {attempt}/{self.overpass_max_attempts_per_endpoint}): {exc}")
+                    errors.append(
+                        f"{url} (attempt {attempt}/{self.overpass_max_attempts_per_endpoint}): {exc}"
+                    )
                     if attempt < self.overpass_max_attempts_per_endpoint:
                         self._sleep_before_retry(attempt)
 
@@ -176,13 +180,15 @@ out center tags;
             tags.get("addr:state"),
             tags.get("addr:country"),
         ]
-        address = ", ".join([bit for bit in address_bits if bit]) or tags.get("address") or area_label or "Address unavailable"
+        address = (
+            ", ".join([bit for bit in address_bits if bit])
+            or tags.get("address")
+            or area_label
+            or "Address unavailable"
+        )
 
         category = (
-            tags.get("recycling_type")
-            or tags.get("amenity")
-            or tags.get("waste")
-            or "recycling"
+            tags.get("recycling_type") or tags.get("amenity") or tags.get("waste") or "recycling"
         )
 
         return {

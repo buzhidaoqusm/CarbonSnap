@@ -8,7 +8,13 @@ from sqlalchemy import func, select
 from werkzeug.security import generate_password_hash
 
 from app.extensions.db import db
-from app.models.ai import AIConversation, AIMessage, RecyclingAuditAttempt, RecyclingCase, WasteAnalysisRecord
+from app.models.ai import (
+    AIConversation,
+    AIMessage,
+    RecyclingAuditAttempt,
+    RecyclingCase,
+    WasteAnalysisRecord,
+)
 from app.models.ledger import Transaction
 from app.models.user import User
 from app.services.ai import recycling_audit_service
@@ -25,6 +31,7 @@ ledger_repository = importlib.import_module("app.repositories.ledger.ledger_repo
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_user(
     username: str = "alice",
@@ -54,7 +61,9 @@ def _make_conversation(user: User, title: str = "AI Chat") -> AIConversation:
     return conversation
 
 
-def _make_origin_message(conversation: AIConversation, text: str = "Please analyze this item.") -> AIMessage:
+def _make_origin_message(
+    conversation: AIConversation, text: str = "Please analyze this item."
+) -> AIMessage:
     message = AIMessage(
         conversation_id=conversation.id,
         role="user",
@@ -125,6 +134,7 @@ def _make_completion_photo(data: str = _VALID_IMAGE_DATA_URL) -> str:
 # ---------------------------------------------------------------------------
 # Finalization behavior
 # ---------------------------------------------------------------------------
+
 
 def test_finalize_approved_case_creates_analysis_and_transaction():
     user = _make_user(points=12, carbon_amount=1.5)

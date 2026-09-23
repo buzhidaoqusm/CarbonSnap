@@ -1,13 +1,13 @@
 """Integration tests for C2C Marketplace API endpoints."""
 
 import json
-import pytest
-from flask_jwt_extended import create_access_token
 
+from flask_jwt_extended import create_access_token
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _post_json(client, url, data, headers=None):
     return client.post(url, data=json.dumps(data), content_type="application/json", headers=headers)
@@ -44,6 +44,7 @@ def _get_notifications(client, headers):
 # POST /api/market/items
 # ---------------------------------------------------------------------------
 
+
 class TestCreateItem:
     def test_authenticated_seller_can_list_item(self, client, make_auth_headers):
         _, headers = make_auth_headers()
@@ -76,6 +77,7 @@ class TestCreateItem:
 # ---------------------------------------------------------------------------
 # GET /api/market/items
 # ---------------------------------------------------------------------------
+
 
 class TestListActiveItems:
     def test_anonymous_can_browse(self, client, make_auth_headers):
@@ -123,7 +125,9 @@ class TestListActiveItems:
         assert own_item["id"] not in ids
         assert other_item["id"] in ids
 
-    def test_authenticated_market_list_excludes_items_already_bought_by_viewer(self, client, make_auth_headers):
+    def test_authenticated_market_list_excludes_items_already_bought_by_viewer(
+        self, client, make_auth_headers
+    ):
         _, seller_headers = make_auth_headers()
         _, buyer_headers = make_auth_headers(points=500)
         bought_item = _create_item(client, seller_headers, title="Bought", price_points=100)
@@ -162,6 +166,7 @@ class TestListActiveItems:
 # GET /api/market/items/mine
 # ---------------------------------------------------------------------------
 
+
 class TestListMyItems:
     def test_returns_only_own_items(self, client, make_auth_headers):
         _, h1 = make_auth_headers()
@@ -177,6 +182,7 @@ class TestListMyItems:
 # ---------------------------------------------------------------------------
 # GET /api/market/items/<id>
 # ---------------------------------------------------------------------------
+
 
 class TestGetItem:
     def test_get_existing_item(self, client, make_auth_headers):
@@ -217,13 +223,16 @@ class TestRecordItemLongView:
 # DELETE /api/market/items/<id>
 # ---------------------------------------------------------------------------
 
+
 class TestRemoveItem:
     def test_seller_can_remove(self, client, make_auth_headers):
         _, headers = make_auth_headers()
         item = _create_item(client, headers)
         resp = client.delete(f"/api/market/items/{item['id']}", headers=headers)
         assert resp.status_code == 200
-        assert client.get(f"/api/market/items/{item['id']}").get_json()["data"]["status"] == "removed"
+        assert (
+            client.get(f"/api/market/items/{item['id']}").get_json()["data"]["status"] == "removed"
+        )
 
     def test_non_seller_gets_403(self, client, make_auth_headers):
         _, seller_headers = make_auth_headers()
@@ -236,6 +245,7 @@ class TestRemoveItem:
 # ---------------------------------------------------------------------------
 # POST /api/market/orders  (place order)
 # ---------------------------------------------------------------------------
+
 
 class TestPlaceOrder:
     def test_successful_purchase(self, client, make_auth_headers):
@@ -283,6 +293,7 @@ class TestPlaceOrder:
 # PATCH /api/market/orders/<id>/ship
 # ---------------------------------------------------------------------------
 
+
 class TestShipOrder:
     def test_seller_can_ship(self, client, make_auth_headers):
         _, seller_headers = make_auth_headers()
@@ -314,6 +325,7 @@ class TestShipOrder:
 # ---------------------------------------------------------------------------
 # PATCH /api/market/orders/<id>/confirm
 # ---------------------------------------------------------------------------
+
 
 class TestConfirmReceipt:
     def test_buyer_can_confirm(self, client, make_auth_headers):
@@ -348,6 +360,7 @@ class TestConfirmReceipt:
 # PATCH /api/market/orders/<id>/cancel
 # ---------------------------------------------------------------------------
 
+
 class TestCancelOrder:
     def test_buyer_can_cancel_paid_order(self, client, make_auth_headers):
         _, seller_headers = make_auth_headers()
@@ -379,6 +392,7 @@ class TestCancelOrder:
 # ---------------------------------------------------------------------------
 # GET /api/market/orders
 # ---------------------------------------------------------------------------
+
 
 class TestListMyOrders:
     def test_list_as_buyer(self, client, make_auth_headers):

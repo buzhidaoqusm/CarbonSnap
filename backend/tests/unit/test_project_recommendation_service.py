@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 from werkzeug.security import generate_password_hash
@@ -29,7 +29,7 @@ def _make_project(creator_id: int, title: str) -> Project:
         description=f"{title} description",
         points_target=200,
         points_raised=0,
-        deadline_at=datetime.now(timezone.utc) + timedelta(days=12),
+        deadline_at=datetime.now(UTC) + timedelta(days=12),
     )
     db.session.add(project)
     db.session.flush()
@@ -56,7 +56,9 @@ class TestProjectRecommendationService:
             "list_content_topic_assignments_for_content_ids",
             lambda **kwargs: {
                 matching.id: [SimpleNamespace(topic_id="community-cleanup", confidence_score=1.0)],
-                non_matching.id: [SimpleNamespace(topic_id="battery-recycling", confidence_score=1.0)],
+                non_matching.id: [
+                    SimpleNamespace(topic_id="battery-recycling", confidence_score=1.0)
+                ],
             },
         )
         monkeypatch.setattr(
@@ -87,7 +89,9 @@ class TestProjectRecommendationService:
 
         assert ranked[0].id == matching.id
 
-    def test_rank_projects_inserts_alternate_topic_before_third_consecutive_match(self, monkeypatch):
+    def test_rank_projects_inserts_alternate_topic_before_third_consecutive_match(
+        self, monkeypatch
+    ):
         creator = _make_user("diversity-owner", "diversity-owner@example.com")
         viewer = _make_user("diversity-viewer", "diversity-viewer@example.com")
         cleanup_1 = _make_project(creator.id, "Cleanup A")
@@ -110,7 +114,9 @@ class TestProjectRecommendationService:
                 cleanup_1.id: [SimpleNamespace(topic_id="community-cleanup", confidence_score=0.9)],
                 cleanup_2.id: [SimpleNamespace(topic_id="community-cleanup", confidence_score=0.8)],
                 cleanup_3.id: [SimpleNamespace(topic_id="community-cleanup", confidence_score=0.7)],
-                alternate.id: [SimpleNamespace(topic_id="battery-recycling", confidence_score=0.95)],
+                alternate.id: [
+                    SimpleNamespace(topic_id="battery-recycling", confidence_score=0.95)
+                ],
             },
         )
         monkeypatch.setattr(

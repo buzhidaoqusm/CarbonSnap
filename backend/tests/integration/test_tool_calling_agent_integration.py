@@ -111,11 +111,15 @@ def test_high_risk_tool_is_blocked_through_real_executor(app, monkeypatch):
                 return _fake_completion(
                     content=None,
                     tool_calls=[
-                        _FakeToolCall("call_x", "record_recycling_completion", json.dumps({"case_id": 1}))
+                        _FakeToolCall(
+                            "call_x", "record_recycling_completion", json.dumps({"case_id": 1})
+                        )
                     ],
                     finish_reason="tool_calls",
                 )
-            return _fake_completion(content="Please confirm to finalize.", tool_calls=None, finish_reason="stop")
+            return _fake_completion(
+                content="Please confirm to finalize.", tool_calls=None, finish_reason="stop"
+            )
 
     client = _HighRiskClient()
     monkeypatch.setattr(openrouter_service, "_get_client", lambda: client)

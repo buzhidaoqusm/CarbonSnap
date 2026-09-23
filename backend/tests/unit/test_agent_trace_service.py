@@ -78,7 +78,9 @@ def test_attach_graph_context_to_trace_records_paths_and_fallback():
                     "source_count": 1,
                 }
             ],
-            "forum_citations": [{"post_id": 12, "title": "Bottle lantern", "url": "/forum/posts/12"}],
+            "forum_citations": [
+                {"post_id": 12, "title": "Bottle lantern", "url": "/forum/posts/12"}
+            ],
             "confidence": "medium",
         },
     )

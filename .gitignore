@@ -39,3 +39,6 @@ docs/hyperframes/
 *.pdf
 *.pptx
 *.docx
+
+# Test artifacts
+backend/.tmp-test-artifacts/

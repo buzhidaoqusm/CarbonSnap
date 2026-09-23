@@ -5,17 +5,16 @@ from __future__ import annotations
 import json
 import uuid
 
-import pytest
 from sqlalchemy import select
 from werkzeug.security import generate_password_hash
 
 from app.extensions.db import db
 from app.models.ai import AIConversation, AIMessage, RecyclingAuditAttempt, RecyclingCase
-from app.models.memory import UserMemoryItem
 from app.models.ledger import Transaction
+from app.models.memory import UserMemoryItem
 from app.models.user import User
-from app.services.ai.agent_trace_service import build_trace_shell
 from app.services.ai import ai_conversation_service, recycling_analysis_service
+from app.services.ai.agent_trace_service import build_trace_shell
 
 _VALID_IMAGE_DATA_URL = (
     "data:image/png;base64,"
@@ -62,7 +61,9 @@ class TestCompleteChatMessage:
                 },
             }
 
-        monkeypatch.setattr(ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter)
+        monkeypatch.setattr(
+            ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter
+        )
 
         result = ai_conversation_service.complete_chat_message(
             user_id=user.id,
@@ -89,7 +90,9 @@ class TestCompleteChatMessage:
         def fake_chat_with_openrouter(**kwargs):
             return {"reply": "Image reply", "model": "test-model", "usage": {}}
 
-        monkeypatch.setattr(ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter)
+        monkeypatch.setattr(
+            ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter
+        )
 
         image_data_url = _VALID_IMAGE_DATA_URL
         result = ai_conversation_service.complete_chat_message(
@@ -165,7 +168,10 @@ class TestCompleteChatMessage:
         assert assistant_payload["forum_references"] == result["forum_references"]
         assert result["trace"]["retrieval"]["forum"]["citation_count"] == 1
         assert result["trace"]["retrieval"]["forum"]["citations"] == result["forum_references"]
-        assert assistant_payload["trace"]["retrieval"]["forum"]["citations"] == result["forum_references"]
+        assert (
+            assistant_payload["trace"]["retrieval"]["forum"]["citations"]
+            == result["forum_references"]
+        )
 
     def test_complete_chat_message_fuses_graph_and_forum_context_into_trace(self, monkeypatch):
         user = _make_user("graphfuse", "graphfuse@example.com")
@@ -223,7 +229,9 @@ class TestCompleteChatMessage:
                 "usage": {},
             }
 
-        monkeypatch.setattr(ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter)
+        monkeypatch.setattr(
+            ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter
+        )
 
         result = ai_conversation_service.complete_chat_message(
             user_id=user.id,
@@ -330,16 +338,24 @@ class TestCompleteChatMessage:
         assert result["trace"]["retrieval"]["neo4j"]["relation_fact_count"] == 1
         assert result["trace"]["retrieval"]["neo4j"]["source_count"] == 1
 
-    def test_complete_chat_message_records_graph_fallback_when_feature_disabled(self, monkeypatch, app):
+    def test_complete_chat_message_records_graph_fallback_when_feature_disabled(
+        self, monkeypatch, app
+    ):
         app.config["AI_NEO4J_GRAPHRAG_ENABLED"] = False
         user = _make_user("graphoff", "graphoff@example.com")
         captured_request = {}
 
         def fake_chat_with_openrouter(**kwargs):
             captured_request.update(kwargs)
-            return {"reply": "Check your local rules for batteries.", "model": "test-model", "usage": {}}
+            return {
+                "reply": "Check your local rules for batteries.",
+                "model": "test-model",
+                "usage": {},
+            }
 
-        monkeypatch.setattr(ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter)
+        monkeypatch.setattr(
+            ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter
+        )
 
         result = ai_conversation_service.complete_chat_message(
             user_id=user.id,
@@ -430,7 +446,9 @@ class TestCompleteChatMessage:
             second_reply_calls.append(history)
             return {"reply": "Second reply", "model": "test-model", "usage": {}}
 
-        monkeypatch.setattr(ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter)
+        monkeypatch.setattr(
+            ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter
+        )
 
         first = ai_conversation_service.complete_chat_message(
             user_id=user.id,
@@ -458,7 +476,9 @@ class TestCompleteChatMessage:
         monkeypatch.setattr(
             ai_conversation_service,
             "generate_conversation_title",
-            lambda **kwargs: generated_titles.append(kwargs["user_message"]) or "Bottle recycling help",
+            lambda **kwargs: (
+                generated_titles.append(kwargs["user_message"]) or "Bottle recycling help"
+            ),
         )
         monkeypatch.setattr(
             ai_conversation_service,
@@ -492,10 +512,16 @@ class TestCompleteChatMessage:
         def fake_chat_with_openrouter(**kwargs):
             if kwargs["user_message"] == "What was my previous message?":
                 captured_request.update(kwargs)
-                return {"reply": "Your previous message was question 11.", "model": "test-model", "usage": {}}
+                return {
+                    "reply": "Your previous message was question 11.",
+                    "model": "test-model",
+                    "usage": {},
+                }
             return {"reply": f"reply:{kwargs['user_message']}", "model": "test-model", "usage": {}}
 
-        monkeypatch.setattr(ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter)
+        monkeypatch.setattr(
+            ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter
+        )
 
         conversation_id = None
         for index in range(12):
@@ -518,7 +544,10 @@ class TestCompleteChatMessage:
         assert captured_request["history"][0]["content"] == "question 2"
         assert captured_request["history"][-2]["content"] == "question 11"
         assert "current chat session" in captured_request["system_prompt"]
-        assert 'Latest user message before this request: "question 11"' in captured_request["system_prompt"]
+        assert (
+            'Latest user message before this request: "question 11"'
+            in captured_request["system_prompt"]
+        )
 
 
 class TestStreamChatMessage:
@@ -658,8 +687,13 @@ class TestStreamChatMessage:
         ]
         assert assistant_payload["forum_references"] == events[-1]["forum_references"]
         assert events[-1]["trace"]["retrieval"]["forum"]["citation_count"] == 1
-        assert events[-1]["trace"]["retrieval"]["forum"]["citations"] == events[-1]["forum_references"]
-        assert assistant_payload["trace"]["retrieval"]["forum"]["citations"] == events[-1]["forum_references"]
+        assert (
+            events[-1]["trace"]["retrieval"]["forum"]["citations"] == events[-1]["forum_references"]
+        )
+        assert (
+            assistant_payload["trace"]["retrieval"]["forum"]["citations"]
+            == events[-1]["forum_references"]
+        )
 
 
 class TestConversationListing:
@@ -669,23 +703,36 @@ class TestConversationListing:
         def fake_chat_with_openrouter(**kwargs):
             return {"reply": kwargs["user_message"].upper(), "model": "test-model", "usage": {}}
 
-        monkeypatch.setattr(ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter)
+        monkeypatch.setattr(
+            ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter
+        )
 
         first = ai_conversation_service.complete_chat_message(user_id=user.id, message="one")
         second = ai_conversation_service.complete_chat_message(user_id=user.id, message="two")
 
-        result = ai_conversation_service.list_user_conversations(user_id=user.id, page=1, per_page=10)
+        result = ai_conversation_service.list_user_conversations(
+            user_id=user.id, page=1, per_page=10
+        )
 
         assert result["total"] == 2
-        assert [item["id"] for item in result["items"]] == [second["conversation_id"], first["conversation_id"]]
+        assert [item["id"] for item in result["items"]] == [
+            second["conversation_id"],
+            first["conversation_id"],
+        ]
 
     def test_get_conversation_messages_serializes_ordered_history(self, monkeypatch):
         user = _make_user("erin", "erin@example.com")
 
         def fake_chat_with_openrouter(**kwargs):
-            return {"reply": f"reply to {kwargs['user_message']}", "model": "test-model", "usage": {}}
+            return {
+                "reply": f"reply to {kwargs['user_message']}",
+                "model": "test-model",
+                "usage": {},
+            }
 
-        monkeypatch.setattr(ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter)
+        monkeypatch.setattr(
+            ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter
+        )
 
         created = ai_conversation_service.complete_chat_message(user_id=user.id, message="hello")
         payload = ai_conversation_service.get_conversation_messages(
@@ -814,7 +861,9 @@ class TestRecyclingAnalysisPersistence:
     ):
         user = _make_user("recycler", "recycler@example.com")
 
-        monkeypatch.setattr(recycling_analysis_service, "_get_authenticated_user_id", lambda: user.id)
+        monkeypatch.setattr(
+            recycling_analysis_service, "_get_authenticated_user_id", lambda: user.id
+        )
         monkeypatch.setattr(
             recycling_analysis_service,
             "_analyze_stage1",
@@ -845,9 +894,13 @@ class TestRecyclingAnalysisPersistence:
             )
         )
 
-        conversation = db.session.scalar(select(AIConversation).where(AIConversation.user_id == user.id))
+        conversation = db.session.scalar(
+            select(AIConversation).where(AIConversation.user_id == user.id)
+        )
         messages = _messages_for_conversation(conversation.id)
-        case = db.session.scalar(select(RecyclingCase).where(RecyclingCase.conversation_id == conversation.id))
+        case = db.session.scalar(
+            select(RecyclingCase).where(RecyclingCase.conversation_id == conversation.id)
+        )
         transaction_count = db.session.scalar(select(db.func.count(Transaction.id))) or 0
 
         assert [event["type"] for event in events] == [
@@ -872,7 +925,9 @@ class TestRecyclingAnalysisPersistence:
     def test_skip_resume_persists_followup_without_transaction(self, monkeypatch):
         user = _make_user("resume", "resume@example.com")
 
-        monkeypatch.setattr(recycling_analysis_service, "_get_authenticated_user_id", lambda: user.id)
+        monkeypatch.setattr(
+            recycling_analysis_service, "_get_authenticated_user_id", lambda: user.id
+        )
         monkeypatch.setattr(
             recycling_analysis_service,
             "_analyze_stage1",
@@ -917,12 +972,18 @@ class TestRecyclingAnalysisPersistence:
         )
         list(recycling_analysis_service.stream_recycling_resume("session-skip-flow"))
 
-        conversation = db.session.scalar(select(AIConversation).where(AIConversation.user_id == user.id))
+        conversation = db.session.scalar(
+            select(AIConversation).where(AIConversation.user_id == user.id)
+        )
         messages = _messages_for_conversation(conversation.id)
         transaction_count = db.session.scalar(select(db.func.count(Transaction.id))) or 0
 
         assert conversation.status == "completed"
         assert conversation.current_pending_action == "none"
-        assert [message.message_type for message in messages] == ["image", "analysis_result", "tool_result"]
+        assert [message.message_type for message in messages] == [
+            "image",
+            "analysis_result",
+            "tool_result",
+        ]
         assert messages[-1].content_text == "Nearby search skipped summary"
         assert transaction_count == 0

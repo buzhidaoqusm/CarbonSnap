@@ -1,9 +1,8 @@
 """Unit tests for services/recommendation/preference_profile_service.py."""
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-import pytest
 from werkzeug.security import generate_password_hash
 
 from app.extensions.db import db
@@ -40,7 +39,9 @@ def _make_post(author_id: int, title: str = "Bottle post") -> ForumPost:
     return post
 
 
-def _make_recycling_case(user: User, *, waste_type_predicted: str = "plastic bottle") -> RecyclingCase:
+def _make_recycling_case(
+    user: User, *, waste_type_predicted: str = "plastic bottle"
+) -> RecyclingCase:
     conversation = AIConversation(user_id=user.id, title="Recycling chat")
     db.session.add(conversation)
     db.session.flush()
@@ -99,7 +100,7 @@ def _make_project(creator: User, *, title: str = "Community cleanup hub") -> Pro
         title=title,
         description="A practical neighborhood sustainability project.",
         points_target=180,
-        deadline_at=datetime.now(timezone.utc) + timedelta(days=14),
+        deadline_at=datetime.now(UTC) + timedelta(days=14),
     )
     db.session.add(project)
     db.session.flush()
@@ -108,10 +109,18 @@ def _make_project(creator: User, *, title: str = "Community cleanup hub") -> Pro
 
 class TestPreferenceProfileServiceHelpers:
     def test_time_decay_for_event(self):
-        now = datetime.now(timezone.utc)
-        assert preference_profile_service.time_decay_for_event(now - timedelta(days=3), now=now) == 1.0
-        assert preference_profile_service.time_decay_for_event(now - timedelta(days=14), now=now) == 0.6
-        assert preference_profile_service.time_decay_for_event(now - timedelta(days=40), now=now) == 0.3
+        now = datetime.now(UTC)
+        assert (
+            preference_profile_service.time_decay_for_event(now - timedelta(days=3), now=now) == 1.0
+        )
+        assert (
+            preference_profile_service.time_decay_for_event(now - timedelta(days=14), now=now)
+            == 0.6
+        )
+        assert (
+            preference_profile_service.time_decay_for_event(now - timedelta(days=40), now=now)
+            == 0.3
+        )
 
     def test_normalized_score_is_bounded(self):
         assert preference_profile_service.normalized_score(0.0) == 0.0
@@ -129,11 +138,17 @@ class TestPreferenceProfileAggregation:
             content_type="post",
             content_id=post.id,
             topics=[
-                {"topic_id": "plastic-recycling", "confidence_score": 0.9, "source": "ai_constrained"},
+                {
+                    "topic_id": "plastic-recycling",
+                    "confidence_score": 0.9,
+                    "source": "ai_constrained",
+                },
                 {"topic_id": "upcycling", "confidence_score": 0.6, "source": "ai_constrained"},
             ],
         )
-        behavior_event_service.record_forum_like(user_id=user.id, target_type="post", target_id=post.id)
+        behavior_event_service.record_forum_like(
+            user_id=user.id, target_type="post", target_id=post.id
+        )
 
         profiles = preference_profile_service.recompute_user_preference_profiles(user.id)
         rows = {row.profile_key: row for row in profiles}
@@ -150,17 +165,31 @@ class TestPreferenceProfileAggregation:
             domain="forum",
             content_type="post",
             content_id=post.id,
-            topics=[{"topic_id": "plastic-recycling", "confidence_score": 1.0, "source": "ai_constrained"}],
+            topics=[
+                {
+                    "topic_id": "plastic-recycling",
+                    "confidence_score": 1.0,
+                    "source": "ai_constrained",
+                }
+            ],
         )
 
-        behavior_event_service.record_forum_like(user_id=user.id, target_type="post", target_id=post.id)
+        behavior_event_service.record_forum_like(
+            user_id=user.id, target_type="post", target_id=post.id
+        )
         first_profiles = preference_profile_service.recompute_user_preference_profiles(user.id)
-        first_score = next(row.normalized_score for row in first_profiles if row.profile_key == "plastic-recycling")
+        first_score = next(
+            row.normalized_score for row in first_profiles if row.profile_key == "plastic-recycling"
+        )
 
         behavior_event_service.record_forum_long_view(user_id=user.id, post_id=post.id)
         behavior_event_service.record_forum_comment_or_reply(user_id=user.id, post_id=post.id)
         second_profiles = preference_profile_service.recompute_user_preference_profiles(user.id)
-        second_score = next(row.normalized_score for row in second_profiles if row.profile_key == "plastic-recycling")
+        second_score = next(
+            row.normalized_score
+            for row in second_profiles
+            if row.profile_key == "plastic-recycling"
+        )
 
         assert second_score > first_score
         assert second_score < 1.0
@@ -173,19 +202,37 @@ class TestPreferenceProfileAggregation:
             domain="forum",
             content_type="post",
             content_id=post.id,
-            topics=[{"topic_id": "plastic-recycling", "confidence_score": 1.0, "source": "ai_constrained"}],
+            topics=[
+                {
+                    "topic_id": "plastic-recycling",
+                    "confidence_score": 1.0,
+                    "source": "ai_constrained",
+                }
+            ],
         )
 
-        behavior_event_service.record_forum_like(user_id=user.id, target_type="post", target_id=post.id)
+        behavior_event_service.record_forum_like(
+            user_id=user.id, target_type="post", target_id=post.id
+        )
         first_profiles = preference_profile_service.recompute_user_preference_profiles(user.id)
-        first_profile = next(row for row in first_profiles if row.profile_key == "plastic-recycling")
+        first_profile = next(
+            row for row in first_profiles if row.profile_key == "plastic-recycling"
+        )
 
-        behavior_event_service.record_forum_unlike(user_id=user.id, target_type="post", target_id=post.id)
-        after_unlike_profiles = preference_profile_service.recompute_user_preference_profiles(user.id)
+        behavior_event_service.record_forum_unlike(
+            user_id=user.id, target_type="post", target_id=post.id
+        )
+        after_unlike_profiles = preference_profile_service.recompute_user_preference_profiles(
+            user.id
+        )
 
-        behavior_event_service.record_forum_like(user_id=user.id, target_type="post", target_id=post.id)
+        behavior_event_service.record_forum_like(
+            user_id=user.id, target_type="post", target_id=post.id
+        )
         second_profiles = preference_profile_service.recompute_user_preference_profiles(user.id)
-        second_profile = next(row for row in second_profiles if row.profile_key == "plastic-recycling")
+        second_profile = next(
+            row for row in second_profiles if row.profile_key == "plastic-recycling"
+        )
 
         assert after_unlike_profiles == []
         assert second_profile.raw_score == first_profile.raw_score
@@ -199,12 +246,12 @@ class TestPreferenceProfileAggregation:
         behavior_event_service.record_ai_recycling_case_pending_audit(
             user_id=user.id,
             recycling_case_id=case.id,
-            created_at=datetime.now(timezone.utc) - timedelta(days=2),
+            created_at=datetime.now(UTC) - timedelta(days=2),
         )
         behavior_event_service.record_ai_recycling_case_failed_audit(
             user_id=user.id,
             recycling_case_id=case.id,
-            created_at=datetime.now(timezone.utc) - timedelta(days=1),
+            created_at=datetime.now(UTC) - timedelta(days=1),
         )
         behavior_event_service.record_ai_recycling_case_passed_audit(
             user_id=user.id,
@@ -218,7 +265,9 @@ class TestPreferenceProfileAggregation:
         assert promotable_topics
         assert promotable_topics[0]["topic_id"] == "battery-recycling"
         assert promotable_topics[0]["event_count"] >= 3
-        assert snapshot["content_interest_preferences"]["topics"][0]["topic_id"] == "battery-recycling"
+        assert (
+            snapshot["content_interest_preferences"]["topics"][0]["topic_id"] == "battery-recycling"
+        )
         assert snapshot["action_preferences"]["prefer_nearby_options"] is None
 
     def test_market_order_weight_outscores_market_view(self):
@@ -240,7 +289,9 @@ class TestPreferenceProfileAggregation:
         first_raw_score = float(first_profile.raw_score)
         first_normalized_score = float(first_profile.normalized_score)
 
-        behavior_event_service.record_market_order(user_id=buyer.id, order_id=order.id, item_id=item.id)
+        behavior_event_service.record_market_order(
+            user_id=buyer.id, order_id=order.id, item_id=item.id
+        )
         second_profiles = preference_profile_service.recompute_user_preference_profiles(buyer.id)
         second_profile = next(row for row in second_profiles if row.profile_key == "upcycling")
 
@@ -275,12 +326,20 @@ class TestPreferenceProfileAggregation:
             domain="project",
             content_type="project",
             content_id=project.id,
-            topics=[{"topic_id": "community-cleanup", "confidence_score": 1.0, "source": "ai_constrained"}],
+            topics=[
+                {
+                    "topic_id": "community-cleanup",
+                    "confidence_score": 1.0,
+                    "source": "ai_constrained",
+                }
+            ],
         )
 
         behavior_event_service.record_project_view(user_id=supporter.id, project_id=project.id)
         first_profiles = preference_profile_service.recompute_user_preference_profiles(supporter.id)
-        first_profile = next(row for row in first_profiles if row.profile_key == "community-cleanup")
+        first_profile = next(
+            row for row in first_profiles if row.profile_key == "community-cleanup"
+        )
         first_raw_score = float(first_profile.raw_score)
         first_normalized_score = float(first_profile.normalized_score)
 
@@ -289,8 +348,12 @@ class TestPreferenceProfileAggregation:
             project_id=project.id,
             contribution_id=101,
         )
-        second_profiles = preference_profile_service.recompute_user_preference_profiles(supporter.id)
-        second_profile = next(row for row in second_profiles if row.profile_key == "community-cleanup")
+        second_profiles = preference_profile_service.recompute_user_preference_profiles(
+            supporter.id
+        )
+        second_profile = next(
+            row for row in second_profiles if row.profile_key == "community-cleanup"
+        )
 
         assert float(second_profile.raw_score) > first_raw_score
         assert float(second_profile.normalized_score) > first_normalized_score

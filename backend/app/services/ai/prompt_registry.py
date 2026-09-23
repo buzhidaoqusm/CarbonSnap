@@ -3,7 +3,6 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
-
 PROMPTS: dict[str, dict[str, Any]] = {
     "router": {
         "name": "router",

@@ -13,6 +13,7 @@ auth_bp = Blueprint("auth", __name__)
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _serialize_user(user) -> dict:
     return {
         "id": user.id,
@@ -46,6 +47,7 @@ def _validate_login_body(body: dict) -> tuple[dict | None, tuple | None]:
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
+
 
 @auth_bp.post("/auth/register")
 def register():

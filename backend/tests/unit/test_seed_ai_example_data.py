@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import json
 
-from scripts import seed_ai_example_data, seed_example_data
-
 from app.extensions.db import db
 from app.models.ai import AIConversation
 from app.models.ledger import Transaction
 from app.models.memory import UserMemoryItem
 from app.models.user import User
+from scripts import seed_ai_example_data, seed_example_data
 
 
 def test_collect_referenced_user_seed_keys_includes_ai_demo_user():

@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 
 def _post_json(client, url, data, headers=None):
@@ -7,7 +7,7 @@ def _post_json(client, url, data, headers=None):
 
 
 def _future_deadline(days: int = 10) -> str:
-    return (datetime.now(timezone.utc) + timedelta(days=days)).isoformat()
+    return (datetime.now(UTC) + timedelta(days=days)).isoformat()
 
 
 def _create_project(client, headers, **overrides):

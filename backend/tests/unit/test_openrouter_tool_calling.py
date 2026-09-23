@@ -65,7 +65,9 @@ def _install_client(monkeypatch, response: object) -> _FakeClient:
     return fake_client
 
 
-def test_tool_calls_are_parsed_and_raw_message_keeps_original_arguments(app, monkeypatch, patch_headers):
+def test_tool_calls_are_parsed_and_raw_message_keeps_original_arguments(
+    app, monkeypatch, patch_headers
+):
     raw_arguments = '{"location": "Dublin", "count": 2}'
     tool_call = _make_function_call("call_1", "get_weather", raw_arguments)
     completion = _make_completion(content=None, tool_calls=[tool_call])

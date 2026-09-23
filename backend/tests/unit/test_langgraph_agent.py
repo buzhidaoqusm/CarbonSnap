@@ -20,7 +20,9 @@ def _decision(
         "follow_up_type": None,
         "confidence": 0.91,
         "needs_clarification": needs_clarification,
-        "clarification_question": "Which recycling task do you mean?" if needs_clarification else None,
+        "clarification_question": "Which recycling task do you mean?"
+        if needs_clarification
+        else None,
         "clarification_options": [{"label": "Battery", "reply_text": "The battery one."}]
         if needs_clarification
         else [],

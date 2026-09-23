@@ -23,7 +23,11 @@ class TestCaseResolver:
             message="Please continue the battery one.",
             recent_history=[],
             case_summaries=[
-                {"case_id": 11, "predicted_item": "plastic bottle", "current_stage": "analysis_ready"},
+                {
+                    "case_id": 11,
+                    "predicted_item": "plastic bottle",
+                    "current_stage": "analysis_ready",
+                },
                 {"case_id": 12, "predicted_item": "battery", "current_stage": "awaiting_location"},
             ],
         )
@@ -36,7 +40,11 @@ class TestCaseResolver:
             message="Can you continue that recycling task?",
             recent_history=[],
             case_summaries=[
-                {"case_id": 1, "predicted_item": "plastic bottle", "current_stage": "analysis_ready"},
+                {
+                    "case_id": 1,
+                    "predicted_item": "plastic bottle",
+                    "current_stage": "analysis_ready",
+                },
                 {"case_id": 2, "predicted_item": "battery", "current_stage": "awaiting_location"},
             ],
         )

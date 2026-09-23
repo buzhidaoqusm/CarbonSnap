@@ -20,7 +20,6 @@ sys.path.insert(0, str(_BACKEND_ROOT))
 from app import create_app
 from app.extensions.db import db
 
-
 UPLOADS_ROOT = _REPO_ROOT / "data" / "uploads"
 FAISS_ROOT = _REPO_ROOT / "data" / "faiss"
 
@@ -31,9 +30,7 @@ def _is_sqlite() -> bool:
 
 def _clear_all_table_data() -> int:
     table_names = sorted(
-        table_name
-        for table_name in db.metadata.tables.keys()
-        if table_name != "alembic_version"
+        table_name for table_name in db.metadata.tables.keys() if table_name != "alembic_version"
     )
 
     if _is_sqlite():

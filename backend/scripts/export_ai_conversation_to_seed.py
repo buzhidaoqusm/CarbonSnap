@@ -38,7 +38,6 @@ from app.models.ai import (
 from app.models.ledger import Transaction
 from app.models.user import User
 
-
 SEEDS_ROOT = _REPO_ROOT / "data" / "seeds"
 SEED_ASSETS_ROOT = SEEDS_ROOT / "assets" / "seed-ai"
 UPLOADS_ROOT = _REPO_ROOT / "data" / "uploads"
@@ -179,7 +178,11 @@ def _rewrite_payload(
                         rewritten[key] = audit_attempt_asset_urls_by_key[attempt_key]
                         continue
                     attempt_id = value.get("id")
-                    if isinstance(attempt_id, int) and audit_attempt_asset_urls_by_id and attempt_id in audit_attempt_asset_urls_by_id:
+                    if (
+                        isinstance(attempt_id, int)
+                        and audit_attempt_asset_urls_by_id
+                        and attempt_id in audit_attempt_asset_urls_by_id
+                    ):
                         rewritten[key] = audit_attempt_asset_urls_by_id[attempt_id]
                         continue
                 rewritten[key] = _copy_upload_asset(
@@ -298,19 +301,25 @@ def main() -> None:
             )
         )
         record_ids = [record.id for record in records]
-        transactions = list(
-            db.session.scalars(
-                select(Transaction)
-                .where(
-                    Transaction.source_type == "waste_analysis",
-                    Transaction.source_id.in_(record_ids),
+        transactions = (
+            list(
+                db.session.scalars(
+                    select(Transaction)
+                    .where(
+                        Transaction.source_type == "waste_analysis",
+                        Transaction.source_id.in_(record_ids),
+                    )
+                    .order_by(Transaction.id.asc())
                 )
-                .order_by(Transaction.id.asc())
             )
-        ) if record_ids else []
+            if record_ids
+            else []
+        )
 
         refs: dict[tuple[str, int], str] = {}
-        refs[("ai_conversations", conversation.id)] = f"ai_conversations.{args.conversation_seed_key}"
+        refs[("ai_conversations", conversation.id)] = (
+            f"ai_conversations.{args.conversation_seed_key}"
+        )
         for message in messages:
             refs[("ai_messages", message.id)] = (
                 f"ai_messages.{args.conversation_seed_key}-message-{message.sequence_no:02d}"
@@ -331,7 +340,7 @@ def main() -> None:
             refs[("ai_message_decisions", decision.id)] = (
                 f"ai_message_decisions.{args.conversation_seed_key}-decision-{index:02d}"
             )
-        for index, transaction in enumerate(transactions, start=1):
+        for transaction in transactions:
             refs[("transactions", transaction.id)] = (
                 f"transactions.{args.conversation_seed_key}-transaction-{index:02d}"
             )
@@ -347,7 +356,9 @@ def main() -> None:
                 asset_url_map=asset_url_map,
             )
             audit_attempt_asset_urls_by_id[int(audit.id)] = exported_audit_image_url
-            audit_attempt_asset_urls_by_key[(int(audit.recycling_case_id), int(audit.attempt_no))] = exported_audit_image_url
+            audit_attempt_asset_urls_by_key[
+                (int(audit.recycling_case_id), int(audit.attempt_no))
+            ] = exported_audit_image_url
 
         conversation_payload = {
             "_seed_key": args.conversation_seed_key,
@@ -401,7 +412,7 @@ def main() -> None:
             }
             _write_json(SEEDS_ROOT / "ai_messages" / f"{message_seed_key}.json", payload)
 
-        for index, case in enumerate(cases, start=1):
+        for case in cases:
             case_seed_key = refs[("recycling_cases", case.id)].split(".", 1)[1]
             payload = {
                 "_seed_key": case_seed_key,
@@ -518,7 +529,7 @@ def main() -> None:
                 payload,
             )
 
-        for index, transaction in enumerate(transactions, start=1):
+        for transaction in transactions:
             transaction_seed_key = refs[("transactions", transaction.id)].split(".", 1)[1]
             payload = {
                 "_seed_key": transaction_seed_key,

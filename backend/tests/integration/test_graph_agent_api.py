@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 
-from app.services.ai.agent_trace_service import build_trace_shell
 from app.services.ai import ai_conversation_service
+from app.services.ai.agent_trace_service import build_trace_shell
 
 
 def _post_json(client, url, data, headers=None, buffered=False):
@@ -47,7 +47,9 @@ def _general_decision():
     }
 
 
-def test_ai_chat_uses_langgraph_when_feature_flag_enabled(client, app, make_auth_headers, monkeypatch):
+def test_ai_chat_uses_langgraph_when_feature_flag_enabled(
+    client, app, make_auth_headers, monkeypatch
+):
     app.config.update(
         AI_GRAPH_AGENT_ENABLED=True,
         AI_DEMO_REPLAY_ENABLED=False,
@@ -78,7 +80,9 @@ def test_ai_chat_uses_langgraph_when_feature_flag_enabled(client, app, make_auth
     assert data["trace"]["graph_agent"]["framework"] == "langgraph"
 
 
-def test_ai_chat_stream_uses_langgraph_when_feature_flag_enabled(client, app, make_auth_headers, monkeypatch):
+def test_ai_chat_stream_uses_langgraph_when_feature_flag_enabled(
+    client, app, make_auth_headers, monkeypatch
+):
     app.config.update(
         AI_GRAPH_AGENT_ENABLED=True,
         AI_DEMO_REPLAY_ENABLED=False,
@@ -111,7 +115,9 @@ def test_ai_chat_stream_uses_langgraph_when_feature_flag_enabled(client, app, ma
     assert payloads[0]["graph_agent"]["route"] == "general"
 
 
-def test_ai_chat_keeps_existing_route_when_graph_agent_disabled(client, app, make_auth_headers, monkeypatch):
+def test_ai_chat_keeps_existing_route_when_graph_agent_disabled(
+    client, app, make_auth_headers, monkeypatch
+):
     app.config.update(
         AI_GRAPH_AGENT_ENABLED=False,
         AI_DEMO_REPLAY_ENABLED=False,

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import delete, select
@@ -14,8 +14,8 @@ def _ensure_aware_utc(value: datetime | None) -> datetime | None:
     if value is None:
         return None
     if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _parse_source_domains(value: str | None) -> list[str]:
@@ -103,7 +103,9 @@ def list_content_topic_assignments_for_content_ids(
 ) -> dict[int, list[ContentTopicAssignment]]:
     normalized_domain = str(domain).strip().lower()
     normalized_content_type = str(content_type).strip().lower()
-    normalized_content_ids = [int(content_id) for content_id in content_ids if content_id is not None]
+    normalized_content_ids = [
+        int(content_id) for content_id in content_ids if content_id is not None
+    ]
     if not normalized_content_ids:
         return {}
 
@@ -149,7 +151,9 @@ def replace_user_preference_profiles(
     user_id: int,
     profiles: list[dict[str, Any]],
 ) -> list[UserPreferenceProfile]:
-    db.session.execute(delete(UserPreferenceProfile).where(UserPreferenceProfile.user_id == user_id))
+    db.session.execute(
+        delete(UserPreferenceProfile).where(UserPreferenceProfile.user_id == user_id)
+    )
 
     rows: list[UserPreferenceProfile] = []
     for item in profiles:

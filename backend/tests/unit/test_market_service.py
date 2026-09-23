@@ -12,10 +12,10 @@ from app.models.user import User
 from app.services.market import market_service
 from app.services.market.market_service import MarketError
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_user(username="alice", email="alice@example.com", points=0):
     user = User(
@@ -41,6 +41,7 @@ def _create_item(seller, price=100):
 # ---------------------------------------------------------------------------
 # Item operations
 # ---------------------------------------------------------------------------
+
 
 class TestCreateItem:
     def test_creates_item_with_active_status(self):
@@ -77,16 +78,12 @@ class TestCreateItem:
     def test_zero_price_raises(self):
         seller = _make_user()
         with pytest.raises(MarketError):
-            market_service.create_item(
-                seller_id=seller.id, title="X", price_points=0
-            )
+            market_service.create_item(seller_id=seller.id, title="X", price_points=0)
 
     def test_negative_price_raises(self):
         seller = _make_user()
         with pytest.raises(MarketError):
-            market_service.create_item(
-                seller_id=seller.id, title="X", price_points=-10
-            )
+            market_service.create_item(seller_id=seller.id, title="X", price_points=-10)
 
 
 class TestGetItem:
@@ -241,7 +238,10 @@ class TestRecordItemLongView:
         latest_event = type(
             "Event",
             (),
-            {"created_at": market_service._utc_now() - market_service.MARKET_LONG_VIEW_DEDUP_WINDOW / 2},
+            {
+                "created_at": market_service._utc_now()
+                - market_service.MARKET_LONG_VIEW_DEDUP_WINDOW / 2
+            },
         )()
 
         monkeypatch.setattr(
@@ -289,6 +289,7 @@ class TestRemoveItem:
 # ---------------------------------------------------------------------------
 # Order lifecycle
 # ---------------------------------------------------------------------------
+
 
 class TestPlaceOrder:
     def test_successful_purchase_deducts_buyer_points(self):

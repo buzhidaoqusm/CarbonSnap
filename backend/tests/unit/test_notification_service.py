@@ -8,10 +8,10 @@ from app.models.user import User
 from app.services.notification import notification_service
 from app.services.notification.notification_service import NotificationError
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_user(username="alice", email="alice@example.com"):
     user = User(username=username, email=email, password_hash=generate_password_hash("pw"))
@@ -23,6 +23,7 @@ def _make_user(username="alice", email="alice@example.com"):
 # ---------------------------------------------------------------------------
 # dispatch / domain shortcuts
 # ---------------------------------------------------------------------------
+
 
 class TestDispatch:
     def test_dispatch_creates_notification(self):
@@ -112,6 +113,7 @@ class TestDomainShortcuts:
 # ---------------------------------------------------------------------------
 # Query operations
 # ---------------------------------------------------------------------------
+
 
 class TestListNotifications:
     def test_pagination(self):

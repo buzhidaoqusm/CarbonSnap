@@ -24,7 +24,9 @@ def _make_user(username: str = "forumflow", email: str = "forumflow@example.com"
     return user
 
 
-def test_complete_chat_message_uses_real_forum_retrieval_for_chinese_plastic_bottle_query(monkeypatch):
+def test_complete_chat_message_uses_real_forum_retrieval_for_chinese_plastic_bottle_query(
+    monkeypatch,
+):
     user = _make_user()
     diy_post = ForumPost(
         author_id=user.id,
@@ -75,7 +77,9 @@ def test_complete_chat_message_uses_real_forum_retrieval_for_chinese_plastic_bot
         },
     )
 
-    assistant_message = db.session.get(ai_conversation_service.AIMessage, result["assistant_message_id"])
+    assistant_message = db.session.get(
+        ai_conversation_service.AIMessage, result["assistant_message_id"]
+    )
     assistant_payload = json.loads(assistant_message.content_json)
 
     assert result["forum_references"] == [

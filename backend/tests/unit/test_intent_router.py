@@ -7,7 +7,10 @@ class TestIntentRouter:
 
         assert "Where can I recycle it near me?" in prompt
         assert '"follow_up_type": "nearby_search"' in prompt
-        assert "Can you give me another recycling method besides putting it in the recycling bin?" in prompt
+        assert (
+            "Can you give me another recycling method besides putting it in the recycling bin?"
+            in prompt
+        )
         assert '"follow_up_type": "guidance_follow_up"' in prompt
         assert "Which bin should this glass jar go in?" in prompt
         assert '"intent": "recycling_analysis"' in prompt
@@ -104,7 +107,9 @@ class TestIntentRouter:
                 {"role": "user", "content": "How do I recycle it?"},
                 {"role": "assistant", "content": "Here are recycling steps for the bottle."},
             ],
-            case_summaries=[{"case_id": 2, "predicted_item": "PET bottle", "status": "audit_passed"}],
+            case_summaries=[
+                {"case_id": 2, "predicted_item": "PET bottle", "status": "audit_passed"}
+            ],
             conversation_state={},
             prompt_memory={},
             allow_business_fallback=True,

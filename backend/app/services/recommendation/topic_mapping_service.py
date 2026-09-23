@@ -197,7 +197,9 @@ def assign_forum_post_topics(*, title: str, content: str) -> list[dict[str, Any]
     ]
 
 
-def assign_market_item_topics(*, title: str, description: str | None = None) -> list[dict[str, Any]]:
+def assign_market_item_topics(
+    *, title: str, description: str | None = None
+) -> list[dict[str, Any]]:
     query_text = _normalize_query_text(title, description or "")
     candidates = recall_topic_candidates(query_text)
     if not candidates:
@@ -258,7 +260,9 @@ def refresh_forum_post_topics(*, post_id: int, title: str, content: str) -> list
     return topics
 
 
-def refresh_market_item_topics(*, item_id: int, title: str, description: str | None) -> list[dict[str, Any]]:
+def refresh_market_item_topics(
+    *, item_id: int, title: str, description: str | None
+) -> list[dict[str, Any]]:
     topics = assign_market_item_topics(title=title, description=description)
     preference_profile_repository.replace_content_topic_assignments(
         domain="market",
@@ -269,7 +273,9 @@ def refresh_market_item_topics(*, item_id: int, title: str, description: str | N
     return topics
 
 
-def refresh_project_topics(*, project_id: int, title: str, description: str | None) -> list[dict[str, Any]]:
+def refresh_project_topics(
+    *, project_id: int, title: str, description: str | None
+) -> list[dict[str, Any]]:
     topics = assign_project_topics(title=title, description=description)
     preference_profile_repository.replace_content_topic_assignments(
         domain="project",

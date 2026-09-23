@@ -10,7 +10,6 @@ from app.ai.rag.indexing import build_forum_rag_index
 from app.repositories.forum import forum_repository
 from app.services.ai.guardrails import scan_retrieved_text_for_injection
 
-
 _TOKEN_RE = re.compile(r"[A-Za-z0-9_]+|[\u4e00-\u9fff]+")
 _WHITESPACE_RE = re.compile(r"\s+")
 _QUERY_EXPANSION_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
@@ -38,12 +37,8 @@ def retrieve_forum_references(
     vector_hits = _vector_recall(effective_query)
     fused_hits = _fuse_hits(keyword_hits=keyword_hits, vector_hits=vector_hits)
     aggregated = _aggregate_hits_by_post(fused_hits)
-    safe_candidates = [
-        item for item in aggregated if item.get("guardrail_status") == "passed"
-    ]
-    blocked_candidates = [
-        item for item in aggregated if item.get("guardrail_status") == "blocked"
-    ]
+    safe_candidates = [item for item in aggregated if item.get("guardrail_status") == "passed"]
+    blocked_candidates = [item for item in aggregated if item.get("guardrail_status") == "blocked"]
 
     configured_final_top_k = int(current_app.config.get("FORUM_RAG_FINAL_TOP_K", 4) or 4)
     max_candidates = max(int(limit or 0), 1) if limit is not None else configured_final_top_k
@@ -110,7 +105,9 @@ def resolve_explicit_forum_references(
 
     by_url = {item["url"]: item for item in candidates if item.get("url")}
     by_post_id = {item["post_id"]: item for item in candidates if item.get("post_id") is not None}
-    by_title = {str(item["title"]).strip().lower(): item for item in candidates if item.get("title")}
+    by_title = {
+        str(item["title"]).strip().lower(): item for item in candidates if item.get("title")
+    }
     resolved: list[dict[str, Any]] = []
     seen_urls: set[str] = set()
 
@@ -299,7 +296,11 @@ def _aggregate_hits_by_post(hits: list[dict[str, Any]]) -> list[dict[str, Any]]:
             entry["guardrail_matches"] = guardrail_scan["matched"]
 
         excerpt = str(item.get("excerpt", "")).strip()
-        if excerpt and excerpt not in excerpts_by_post[post_id] and len(excerpts_by_post[post_id]) < 2:
+        if (
+            excerpt
+            and excerpt not in excerpts_by_post[post_id]
+            and len(excerpts_by_post[post_id]) < 2
+        ):
             excerpts_by_post[post_id].append(excerpt)
 
     aggregated: list[dict[str, Any]] = []
@@ -373,8 +374,7 @@ def _expand_retrieval_query(query: str) -> str:
                     expanded_terms.append(normalized_alias)
 
     if "塑料瓶" in normalized_query and any(
-        marker in normalized_query
-        for marker in ("方法", "做法", "建议", "点子", "再利用", "创意")
+        marker in normalized_query for marker in ("方法", "做法", "建议", "点子", "再利用", "创意")
     ):
         for alias in ("reuse", "upcycle", "diy", "craft", "lantern"):
             if alias not in expanded_terms:

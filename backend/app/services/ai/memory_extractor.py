@@ -75,7 +75,9 @@ def extract_explicit_memory_candidates_detailed(
         "extractor_failure_reason": str(diagnostic.get("error") or "invalid_memory_payload"),
         "raw_extractor_payload": diagnostic.get("raw_reply"),
         "used_fallback": bool(allow_heuristic_fallback and candidates),
-        "fallback_mode": "heuristic_fallback" if allow_heuristic_fallback and candidates else "safe_default",
+        "fallback_mode": "heuristic_fallback"
+        if allow_heuristic_fallback and candidates
+        else "safe_default",
     }
 
 

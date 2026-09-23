@@ -1,6 +1,5 @@
 from app.ai.rag.chunking import chunk_forum_post, normalize_forum_text
 
-
 LONG_CONTENT = """
 Plastic bottles should be rinsed before recycling. Remove obvious food residue and
 check whether your local rules require the cap to be separated.

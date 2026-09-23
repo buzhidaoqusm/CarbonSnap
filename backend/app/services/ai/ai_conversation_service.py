@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Generator
 from datetime import datetime
-from typing import Any, Generator
+from typing import Any
 
 from flask import current_app
 from sqlalchemy import func, select
@@ -11,8 +12,8 @@ from app.extensions.db import db
 from app.models.ai import AIConversation, AIMessage, RecyclingCase
 from app.repositories.ai import conversation_repository, recycling_case_repository
 from app.services.ai.agent_trace_service import (
-    attach_graph_context_to_trace,
     attach_forum_citations_to_trace,
+    attach_graph_context_to_trace,
     build_trace_shell,
     normalize_trace_for_storage,
 )
@@ -37,7 +38,6 @@ from app.services.ai.openrouter_service import (
     stream_chat_with_openrouter,
 )
 from app.services.ai.prompt_registry import get_prompt_version
-
 
 _SHORT_TERM_MEMORY_INSTRUCTION = (
     "You are continuing the user's current chat session. Use only the recent context from this "
@@ -126,17 +126,17 @@ def _serialize_recycling_case(
         "status": case.status,
         "latest_audit_attempt_no": case.latest_audit_attempt_no,
         "approved_analysis_id": case.approved_analysis_id,
-        "audit_attempts": [
-            _serialize_audit_attempt(attempt)
-            for attempt in (audit_attempts or [])
-        ],
+        "audit_attempts": [_serialize_audit_attempt(attempt) for attempt in (audit_attempts or [])],
     }
 
 
 def _count_user_conversations(user_id: int) -> int:
-    return db.session.scalar(
-        select(func.count(AIConversation.id)).where(AIConversation.user_id == user_id)
-    ) or 0
+    return (
+        db.session.scalar(
+            select(func.count(AIConversation.id)).where(AIConversation.user_id == user_id)
+        )
+        or 0
+    )
 
 
 def _resolve_conversation_for_user(
@@ -249,7 +249,9 @@ def _build_case_context_notes(runtime_context: dict[str, Any] | None) -> list[st
     if working_memory.get("latest_nearby_guidance"):
         notes.append(f"Latest nearby guidance: {working_memory['latest_nearby_guidance']}")
     if working_memory.get("latest_verification_feedback"):
-        notes.append(f"Latest verification feedback: {working_memory['latest_verification_feedback']}")
+        notes.append(
+            f"Latest verification feedback: {working_memory['latest_verification_feedback']}"
+        )
     location_state = runtime_context.get("location_state") or {}
     if location_state.get("normalized_area"):
         notes.append(f"Current location context: {location_state['normalized_area']}")
@@ -283,7 +285,9 @@ def _build_short_term_system_prompt(
     if latest_user:
         lines.append(f'Latest user message before this request: "{_clip_text(latest_user, 180)}"')
     if latest_assistant:
-        lines.append(f'Latest assistant reply before this request: "{_clip_text(latest_assistant, 180)}"')
+        lines.append(
+            f'Latest assistant reply before this request: "{_clip_text(latest_assistant, 180)}"'
+        )
 
     structured_notes = _build_structured_short_term_notes(persisted_messages)
     if structured_notes:
@@ -586,7 +590,9 @@ def _build_forum_query(message: str, decision: dict[str, Any] | None) -> str:
     return "\n".join(part for part in parts if part)
 
 
-def _retrieve_forum_candidates(message: str, decision: dict[str, Any] | None) -> list[dict[str, Any]]:
+def _retrieve_forum_candidates(
+    message: str, decision: dict[str, Any] | None
+) -> list[dict[str, Any]]:
     if not isinstance(decision, dict) or not decision.get("should_retrieve_forum"):
         return []
 
@@ -1332,7 +1338,8 @@ def complete_routed_chat_message(
         user_message = persisted["user_message"]
         assistant_message = persisted.get("assistant_message")
         return {
-            "reply": decision.get("clarification_question") or "Could you clarify which recycling task you mean?",
+            "reply": decision.get("clarification_question")
+            or "Could you clarify which recycling task you mean?",
             "model": None,
             "usage": {},
             "conversation_id": conversation.id if conversation is not None else conversation_id,
@@ -1340,7 +1347,11 @@ def complete_routed_chat_message(
             "user_message_id": user_message.id if user_message is not None else None,
             "assistant_message_id": assistant_message.id if assistant_message is not None else None,
             "memory_updates": [],
-            "decision": {key: value for key, value in decision.items() if key not in {"context", "prompt_memory"}},
+            "decision": {
+                key: value
+                for key, value in decision.items()
+                if key not in {"context", "prompt_memory"}
+            },
             "clarification_options": decision.get("clarification_options", []),
         }
 
@@ -1365,7 +1376,9 @@ def complete_routed_chat_message(
         decision=decision,
         client_context=client_context,
     )
-    result["decision"] = {key: value for key, value in decision.items() if key not in {"context", "prompt_memory"}}
+    result["decision"] = {
+        key: value for key, value in decision.items() if key not in {"context", "prompt_memory"}
+    }
     return result
 
 
@@ -1411,7 +1424,9 @@ def stream_routed_chat_message(
         image_data_url=image_data_url,
         supplied_history=history,
     )
-    serialized_decision = {key: value for key, value in decision.items() if key not in {"context", "prompt_memory"}}
+    serialized_decision = {
+        key: value for key, value in decision.items() if key not in {"context", "prompt_memory"}
+    }
 
     if decision["needs_clarification"]:
         persisted = _persist_clarification_request(
@@ -1514,8 +1529,7 @@ def get_conversation_messages(
         )
     )
     audit_attempts_by_case_id = {
-        case.id: recycling_case_repository.list_audit_attempts(case.id)
-        for case in recycling_cases
+        case.id: recycling_case_repository.list_audit_attempts(case.id) for case in recycling_cases
     }
     case_by_id = {case.id: case for case in recycling_cases}
     case_by_origin_message_id = {case.origin_message_id: case for case in recycling_cases}
@@ -1540,7 +1554,9 @@ def get_conversation_messages(
         "items": serialized_items,
         "total": len(messages),
         "pending_recycling_case": _serialize_recycling_case(
-            latest_case if latest_case and latest_case.status in {"pending_audit", "audit_failed"} else None,
+            latest_case
+            if latest_case and latest_case.status in {"pending_audit", "audit_failed"}
+            else None,
             audit_attempts=(
                 audit_attempts_by_case_id.get(latest_case.id, [])
                 if latest_case and latest_case.status in {"pending_audit", "audit_failed"}

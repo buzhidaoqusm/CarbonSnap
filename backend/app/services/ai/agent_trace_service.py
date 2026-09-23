@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 from typing import Any
 
-
 TRACE_SCHEMA_VERSION = "graph-agent-trace-v1"
 
 

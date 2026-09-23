@@ -1,4 +1,4 @@
-"""
+r"""
 Seed repeatable weekly leaderboard demo data into the development database.
 
 Usage (from repo root):
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import sys
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[1]
@@ -19,7 +19,6 @@ from app import create_app
 from app.extensions.db import db
 from app.models.ledger import Transaction
 from app.models.user import User
-
 
 SOURCE_TYPE = "leaderboard_demo"
 DEMO_AVATAR_BASE = "https://api.dicebear.com/9.x/shapes/svg?seed="
@@ -42,11 +41,7 @@ def _ensure_avatar(user: User) -> None:
 
 
 def _rollback_existing_demo_transactions() -> int:
-    existing = (
-        db.session.query(Transaction)
-        .filter(Transaction.source_type == SOURCE_TYPE)
-        .all()
-    )
+    existing = db.session.query(Transaction).filter(Transaction.source_type == SOURCE_TYPE).all()
     deducted = 0
     for txn in existing:
         user = db.session.get(User, txn.user_id)
@@ -59,7 +54,7 @@ def _rollback_existing_demo_transactions() -> int:
 
 def _seed_demo_transactions(users_by_username: dict[str, User]) -> int:
     inserted = 0
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     for username, gains in DEMO_WEEKLY_GAINS.items():
         user = users_by_username.get(username)

@@ -5,16 +5,16 @@ import binascii
 import hashlib
 import json
 import re
+from collections.abc import Generator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Generator
+from typing import Any
 
 from flask import current_app
 
 from app.extensions.db import db
 from app.models.ai import RecyclingCase
-from app.repositories.ai import conversation_repository
-from app.repositories.ai import recycling_case_repository
+from app.repositories.ai import conversation_repository, recycling_case_repository
 from app.repositories.ledger import ledger_repository
 from app.services.ai.image_storage_service import store_data_url_image
 from app.services.ai.memory_service import upsert_memory_item
@@ -26,7 +26,6 @@ from app.services.ai.recycling_session_service import (
     set_paused_context,
     set_workflow_reference,
 )
-
 
 _DATA_URL_PATTERN = re.compile(r"^data:[^,]*;base64,", re.IGNORECASE)
 _LOCATION_OPTIONS = [
@@ -140,7 +139,9 @@ def stream_seed_demo_replay(
             if conversation is None:
                 raise ValueError(f"Conversation {conversation_id} not found.")
 
-        stored_image_url = store_data_url_image(image_data_url, namespace="chat") if image_data_url else None
+        stored_image_url = (
+            store_data_url_image(image_data_url, namespace="chat") if image_data_url else None
+        )
         user_message = conversation_repository.append_message(
             conversation_id=conversation.id,
             role="user",
@@ -211,7 +212,9 @@ def stream_seed_demo_replay(
                 content_json=content_json,
                 conversation_id=conversation.id if conversation is not None else None,
                 user_message_id=user_message.id if user_message is not None else None,
-                assistant_message_id=assistant_message.id if assistant_message is not None else None,
+                assistant_message_id=assistant_message.id
+                if assistant_message is not None
+                else None,
                 remaining_assistant_messages=match.assistant_messages[index + 1 :],
             )
             if _analysis_requires_location(content_json):
@@ -248,7 +251,9 @@ def stream_seed_demo_replay(
             yield {"type": "done", "stream_stage": "clarification"}
             return
 
-        yield from _stream_text_as_deltas(assistant_seed.content_text, stage=stream_stage or assistant_seed.message_type)
+        yield from _stream_text_as_deltas(
+            assistant_seed.content_text, stage=stream_stage or assistant_seed.message_type
+        )
         final_stage = "completed"
 
     if conversation is not None:
@@ -258,7 +263,10 @@ def stream_seed_demo_replay(
             current_pending_action="none",
         )
 
-    yield {"type": "done", "stream_stage": "completed" if final_stage == "completed" else final_stage}
+    yield {
+        "type": "done",
+        "stream_stage": "completed" if final_stage == "completed" else final_stage,
+    }
 
 
 def complete_seed_demo_replay(
@@ -370,7 +378,10 @@ def stream_seed_demo_resume(
                 ),
             )
 
-        if assistant_seed.message_type == "tool_result" and content_json.get("stream_stage") == "nearby_search":
+        if (
+            assistant_seed.message_type == "tool_result"
+            and content_json.get("stream_stage") == "nearby_search"
+        ):
             yield from _stream_nearby_seed_message(
                 seed_message=assistant_seed,
                 content_json=content_json,
@@ -657,7 +668,11 @@ def _stream_awaiting_location(
             session_context_json=json.dumps(serialize_session(session), ensure_ascii=False),
         )
 
-    analysis_payload = content_json.get("analysis_payload") if isinstance(content_json.get("analysis_payload"), dict) else {}
+    analysis_payload = (
+        content_json.get("analysis_payload")
+        if isinstance(content_json.get("analysis_payload"), dict)
+        else {}
+    )
     yield {
         "type": "awaiting_location",
         "data": {
@@ -682,7 +697,9 @@ def _stream_text_as_deltas(text: str, *, stage: str) -> Generator[dict[str, Any]
         }
 
 
-def _clarification_event_from_seed(seed_message: SeedMessage, content_json: dict[str, Any]) -> dict[str, Any]:
+def _clarification_event_from_seed(
+    seed_message: SeedMessage, content_json: dict[str, Any]
+) -> dict[str, Any]:
     return {
         "type": "clarification",
         "data": {
@@ -709,7 +726,9 @@ def _first_seed_memory_updates(match: SeedReplayMatch) -> list[dict[str, Any]]:
     return []
 
 
-def _build_memory_value_from_seed_update(update: dict[str, Any], user_message: str) -> dict[str, Any] | None:
+def _build_memory_value_from_seed_update(
+    update: dict[str, Any], user_message: str
+) -> dict[str, Any] | None:
     memory_type = str(update.get("memory_type") or "").strip()
     memory_key = str(update.get("memory_key") or "").strip()
     normalized = _normalize_message_text(user_message)
@@ -798,7 +817,9 @@ def _seed_case_ref_for_replayed_case(*, conversation_id: int, recycling_case_id:
             payload = json.loads(message.content_json or "{}")
         except (TypeError, ValueError, json.JSONDecodeError):
             continue
-        if int(payload.get("recycling_case_id") or 0) == recycling_case_id and payload.get("demo_recycling_case_ref"):
+        if int(payload.get("recycling_case_id") or 0) == recycling_case_id and payload.get(
+            "demo_recycling_case_ref"
+        ):
             return str(payload["demo_recycling_case_ref"])
     return None
 
@@ -829,8 +850,14 @@ def _find_seed_audit_replay_match(
                 continue
             if seed_message.content_json.get("recycling_case_ref") != seed_case_ref:
                 continue
-            seed_image_path = _seed_asset_path_from_upload_url(str(seed_message.content_json.get("image_url") or ""))
-            if seed_image_path is None or not seed_image_path.is_file() or _hash_file(seed_image_path) != image_hash:
+            seed_image_path = _seed_asset_path_from_upload_url(
+                str(seed_message.content_json.get("image_url") or "")
+            )
+            if (
+                seed_image_path is None
+                or not seed_image_path.is_file()
+                or _hash_file(seed_image_path) != image_hash
+            ):
                 continue
             for following in ordered[index + 1 :]:
                 if following.role == "user":
@@ -883,7 +910,12 @@ def _replace_seed_refs(
     if case_ref:
         payload["demo_recycling_case_ref"] = case_ref
         case_id = case_id_by_seed_key.get(_seed_key_from_ref(case_ref))
-        if case_id is None and user_id is not None and conversation_id is not None and origin_message_id is not None:
+        if (
+            case_id is None
+            and user_id is not None
+            and conversation_id is not None
+            and origin_message_id is not None
+        ):
             case = _create_case_from_seed_ref(
                 case_ref,
                 user_id=user_id,
@@ -965,7 +997,9 @@ def _load_seed_messages() -> tuple[SeedMessage, ...]:
                 role=str(payload.get("role") or ""),
                 message_type=str(payload.get("message_type") or "text"),
                 content_text=str(payload.get("content_text") or ""),
-                content_json=payload.get("content_json") if isinstance(payload.get("content_json"), dict) else {},
+                content_json=payload.get("content_json")
+                if isinstance(payload.get("content_json"), dict)
+                else {},
                 sequence_no=int(payload.get("sequence_no") or 0),
             )
         )

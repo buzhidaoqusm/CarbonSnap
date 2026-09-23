@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 
@@ -79,9 +79,7 @@ def finalize_approved_recycling_case_and_earn(
                 f"Recycling case {recycling_case_id} does not belong to conversation {conversation_id}."
             )
         if recycling_case.approved_analysis_id is not None:
-            raise ValueError(
-                f"Recycling case {recycling_case_id} has already been finalized."
-            )
+            raise ValueError(f"Recycling case {recycling_case_id} has already been finalized.")
 
         approved_attempt = db.session.get(RecyclingAuditAttempt, approved_audit_attempt_id)
         if approved_attempt is None:
@@ -99,9 +97,7 @@ def finalize_approved_recycling_case_and_earn(
                 f"Audit attempt {approved_audit_attempt_id} does not belong to conversation {conversation_id}."
             )
         if approved_attempt.audit_result != "passed":
-            raise ValueError(
-                f"Audit attempt {approved_audit_attempt_id} is not approved."
-            )
+            raise ValueError(f"Audit attempt {approved_audit_attempt_id} is not approved.")
 
         record = WasteAnalysisRecord(
             user_id=user_id,
@@ -146,11 +142,12 @@ def get_waste_records_page(
     user_id: int, page: int, per_page: int
 ) -> tuple[list[WasteAnalysisRecord], int]:
     """Return (records, total_count) ordered by newest first."""
-    total = db.session.scalar(
-        select(func.count(WasteAnalysisRecord.id)).where(
-            WasteAnalysisRecord.user_id == user_id
+    total = (
+        db.session.scalar(
+            select(func.count(WasteAnalysisRecord.id)).where(WasteAnalysisRecord.user_id == user_id)
         )
-    ) or 0
+        or 0
+    )
     records = db.session.scalars(
         select(WasteAnalysisRecord)
         .where(WasteAnalysisRecord.user_id == user_id)
@@ -161,13 +158,12 @@ def get_waste_records_page(
     return list(records), total
 
 
-def get_transactions_page(
-    user_id: int, page: int, per_page: int
-) -> tuple[list[Transaction], int]:
+def get_transactions_page(user_id: int, page: int, per_page: int) -> tuple[list[Transaction], int]:
     """Return (transactions, total_count) ordered by newest first."""
-    total = db.session.scalar(
-        select(func.count(Transaction.id)).where(Transaction.user_id == user_id)
-    ) or 0
+    total = (
+        db.session.scalar(select(func.count(Transaction.id)).where(Transaction.user_id == user_id))
+        or 0
+    )
     txns = db.session.scalars(
         select(Transaction)
         .where(Transaction.user_id == user_id)
@@ -192,7 +188,7 @@ def sum_earned_points(user_id: int) -> int:
 
 def get_weekly_points_gains(window_days: int = 7) -> list[dict]:
     """Return ranked weekly points gains derived from earn transactions."""
-    window_start = datetime.now(timezone.utc) - timedelta(days=window_days)
+    window_start = datetime.now(UTC) - timedelta(days=window_days)
     weekly_gain = func.sum(Transaction.points_delta)
     last_activity_at = func.max(Transaction.created_at)
 
@@ -222,9 +218,7 @@ def get_weekly_points_gains(window_days: int = 7) -> list[dict]:
             "user_id": row.user_id,
             "avatar_url": row.avatar_url or "",
             "weekly_points_gain": int(row.weekly_points_gain or 0),
-            "last_activity_at": row.last_activity_at.isoformat()
-            if row.last_activity_at
-            else "",
+            "last_activity_at": row.last_activity_at.isoformat() if row.last_activity_at else "",
         }
         for row in rows
     ]
@@ -235,6 +229,7 @@ def get_weekly_points_gains(window_days: int = 7) -> list[dict]:
 # Both helpers assume they are called WITHIN an existing db.session context;
 # the caller is responsible for commit() so multi-step operations stay atomic.
 # ---------------------------------------------------------------------------
+
 
 class InsufficientPointsError(Exception):
     """Raised when a user does not have enough points for a spend operation."""

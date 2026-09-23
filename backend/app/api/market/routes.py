@@ -17,8 +17,8 @@ Endpoints:
 from flask import Blueprint, request
 from flask_jwt_extended import jwt_required
 
-from app.services.market.market_service import MarketError
 from app.services.market import market_service
+from app.services.market.market_service import MarketError
 from app.utils.auth_identity import (
     UnresolvableJwtIdentityError,
     get_optional_current_user_id,
@@ -52,6 +52,7 @@ def _parse_pagination() -> tuple[int, int]:
 # ---------------------------------------------------------------------------
 # Items
 # ---------------------------------------------------------------------------
+
 
 @market_bp.post("/market/items")
 @jwt_required()
@@ -134,6 +135,7 @@ def remove_item(item_id: int):
 # ---------------------------------------------------------------------------
 # Orders
 # ---------------------------------------------------------------------------
+
 
 @market_bp.post("/market/orders")
 @jwt_required()

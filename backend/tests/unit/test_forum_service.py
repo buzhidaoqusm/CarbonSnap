@@ -13,10 +13,10 @@ from app.models.user import User
 from app.services.forum import forum_service
 from app.services.forum.forum_service import ForumError
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_user(username="alice", email="alice@example.com", avatar_url=None):
     user = User(
@@ -34,12 +34,11 @@ def _make_user(username="alice", email="alice@example.com", avatar_url=None):
 # Post CRUD
 # ---------------------------------------------------------------------------
 
+
 class TestCreatePost:
     def test_creates_post_and_returns_dict(self):
         user = _make_user()
-        result = forum_service.create_post(
-            author_id=user.id, title="Hello", content="World"
-        )
+        result = forum_service.create_post(author_id=user.id, title="Hello", content="World")
         assert result["title"] == "Hello"
         assert result["content"] == "World"
         assert result["author_id"] == user.id
@@ -125,7 +124,10 @@ class TestRecordPostLongView:
         latest_event = type(
             "Event",
             (),
-            {"created_at": forum_service._utc_now() - forum_service.FORUM_LONG_VIEW_DEDUP_WINDOW / 2},
+            {
+                "created_at": forum_service._utc_now()
+                - forum_service.FORUM_LONG_VIEW_DEDUP_WINDOW / 2
+            },
         )()
 
         monkeypatch.setattr(
@@ -164,7 +166,9 @@ class TestRecordPostLongView:
         monkeypatch.setattr(
             forum_service.behavior_event_service,
             "record_forum_long_view",
-            lambda **kwargs: pytest.fail("should not record duplicate long-view for naive timestamps"),
+            lambda **kwargs: pytest.fail(
+                "should not record duplicate long-view for naive timestamps"
+            ),
         )
 
         result = forum_service.record_post_long_view(created["id"], viewer_user_id=user.id)
@@ -173,7 +177,9 @@ class TestRecordPostLongView:
 
     def test_record_post_long_view_returns_tracked_payload(self):
         user = _make_user("reader", "reader@example.com")
-        created = forum_service.create_post(author_id=user.id, title="Read", content="This is detailed")
+        created = forum_service.create_post(
+            author_id=user.id, title="Read", content="This is detailed"
+        )
 
         result = forum_service.record_post_long_view(created["id"], viewer_user_id=user.id)
 
@@ -217,7 +223,9 @@ class TestUpdatePost:
             lambda **kwargs: captured.update(kwargs) or None,
         )
 
-        forum_service.update_post(post["id"], operator_user_id=user.id, title="New", content="Fresh")
+        forum_service.update_post(
+            post["id"], operator_user_id=user.id, title="New", content="Fresh"
+        )
 
         assert captured == {
             "post_id": post["id"],
@@ -300,7 +308,9 @@ class TestListPosts:
             forum_service.create_post(author_id=user.id, title=f"Post {index}", content="C")
             for index in range(1, 11)
         ]
-        candidate_posts = forum_service.forum_repository.list_published_posts_for_ranking(candidate_limit=10)
+        candidate_posts = forum_service.forum_repository.list_published_posts_for_ranking(
+            candidate_limit=10
+        )
         captured = {}
 
         monkeypatch.setattr(
@@ -333,12 +343,16 @@ class TestListPosts:
         ]
         assert result["total"] == 10
 
-    def test_authenticated_user_total_comes_from_full_published_count_not_candidate_window(self, monkeypatch):
+    def test_authenticated_user_total_comes_from_full_published_count_not_candidate_window(
+        self, monkeypatch
+    ):
         user = _make_user("counted", "counted@example.com")
         for index in range(1, 8):
             forum_service.create_post(author_id=user.id, title=f"Post {index}", content="C")
 
-        candidate_posts = forum_service.forum_repository.list_published_posts_for_ranking(candidate_limit=5)
+        candidate_posts = forum_service.forum_repository.list_published_posts_for_ranking(
+            candidate_limit=5
+        )
 
         monkeypatch.setattr(
             forum_service.forum_repository,
@@ -361,9 +375,11 @@ class TestListPosts:
         assert len(result["items"]) == 5
         assert result["total"] == 7
 
+
 # ---------------------------------------------------------------------------
 # Comments
 # ---------------------------------------------------------------------------
+
 
 class TestCreateComment:
     def test_top_level_comment(self):
@@ -394,9 +410,7 @@ class TestCreateComment:
     def test_reply_to_comment(self):
         user = _make_user()
         post = forum_service.create_post(author_id=user.id, title="T", content="C")
-        parent = forum_service.create_comment(
-            post_id=post["id"], user_id=user.id, content="Parent"
-        )
+        parent = forum_service.create_comment(post_id=post["id"], user_id=user.id, content="Parent")
         reply = forum_service.create_comment(
             post_id=post["id"],
             user_id=user.id,
@@ -425,9 +439,7 @@ class TestDeleteComment:
     def test_author_can_delete_comment(self):
         user = _make_user()
         post = forum_service.create_post(author_id=user.id, title="T", content="C")
-        comment = forum_service.create_comment(
-            post_id=post["id"], user_id=user.id, content="Bye"
-        )
+        comment = forum_service.create_comment(post_id=post["id"], user_id=user.id, content="Bye")
         forum_service.delete_comment(comment["id"], operator_user_id=user.id)
         result = forum_service.list_comments(post["id"])
         ids = [c["id"] for c in result["items"]]
@@ -448,6 +460,7 @@ class TestDeleteComment:
 # ---------------------------------------------------------------------------
 # Likes
 # ---------------------------------------------------------------------------
+
 
 class TestToggleLike:
     def test_like_post(self):
@@ -488,7 +501,9 @@ class TestToggleLike:
             lambda user_id: recomputed.append(user_id),
         )
 
-        result = forum_service.toggle_like(user_id=user.id, target_type="post", target_id=post["id"])
+        result = forum_service.toggle_like(
+            user_id=user.id, target_type="post", target_id=post["id"]
+        )
 
         assert result["liked"] is False
         assert captured == {
@@ -501,9 +516,7 @@ class TestToggleLike:
     def test_like_comment(self):
         user = _make_user()
         post = forum_service.create_post(author_id=user.id, title="T", content="C")
-        comment = forum_service.create_comment(
-            post_id=post["id"], user_id=user.id, content="Hi"
-        )
+        comment = forum_service.create_comment(post_id=post["id"], user_id=user.id, content="Hi")
         result = forum_service.toggle_like(
             user_id=user.id, target_type="comment", target_id=comment["id"]
         )
@@ -525,7 +538,5 @@ class TestToggleLike:
         u2 = _make_user("u2", "u2@x.com")
         post = forum_service.create_post(author_id=u1.id, title="T", content="C")
         forum_service.toggle_like(user_id=u1.id, target_type="post", target_id=post["id"])
-        result = forum_service.toggle_like(
-            user_id=u2.id, target_type="post", target_id=post["id"]
-        )
+        result = forum_service.toggle_like(user_id=u2.id, target_type="post", target_id=post["id"])
         assert result["like_count"] == 2

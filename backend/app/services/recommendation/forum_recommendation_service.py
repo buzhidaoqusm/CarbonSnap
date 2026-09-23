@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from math import exp
 
 from app.models.forum import ForumPost
 from app.repositories.forum import forum_repository
-from app.repositories.recommendation import behavior_event_repository
-from app.repositories.recommendation import preference_profile_repository
+from app.repositories.recommendation import behavior_event_repository, preference_profile_repository
 from app.services.recommendation import preference_profile_service
 
 NOVELTY_UNSEEN_SCORE = 1.0
@@ -33,10 +32,10 @@ MAX_CONSECUTIVE_DOMINANT_TOPIC_POSTS = 2
 
 def _ensure_aware_utc(value):
     if value is None:
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
     if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _clamp_unit_interval(value: float) -> float:
@@ -44,7 +43,9 @@ def _clamp_unit_interval(value: float) -> float:
 
 
 def _recency_score(post: ForumPost) -> float:
-    age_days = max((datetime.now(timezone.utc) - _ensure_aware_utc(post.created_at)).total_seconds() / 86400.0, 0.0)
+    age_days = max(
+        (datetime.now(UTC) - _ensure_aware_utc(post.created_at)).total_seconds() / 86400.0, 0.0
+    )
     if age_days <= 3:
         return 1.0
     if age_days <= 14:
@@ -100,7 +101,9 @@ def _topic_match_score(post: ForumPost, ranking_context: dict) -> float:
         return 0.0
     score = 0.0
     for assignment in assignments:
-        score += float(profile_snapshot.get(assignment.topic_id, 0.0)) * float(assignment.confidence_score or 0.0)
+        score += float(profile_snapshot.get(assignment.topic_id, 0.0)) * float(
+            assignment.confidence_score or 0.0
+        )
     return score
 
 
@@ -111,7 +114,9 @@ def _preference_match_score(post: ForumPost, ranking_context: dict) -> float:
         return 0.0
     weighted_score = 0.0
     for assignment in assignments:
-        weighted_score += float(profile_snapshot.get(assignment.topic_id, 0.0)) * float(assignment.confidence_score or 0.0)
+        weighted_score += float(profile_snapshot.get(assignment.topic_id, 0.0)) * float(
+            assignment.confidence_score or 0.0
+        )
     return round(_clamp_unit_interval(weighted_score), 6)
 
 
@@ -156,10 +161,15 @@ def _unfamiliarity_score(post: ForumPost, ranking_context: dict) -> float:
     assignments = _topic_assignments_for_post(post, ranking_context)
     if not assignments:
         return 0.5
-    non_fallback_assignments = [assignment for assignment in assignments if assignment.topic_id != "uncategorized"]
+    non_fallback_assignments = [
+        assignment for assignment in assignments if assignment.topic_id != "uncategorized"
+    ]
     if not non_fallback_assignments:
         return 0.5
-    max_topic_match = max(float(profile_snapshot.get(assignment.topic_id, 0.0)) for assignment in non_fallback_assignments)
+    max_topic_match = max(
+        float(profile_snapshot.get(assignment.topic_id, 0.0))
+        for assignment in non_fallback_assignments
+    )
     return round(1.0 - _clamp_unit_interval(max_topic_match), 6)
 
 
@@ -208,10 +218,7 @@ def explore_score(post: ForumPost, *, ranking_context: dict) -> float:
     engagement = _engagement_score(post)
     novelty = _novelty_score(post, ranking_context)
     return round(
-        (0.40 * unfamiliarity)
-        + (0.25 * recency)
-        + (0.20 * engagement)
-        + (0.15 * novelty),
+        (0.40 * unfamiliarity) + (0.25 * recency) + (0.20 * engagement) + (0.15 * novelty),
         6,
     )
 
@@ -349,11 +356,15 @@ def merge_ranked_posts(
 def build_ranking_context(*, user_id: int, posts: list[ForumPost]) -> dict:
     post_ids = [int(post.id) for post in posts if post is not None and post.id is not None]
     has_history = preference_profile_service.has_sufficient_history(user_id)
-    profile_snapshot = preference_profile_service.get_profile_snapshot(user_id) if has_history else {}
-    topic_assignments_by_post_id = preference_profile_repository.list_content_topic_assignments_for_content_ids(
-        domain="forum",
-        content_type="post",
-        content_ids=post_ids,
+    profile_snapshot = (
+        preference_profile_service.get_profile_snapshot(user_id) if has_history else {}
+    )
+    topic_assignments_by_post_id = (
+        preference_profile_repository.list_content_topic_assignments_for_content_ids(
+            domain="forum",
+            content_type="post",
+            content_ids=post_ids,
+        )
     )
     viewed_post_ids = behavior_event_repository.list_behavior_target_ids_for_user(
         user_id,
@@ -413,13 +424,21 @@ def rank_posts_for_user(*, posts: list[ForumPost], user_id: int) -> list[ForumPo
         if post is not None and post.id is not None
     }
     exploitation_posts = _sort_posts_with_scores(
-        posts=[post for post in posts if is_exploitation_candidate(post, ranking_context=ranking_context)],
+        posts=[
+            post
+            for post in posts
+            if is_exploitation_candidate(post, ranking_context=ranking_context)
+        ],
         score_getter=exploit_score,
         ranking_context=ranking_context,
         source_index_by_post_id=source_index_by_post_id,
     )
     exploration_posts = _sort_posts_with_scores(
-        posts=[post for post in posts if is_exploration_candidate(post, ranking_context=ranking_context)],
+        posts=[
+            post
+            for post in posts
+            if is_exploration_candidate(post, ranking_context=ranking_context)
+        ],
         score_getter=explore_score,
         ranking_context=ranking_context,
         source_index_by_post_id=source_index_by_post_id,

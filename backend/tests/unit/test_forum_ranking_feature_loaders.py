@@ -1,5 +1,5 @@
-from datetime import datetime, timedelta, timezone
 import uuid
+from datetime import UTC, datetime, timedelta
 
 from werkzeug.security import generate_password_hash
 
@@ -59,12 +59,15 @@ class TestForumRankingFeatureLoaders:
         )
 
         assert set(grouped) == {first_post.id, second_post.id}
-        assert [row.topic_id for row in grouped[first_post.id]] == ["battery-recycling", "upcycling"]
+        assert [row.topic_id for row in grouped[first_post.id]] == [
+            "battery-recycling",
+            "upcycling",
+        ]
         assert [row.topic_id for row in grouped[second_post.id]] == ["composting"]
 
     def test_list_recent_topic_exposure_counts_for_user_uses_recent_forum_snapshots(self):
         user = _make_user("exposure", "exposure@example.com")
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         behavior_event_repository.create_behavior_event(
             user_id=user.id,

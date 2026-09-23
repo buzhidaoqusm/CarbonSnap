@@ -33,7 +33,7 @@ def _default_log_path() -> Path:
 
 def _load_records(path: Path) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
-    with open(path, "r", encoding="utf-8") as handle:
+    with open(path, encoding="utf-8") as handle:
         for line in handle:
             line = line.strip()
             if not line:
@@ -72,8 +72,10 @@ def summarize(records: list[dict[str, Any]], *, limit: int = 5) -> dict[str, Any
         model_selected.update(record.get("model_tools", []))
         if not record.get("exact_match"):
             key = (
-                "rule_only=" + ",".join(sorted(record.get("rule_only", []))) +
-                " | model_only=" + ",".join(sorted(record.get("model_only", [])))
+                "rule_only="
+                + ",".join(sorted(record.get("rule_only", [])))
+                + " | model_only="
+                + ",".join(sorted(record.get("model_only", [])))
             )
             divergences[key] += 1
 
@@ -121,9 +123,7 @@ def _print_report(summary: dict[str, Any]) -> None:
     print()
     print("Per-tool agreement (rule vs model):")
     print(f"  {'tool':<32} {'rule':>5} {'model':>6} {'agree':>6} {'jaccard':>8}")
-    for tool, stats in sorted(
-        summary["per_tool"].items(), key=lambda kv: kv[1]["jaccard"]
-    ):
+    for tool, stats in sorted(summary["per_tool"].items(), key=lambda kv: kv[1]["jaccard"]):
         print(
             f"  {tool:<32} {stats['rule_selected']:>5} {stats['model_selected']:>6} "
             f"{stats['agreed']:>6} {stats['jaccard']:>8.3f}"

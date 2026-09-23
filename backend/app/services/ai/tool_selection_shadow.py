@@ -27,11 +27,10 @@ from __future__ import annotations
 import json
 import os
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from flask import current_app
-
 
 VALID_MODES = {"rule", "model", "shadow"}
 
@@ -133,7 +132,7 @@ def build_shadow_record(
     """Assemble a single JSONL-ready comparison record."""
     decision = decision or {}
     record: dict[str, Any] = {
-        "ts": datetime.now(timezone.utc).isoformat(),
+        "ts": datetime.now(UTC).isoformat(),
         "mode": mode,
         "served_by": "model" if mode == "model" else "rule",
         "intent": decision.get("intent"),

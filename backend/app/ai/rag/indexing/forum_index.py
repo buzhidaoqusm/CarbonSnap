@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 import math
 import threading
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Callable, Iterable, Sequence
+from typing import Any
 
 from flask import current_app, has_app_context
 
@@ -59,7 +60,7 @@ class _StoredChunk:
         return payload
 
     @classmethod
-    def from_manifest_item(cls, item: dict[str, Any]) -> "_StoredChunk":
+    def from_manifest_item(cls, item: dict[str, Any]) -> _StoredChunk:
         vector = item.get("vector")
         if not isinstance(vector, list):
             raise ForumRagIndexError("Manifest item is missing an embedding vector.")
@@ -108,7 +109,7 @@ def _normalize_vector(vector: Sequence[float]) -> list[float]:
 
 
 def _dot_product(left: Sequence[float], right: Sequence[float]) -> float:
-    return float(sum(float(a) * float(b) for a, b in zip(left, right)))
+    return float(sum(float(a) * float(b) for a, b in zip(left, right, strict=False)))
 
 
 def _resolve_storage_dir(storage_dir: str | Path | None) -> Path:
@@ -223,7 +224,7 @@ class _VectorBackend:
             top_k,
         )
         results: list[tuple[int, float]] = []
-        for numeric_id, score in zip(ids[0], scores[0]):
+        for numeric_id, score in zip(ids[0], scores[0], strict=False):
             if int(numeric_id) == -1:
                 continue
             results.append((int(numeric_id), float(score)))
@@ -273,7 +274,7 @@ class ForumRagIndex:
         *,
         index_name: str = "forum_rag",
         embedder: Callable[[list[str]], list[list[float]]] | None = None,
-    ) -> "ForumRagIndex":
+    ) -> ForumRagIndex:
         return cls(index_name=index_name, embedder=embedder)
 
     def upsert(self, chunks: Iterable[ForumRagChunkRecord]) -> list[ForumRagChunkRecord]:
@@ -286,7 +287,7 @@ class ForumRagIndex:
             raise ForumRagIndexError("Embedding provider returned an unexpected vector count.")
 
         with self._lock:
-            for chunk, vector in zip(normalized_chunks, vectors):
+            for chunk, vector in zip(normalized_chunks, vectors, strict=False):
                 normalized_vector = _normalize_vector(vector)
                 existing = self._records_by_chunk_id.get(chunk.chunk_id)
                 numeric_id = existing.numeric_id if existing else self._next_numeric_id
@@ -379,7 +380,12 @@ class ForumRagIndex:
                 )
                 for stored in sorted(
                     self._records_by_chunk_id.values(),
-                    key=lambda item: (item.post_id, item.chunk_version, item.chunk_index, item.numeric_id),
+                    key=lambda item: (
+                        item.post_id,
+                        item.chunk_version,
+                        item.chunk_index,
+                        item.numeric_id,
+                    ),
                 )
             ]
 
@@ -426,7 +432,9 @@ class ForumRagIndex:
             self._next_numeric_id = max(1, int(next_numeric_id))
 
         if raw_payload.get("embedding_model"):
-            self._embedding_model = str(raw_payload.get("embedding_model")).strip() or self._embedding_model
+            self._embedding_model = (
+                str(raw_payload.get("embedding_model")).strip() or self._embedding_model
+            )
 
         for item in records:
             if not isinstance(item, dict):

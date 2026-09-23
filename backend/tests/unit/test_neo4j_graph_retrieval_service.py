@@ -142,7 +142,9 @@ def test_query_graph_context_uses_fake_driver_and_returns_structured_context(app
     assert result["rules"][0]["id"] == "rule-battery-dropoff"
     assert result["risks"][0]["name"] == "fire hazard"
     assert result["knowledge_chunks"][0]["id"] == "chunk-battery-001"
-    assert {"from": "battery", "relation": "DISPOSE_AS", "to": "hazardous drop-off"} in result["paths"]
+    assert {"from": "battery", "relation": "DISPOSE_AS", "to": "hazardous drop-off"} in result[
+        "paths"
+    ]
     assert driver.session_obj.queries[0][1]["items"] == ["battery"]
 
 
@@ -165,7 +167,9 @@ def test_query_graph_context_extracts_entities_when_not_supplied(app):
     result = query_graph_context("Can I recycle a takeaway cup?", driver=driver)
 
     assert result["entities"]["items"] == ["coffee cup"]
-    assert {"from": "coffee cup", "relation": "MADE_OF", "to": "plastic-lined paper"} in result["paths"]
+    assert {"from": "coffee cup", "relation": "MADE_OF", "to": "plastic-lined paper"} in result[
+        "paths"
+    ]
 
 
 def test_query_graph_context_returns_fallback_when_feature_disabled(app):
@@ -357,9 +361,7 @@ def test_build_graph_prompt_block_includes_open_claims_and_sources():
                     "support_count": 2,
                 }
             ],
-            "forum_citations": [
-                {"title": "Bottle lantern ideas", "url": "/forum/posts/12"}
-            ],
+            "forum_citations": [{"title": "Bottle lantern ideas", "url": "/forum/posts/12"}],
         }
     )
 

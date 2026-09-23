@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from app.extensions.db import db
@@ -9,8 +9,10 @@ from app.models.memory import UserMemoryItem
 from app.models.user import User
 from app.repositories.ai import memory_repository
 from app.services.recommendation import preference_profile_service
-from app.services.recommendation.topic_taxonomy import map_recycling_item_to_topics, normalize_topic_id
-
+from app.services.recommendation.topic_taxonomy import (
+    map_recycling_item_to_topics,
+    normalize_topic_id,
+)
 
 SUPPORTED_MEMORY_TYPES = {
     "response_style",
@@ -35,7 +37,7 @@ BEHAVIOR_INFERRED_ACTION_KEYS = {
 
 
 def _utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _parse_value_json(value_json: str | None) -> dict[str, Any]:
@@ -205,12 +207,19 @@ def build_preferences_summary(
                     }
                 )
 
-    profile_topics = (profile_snapshot.get("content_interest_preferences") or {}).get("topics") or []
+    profile_topics = (profile_snapshot.get("content_interest_preferences") or {}).get(
+        "topics"
+    ) or []
     summary["content_interest_preferences"] = {
         "topics": _merge_explicit_topics(profile_topics, explicit_topics),
         "confidence_score": round(
             max(
-                float((profile_snapshot.get("content_interest_preferences") or {}).get("confidence_score") or 0.0),
+                float(
+                    (profile_snapshot.get("content_interest_preferences") or {}).get(
+                        "confidence_score"
+                    )
+                    or 0.0
+                ),
                 1.0 if explicit_topics else 0.0,
             ),
             3,
@@ -232,8 +241,7 @@ def build_current_preferences_summary(
     items = memory_repository.list_active_memory_items(user_id)
     summary = build_preferences_summary(items, user_id=user_id)
     if summary["content_interest_preferences"]["topics"] or any(
-        value not in (None, [], {})
-        for value in summary["action_preferences"].values()
+        value not in (None, [], {}) for value in summary["action_preferences"].values()
     ):
         return summary
 

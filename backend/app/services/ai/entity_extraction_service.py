@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 from typing import Any
 
-
 _TOKEN_BOUNDARY_TEMPLATE = r"(?<![a-z0-9]){term}(?![a-z0-9])"
 
 ITEM_SYNONYMS: dict[str, tuple[str, ...]] = {

@@ -1,14 +1,13 @@
 """Integration tests for Notification API endpoints."""
 
 import json
-import pytest
 
 from app.services.notification import notification_service
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _seed_notifications(user_id: int, count: int = 3):
     """Directly call service to create N notifications for a user."""
@@ -53,6 +52,7 @@ def _create_forum_comment(client, headers, post_id, content="Nice!", parent_comm
 # ---------------------------------------------------------------------------
 # GET /api/notifications
 # ---------------------------------------------------------------------------
+
 
 class TestListNotifications:
     def test_returns_own_notifications(self, client, make_auth_headers):
@@ -203,6 +203,7 @@ class TestListNotifications:
 # GET /api/notifications/unread-count
 # ---------------------------------------------------------------------------
 
+
 class TestUnreadCount:
     def test_zero_initially(self, client, make_auth_headers):
         _, headers = make_auth_headers()
@@ -220,6 +221,7 @@ class TestUnreadCount:
 # ---------------------------------------------------------------------------
 # PATCH /api/notifications/<id>/read
 # ---------------------------------------------------------------------------
+
 
 class TestMarkAsRead:
     def test_mark_single_notification(self, client, make_auth_headers):
@@ -248,6 +250,7 @@ class TestMarkAsRead:
 # ---------------------------------------------------------------------------
 # PATCH /api/notifications/read-all
 # ---------------------------------------------------------------------------
+
 
 class TestMarkAllAsRead:
     def test_marks_all_as_read(self, client, make_auth_headers):

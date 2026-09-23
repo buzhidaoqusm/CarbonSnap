@@ -16,11 +16,11 @@ from __future__ import annotations
 
 import os
 import sys
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from dotenv import load_dotenv
-
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_PATH = BACKEND_ROOT / "app" / "ai" / "graph" / "schema.cypher"

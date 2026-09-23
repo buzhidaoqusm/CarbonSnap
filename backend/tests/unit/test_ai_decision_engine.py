@@ -130,9 +130,7 @@ class TestDecisionModes:
             )
 
         def fake_extractor(*args, **kwargs):
-            captured["extractor_allow_heuristic_fallback"] = kwargs[
-                "allow_heuristic_fallback"
-            ]
+            captured["extractor_allow_heuristic_fallback"] = kwargs["allow_heuristic_fallback"]
             return _extractor_detail()
 
         monkeypatch.setattr(ai_decision_engine, "classify_intent_detailed", fake_router)
@@ -163,9 +161,7 @@ class TestDecisionModes:
             "extractor_allow_heuristic_fallback": False,
         }
 
-    def test_compat_mode_uses_primary_pipeline_without_shadow_metadata(
-        self, monkeypatch, app
-    ):
+    def test_compat_mode_uses_primary_pipeline_without_shadow_metadata(self, monkeypatch, app):
         app.config["AI_DECISION_ENGINE_MODE"] = "compat"
 
         captured: dict[str, bool] = {}
@@ -200,9 +196,7 @@ class TestDecisionModes:
             )
 
         def fake_extractor(*args, **kwargs):
-            captured["extractor_allow_heuristic_fallback"] = kwargs[
-                "allow_heuristic_fallback"
-            ]
+            captured["extractor_allow_heuristic_fallback"] = kwargs["allow_heuristic_fallback"]
             return _extractor_detail(
                 candidates=[
                     {
@@ -323,9 +317,7 @@ class TestDecisionModes:
 
 
 class TestDecisionPipeline:
-    def test_follow_up_uses_resolver_and_keeps_target_case_when_confident(
-        self, monkeypatch, app
-    ):
+    def test_follow_up_uses_resolver_and_keeps_target_case_when_confident(self, monkeypatch, app):
         app.config["AI_DECISION_ENGINE_MODE"] = "llm_first"
         app.config["AI_DECISION_CONFIDENCE_THRESHOLD"] = 0.65
 
@@ -373,9 +365,7 @@ class TestDecisionPipeline:
         assert decision["needs_clarification"] is False
         assert decision["should_retrieve_forum"] is True
 
-    def test_resolver_clarification_overrides_router_clarification_fields(
-        self, monkeypatch, app
-    ):
+    def test_resolver_clarification_overrides_router_clarification_fields(self, monkeypatch, app):
         app.config["AI_DECISION_ENGINE_MODE"] = "llm_first"
 
         monkeypatch.setattr(ai_decision_engine, "get_prompt_memory_summary", lambda user_id: {})
@@ -383,7 +373,10 @@ class TestDecisionPipeline:
             ai_decision_engine,
             "build_context_bundle",
             lambda **kwargs: _context(
-                case_summaries=[_case(1, "plastic bottle", "analysis_ready"), _case(2, "battery", "audit_failed")]
+                case_summaries=[
+                    _case(1, "plastic bottle", "analysis_ready"),
+                    _case(2, "battery", "audit_failed"),
+                ]
             ),
         )
         monkeypatch.setattr(
@@ -395,7 +388,9 @@ class TestDecisionPipeline:
                 confidence=0.88,
                 needs_clarification=True,
                 clarification_question="Which earlier task do you mean?",
-                clarification_options=[{"label": "Earlier task", "reply_text": "That earlier task."}],
+                clarification_options=[
+                    {"label": "Earlier task", "reply_text": "That earlier task."}
+                ],
             ),
         )
         monkeypatch.setattr(
@@ -433,9 +428,7 @@ class TestDecisionPipeline:
             {"label": "Battery", "reply_text": "I mean the batteries."},
         ]
 
-    def test_multi_case_low_confidence_follow_up_forces_clarification(
-        self, monkeypatch, app
-    ):
+    def test_multi_case_low_confidence_follow_up_forces_clarification(self, monkeypatch, app):
         app.config["AI_DECISION_ENGINE_MODE"] = "llm_first"
         app.config["AI_DECISION_CONFIDENCE_THRESHOLD"] = 0.7
         app.config["AI_DECISION_ENGINE_VERSION"] = "decision-engine-test"
@@ -659,9 +652,7 @@ class TestForumRetrieval:
         assert decision["should_retrieve_forum"] is True
         assert decision["forum_retrieval_reason"] == "general_chat_hint"
 
-    def test_general_chat_without_signals_does_not_trigger_forum_retrieval(
-        self, monkeypatch, app
-    ):
+    def test_general_chat_without_signals_does_not_trigger_forum_retrieval(self, monkeypatch, app):
         monkeypatch.setattr(ai_decision_engine, "get_prompt_memory_summary", lambda user_id: {})
         monkeypatch.setattr(
             ai_decision_engine,
@@ -701,7 +692,7 @@ class TestPersistenceAndHelpers:
             return kwargs
 
         monkeypatch.setattr(
-            message_decision_repository := ai_decision_engine.message_decision_repository,
+            ai_decision_engine.message_decision_repository,
             "create_message_decision",
             fake_create_message_decision,
         )
@@ -748,9 +739,7 @@ class TestPersistenceAndHelpers:
             (0.4, 0.4),
         ],
     )
-    def test_get_confidence_threshold_falls_back_and_clamps(
-        self, app, configured_value, expected
-    ):
+    def test_get_confidence_threshold_falls_back_and_clamps(self, app, configured_value, expected):
         app.config["AI_DECISION_CONFIDENCE_THRESHOLD"] = configured_value
         assert ai_decision_engine._get_confidence_threshold() == expected
 

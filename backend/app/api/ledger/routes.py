@@ -25,6 +25,7 @@ def _parse_pagination() -> tuple[int, int]:
 # Save an AI analysis result, earn points atomically.
 # ---------------------------------------------------------------------------
 
+
 @ledger_bp.post("/ledger/records")
 @jwt_required()
 def create_record():
@@ -60,6 +61,7 @@ def create_record():
 # List the current user's waste analysis history.
 # ---------------------------------------------------------------------------
 
+
 @ledger_bp.get("/ledger/records")
 @jwt_required()
 def list_records():
@@ -73,6 +75,7 @@ def list_records():
 # List the current user's point transaction history.
 # ---------------------------------------------------------------------------
 
+
 @ledger_bp.get("/ledger/transactions")
 @jwt_required()
 def list_transactions():
@@ -85,6 +88,7 @@ def list_transactions():
 # GET /api/ledger/summary
 # Return carbon total and current points for the current user.
 # ---------------------------------------------------------------------------
+
 
 @ledger_bp.get("/ledger/summary")
 @jwt_required()

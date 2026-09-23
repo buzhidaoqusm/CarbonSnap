@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Generator
 from datetime import date, datetime
-from typing import Any, Generator
+from typing import Any
 
 from flask import current_app
 from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
@@ -28,7 +29,11 @@ from app.services.ai.neo4j_graph_retrieval_service import (
     build_graph_prompt_block,
     query_graph_context,
 )
-from app.services.ai.openrouter_service import complete_json, generate_conversation_title, stream_text
+from app.services.ai.openrouter_service import (
+    complete_json,
+    generate_conversation_title,
+    stream_text,
+)
 from app.services.ai.recycling_audit_service import stream_recycling_audit
 from app.services.ai.recycling_session_service import (
     clear_paused_context,
@@ -41,7 +46,6 @@ from app.services.ai.recycling_session_service import (
     update_location_state,
 )
 from app.services.recommendation import behavior_event_service, preference_profile_service
-
 
 LOCATION_OPTIONS = [
     {"key": "allow_browser_location", "label": "Allow browser location"},
@@ -127,7 +131,9 @@ def _runtime_context_note(runtime_context: dict[str, Any] | None) -> str:
     if working_memory.get("latest_nearby_guidance"):
         parts.append(f"Latest nearby guidance: {working_memory['latest_nearby_guidance']}")
     if working_memory.get("latest_verification_feedback"):
-        parts.append(f"Latest verification feedback: {working_memory['latest_verification_feedback']}")
+        parts.append(
+            f"Latest verification feedback: {working_memory['latest_verification_feedback']}"
+        )
     selected_audit_attempt = runtime_context.get("selected_audit_attempt") or {}
     if selected_audit_attempt.get("case_id") and selected_audit_attempt.get("attempt_no"):
         parts.append(
@@ -258,7 +264,9 @@ def _get_authenticated_user_id() -> int | None:
         return None
 
 
-def _sync_conversation_session_context(conversation_id: int | None, session: dict[str, Any]) -> None:
+def _sync_conversation_session_context(
+    conversation_id: int | None, session: dict[str, Any]
+) -> None:
     if conversation_id is None:
         return
 
@@ -303,9 +311,13 @@ def _restore_session_from_persisted_context(
         return None
 
     if conversation_id is not None:
-        conversation_candidates = [conversation_repository.get_conversation(conversation_id, user_id)]
+        conversation_candidates = [
+            conversation_repository.get_conversation(conversation_id, user_id)
+        ]
     else:
-        conversation_candidates = conversation_repository.list_conversations(user_id=user_id, limit=100)
+        conversation_candidates = conversation_repository.list_conversations(
+            user_id=user_id, limit=100
+        )
 
     for conversation in conversation_candidates:
         if conversation is None:
@@ -513,7 +525,11 @@ def stream_recycling_analysis(
     )
     conversation = None
     user_message = None
-    stored_image_url = store_data_url_image(image_data_url, namespace="recycling-analysis") if image_data_url else None
+    stored_image_url = (
+        store_data_url_image(image_data_url, namespace="recycling-analysis")
+        if image_data_url
+        else None
+    )
 
     if effective_user_id is not None:
         conversation, session = _resolve_authenticated_conversation(
@@ -580,7 +596,9 @@ def stream_recycling_analysis(
             case = recycling_case_repository.get_case(int(target_case_id), effective_user_id)
 
         if case is None and conversation is not None:
-            pending_case = recycling_case_repository.get_pending_case_for_conversation(conversation.id)
+            pending_case = recycling_case_repository.get_pending_case_for_conversation(
+                conversation.id
+            )
             case = pending_case
 
         if case is None:
@@ -625,14 +643,20 @@ def stream_recycling_analysis(
             if valid_location_state and _can_execute_nearby_search(valid_location_state):
                 session = set_workflow_reference(
                     active_session_id,
-                    conversation_id=conversation.id if conversation is not None else conversation_id,
+                    conversation_id=conversation.id
+                    if conversation is not None
+                    else conversation_id,
                     recycling_case_id=case.id,
                 )
-                _sync_conversation_session_context(conversation.id if conversation is not None else None, session)
+                _sync_conversation_session_context(
+                    conversation.id if conversation is not None else None, session
+                )
                 yield from _stream_nearby_stage(
                     session_id=active_session_id,
                     user_id=effective_user_id,
-                    conversation_id=conversation.id if conversation is not None else conversation_id,
+                    conversation_id=conversation.id
+                    if conversation is not None
+                    else conversation_id,
                     analysis_payload=analysis_payload,
                     location_state=valid_location_state,
                     prompt_memory=prompt_memory,
@@ -644,7 +668,9 @@ def stream_recycling_analysis(
                 {
                     "analysis_payload": analysis_payload,
                     "original_prompt": message,
-                    "conversation_id": conversation.id if conversation is not None else conversation_id,
+                    "conversation_id": conversation.id
+                    if conversation is not None
+                    else conversation_id,
                     "recycling_case_id": case.id,
                     "user_message_id": user_message.id if user_message is not None else None,
                 },
@@ -837,7 +863,9 @@ def stream_recycling_analysis(
         {
             "analysis_payload": payload,
             "original_prompt": message,
-            "conversation_id": conversation.id if conversation is not None else session.get("conversation_id"),
+            "conversation_id": conversation.id
+            if conversation is not None
+            else session.get("conversation_id"),
             "recycling_case_id": session.get("recycling_case_id"),
             "user_message_id": user_message.id if user_message is not None else None,
         },
@@ -949,8 +977,10 @@ def store_location_context(payload: dict[str, Any]) -> dict[str, Any]:
         try:
             lat = float(browser_location.get("lat"))
             lng = float(browser_location.get("lng"))
-        except (AttributeError, TypeError, ValueError):
-            raise ValueError("Field 'browser_location' must include numeric 'lat' and 'lng' values.")
+        except (AttributeError, TypeError, ValueError) as exc:
+            raise ValueError(
+                "Field 'browser_location' must include numeric 'lat' and 'lng' values."
+            ) from exc
         session = update_location_state(
             session_id,
             permission_state=permission_state or "granted",
@@ -969,7 +999,7 @@ def store_location_context(payload: dict[str, Any]) -> dict[str, Any]:
         try:
             area_result = provider.geocode_area(manual_area)
         except MapProviderError as exc:
-            raise ValueError(str(exc))
+            raise ValueError(str(exc)) from exc
         session = update_location_state(
             session_id,
             permission_state=permission_state or "granted",
@@ -1064,7 +1094,9 @@ def stream_recycling_resume(session_id: str) -> Generator[dict[str, Any], None, 
         collector=completion_chunks,
     )
     if user_id is not None and conversation_id is not None:
-        completion_reply = "".join(completion_chunks).strip() or "Nearby recycling search was skipped."
+        completion_reply = (
+            "".join(completion_chunks).strip() or "Nearby recycling search was skipped."
+        )
         _persist_recycling_assistant_message(
             conversation_id=conversation_id,
             message_type="tool_result",
@@ -1172,7 +1204,9 @@ def _normalize_analysis_payload(
     estimated_weight_kg = max(float(raw.get("estimated_weight_kg", 0.25)), 0.01)
 
     inferred_waste_type = _infer_waste_type_from_prompt(original_prompt)
-    if inferred_waste_type and (not waste_type or waste_type.lower() in {"unknown", "mixed recyclable waste"}):
+    if inferred_waste_type and (
+        not waste_type or waste_type.lower() in {"unknown", "mixed recyclable waste"}
+    ):
         waste_type = inferred_waste_type
         confidence = max(confidence, 0.72)
         estimated_weight_kg = max(estimated_weight_kg, 0.03)
@@ -1186,7 +1220,9 @@ def _normalize_analysis_payload(
         "Separate the bottle cap and label if your local recycling guide requires it.",
         "Use a verified recycling station for clean sorting.",
     ]
-    recycle_suggestions = [str(item).strip() for item in recycle_suggestions if str(item).strip()][:4]
+    recycle_suggestions = [str(item).strip() for item in recycle_suggestions if str(item).strip()][
+        :4
+    ]
 
     forum_references = raw.get("forum_references") or []
     normalized_references = []
@@ -1249,11 +1285,17 @@ def _infer_waste_type_from_prompt(prompt: str) -> str | None:
         return None
 
     keyword_map = (
-        (("plastic bottle", "pet bottle", "\u5851\u6599\u74f6", "\u996e\u6599\u74f6"), "Plastic bottle"),
+        (
+            ("plastic bottle", "pet bottle", "\u5851\u6599\u74f6", "\u996e\u6599\u74f6"),
+            "Plastic bottle",
+        ),
         (("glass bottle", "glass jar", "\u73bb\u7483\u74f6", "\u73bb\u7483\u7f50"), "Glass bottle"),
         (("paper", "cardboard", "\u7eb8", "\u7eb8\u677f"), "Paper waste"),
         (("battery", "\u7535\u6c60"), "Battery"),
-        (("electronics", "electronic waste", "e-waste", "\u7535\u5b50\u5783\u573e"), "Electronic waste"),
+        (
+            ("electronics", "electronic waste", "e-waste", "\u7535\u5b50\u5783\u573e"),
+            "Electronic waste",
+        ),
         (("can", "metal can", "aluminum can", "tin can", "\u6613\u62c9\u7f50"), "Metal can"),
     )
 
@@ -1344,7 +1386,9 @@ def _stream_nearby_stage(
     map_error = None
     try:
         provider = OSMPublicMapProvider()
-        nearby_locations = provider.search_nearby_recycling_points(lat=lat, lng=lng, area_label=area_label)
+        nearby_locations = provider.search_nearby_recycling_points(
+            lat=lat, lng=lng, area_label=area_label
+        )
     except (MapProviderError, Exception) as exc:
         map_error = str(exc)
 

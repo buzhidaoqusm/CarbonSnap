@@ -12,7 +12,6 @@ from app.services.ai.relation_normalization_service import (
     normalize_relation_type,
 )
 
-
 UPSERT_OPEN_GRAPH_CYPHER = """
 MERGE (post:ForumPost {post_id: $post_id})
 SET post.title = $title,
@@ -208,7 +207,11 @@ def sync_forum_post_graph(
                 "extraction_fallbacks": extraction_fallbacks,
             }
     except Exception as exc:
-        return {"synced": False, "reason": f"graph_sync_error:{exc.__class__.__name__}", "error": str(exc)[:240]}
+        return {
+            "synced": False,
+            "reason": f"graph_sync_error:{exc.__class__.__name__}",
+            "error": str(exc)[:240],
+        }
     finally:
         if owned_driver is not None:
             owned_driver.close()
@@ -231,7 +234,11 @@ def remove_forum_post_graph(*, post_id: int, driver: Any | None = None) -> dict[
             count = int(_record_get(records[0], "evidence_count") or 0)
         return {"removed": True, "evidence_count": count}
     except Exception as exc:
-        return {"removed": False, "reason": f"graph_remove_error:{exc.__class__.__name__}", "error": str(exc)[:240]}
+        return {
+            "removed": False,
+            "reason": f"graph_remove_error:{exc.__class__.__name__}",
+            "error": str(exc)[:240],
+        }
     finally:
         if owned_driver is not None:
             owned_driver.close()
@@ -333,7 +340,9 @@ def _entities_for_chunk(extracted: dict[str, Any], *, chunk_text: str) -> list[d
     if not entities and chunk_text.strip():
         fallback = normalize_graph_key(chunk_text.split()[0])
         if fallback:
-            entities.append({"key": fallback, "name": fallback.replace("_", " "), "entity_type": "concept"})
+            entities.append(
+                {"key": fallback, "name": fallback.replace("_", " "), "entity_type": "concept"}
+            )
     return entities
 
 
@@ -344,7 +353,9 @@ def _chunk_id(chunk: Any) -> str:
     row_id = getattr(chunk, "id", None)
     if row_id is not None:
         return f"forum-chunk-{row_id}"
-    return _stable_id("chunk", str(getattr(chunk, "post_id", "")), str(getattr(chunk, "chunk_index", "")))
+    return _stable_id(
+        "chunk", str(getattr(chunk, "post_id", "")), str(getattr(chunk, "chunk_index", ""))
+    )
 
 
 def _relation_fact_id(subject_key: str, relation_key: str, object_key: str) -> str:

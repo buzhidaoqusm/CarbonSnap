@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import shutil
 import uuid
-from pathlib import Path
 from contextlib import contextmanager
+from pathlib import Path
 
 import pytest
 
-from app.ai.rag.indexing.forum_index import ForumRagChunkRecord, ForumRagIndex
 from app.ai.rag.indexing import forum_index as forum_index_module
+from app.ai.rag.indexing.forum_index import ForumRagChunkRecord, ForumRagIndex
 
 
 def _fake_embedder(mapping: dict[str, list[float]]):

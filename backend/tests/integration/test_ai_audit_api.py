@@ -5,15 +5,15 @@ from __future__ import annotations
 import json
 import uuid
 
-from sqlalchemy import func, select
 from flask_jwt_extended import create_access_token
+from sqlalchemy import func, select
 from werkzeug.security import generate_password_hash
 
 from app.extensions.db import db
 from app.models.ai import AIConversation, RecyclingCase, WasteAnalysisRecord
 from app.models.ledger import Transaction
 from app.models.user import User
-from app.services.ai import recycling_audit_service, recycling_analysis_service
+from app.services.ai import recycling_analysis_service, recycling_audit_service
 
 _VALID_IMAGE_DATA_URL = (
     "data:image/png;base64,"
@@ -37,7 +37,9 @@ def _extract_sse_payloads(response) -> list[dict]:
     return [json.loads(line.removeprefix("data: ")) for line in data_lines]
 
 
-def _make_auth_headers(client, *, username: str = "audit-user", email: str = "audit@example.com", points: int = 0):
+def _make_auth_headers(
+    client, *, username: str = "audit-user", email: str = "audit@example.com", points: int = 0
+):
     unique_suffix = uuid.uuid4().hex[:8]
     with client.application.app_context():
         db.session.rollback()
@@ -125,7 +127,9 @@ class TestAuditApi:
 
         assert response.status_code == 200
         payloads = _extract_sse_payloads(response)
-        final_payload = [payload for payload in payloads if payload.get("type") == "stage_payload"][-1]["data"]
+        final_payload = [payload for payload in payloads if payload.get("type") == "stage_payload"][
+            -1
+        ]["data"]
 
         case = db.session.get(RecyclingCase, recycling_case_id)
         conversation = db.session.get(AIConversation, conversation_id)
@@ -166,11 +170,15 @@ class TestAuditApi:
 
         assert response.status_code == 200
         payloads = _extract_sse_payloads(response)
-        final_payload = [payload for payload in payloads if payload.get("type") == "stage_payload"][-1]["data"]
+        final_payload = [payload for payload in payloads if payload.get("type") == "stage_payload"][
+            -1
+        ]["data"]
 
         case = db.session.get(RecyclingCase, recycling_case_id)
         record = db.session.scalar(
-            select(WasteAnalysisRecord).where(WasteAnalysisRecord.recycling_case_id == recycling_case_id)
+            select(WasteAnalysisRecord).where(
+                WasteAnalysisRecord.recycling_case_id == recycling_case_id
+            )
         )
         transaction_count = db.session.scalar(select(func.count(Transaction.id))) or 0
         conversation = db.session.get(AIConversation, conversation_id)
@@ -237,7 +245,9 @@ class TestAuditApi:
 
         case = db.session.get(RecyclingCase, recycling_case_id)
         record = db.session.scalar(
-            select(WasteAnalysisRecord).where(WasteAnalysisRecord.recycling_case_id == recycling_case_id)
+            select(WasteAnalysisRecord).where(
+                WasteAnalysisRecord.recycling_case_id == recycling_case_id
+            )
         )
         transaction_count = db.session.scalar(select(func.count(Transaction.id))) or 0
 

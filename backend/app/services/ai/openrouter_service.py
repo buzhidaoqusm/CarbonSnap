@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Generator, Iterable
+from collections.abc import Generator, Iterable
+from typing import Any
 
 from flask import current_app
 from openai import OpenAI
@@ -13,7 +14,9 @@ class OpenRouterConfigError(RuntimeError):
 
 
 def _get_provider_name() -> str:
-    provider = str(current_app.config.get("LLM_PROVIDER", "openrouter") or "openrouter").strip().lower()
+    provider = (
+        str(current_app.config.get("LLM_PROVIDER", "openrouter") or "openrouter").strip().lower()
+    )
     return provider or "openrouter"
 
 
@@ -97,7 +100,9 @@ def history_from_message_records(messages: Iterable[Any]) -> list[dict[str, str]
 
         content_text = getattr(item, "content_text", None)
         content_json = getattr(item, "content_json", None)
-        content = content_text if isinstance(content_text, str) and content_text.strip() else content_json
+        content = (
+            content_text if isinstance(content_text, str) and content_text.strip() else content_json
+        )
         if not isinstance(content, str):
             continue
 
@@ -108,7 +113,9 @@ def history_from_message_records(messages: Iterable[Any]) -> list[dict[str, str]
     return history
 
 
-def _build_user_content(user_message: str, image_data_url: str | None) -> str | list[dict[str, Any]]:
+def _build_user_content(
+    user_message: str, image_data_url: str | None
+) -> str | list[dict[str, Any]]:
     if not image_data_url:
         return user_message
 
@@ -228,9 +235,7 @@ def _combine_system_prompt(
     memory_block = ""
     if prompt_memory:
         compact_memory = {
-            key: value
-            for key, value in prompt_memory.items()
-            if value not in (None, {}, [])
+            key: value for key, value in prompt_memory.items() if value not in (None, {}, [])
         }
         if compact_memory:
             memory_block = (
@@ -328,7 +333,9 @@ def _is_valid_conversation_title(title: str) -> bool:
         return False
 
     lowered = candidate.lower()
-    if lowered.startswith(("how ", "what ", "why ", "when ", "where ", "can ", "should ", "please ")):
+    if lowered.startswith(
+        ("how ", "what ", "why ", "when ", "where ", "can ", "should ", "please ")
+    ):
         return False
 
     return True
@@ -364,7 +371,9 @@ def generate_conversation_title(
     if normalized:
         cleaned = re.sub(r"[^A-Za-z0-9 ]+", " ", normalized).strip()
         lowered = cleaned.lower()
-        if lowered.startswith(("how ", "what ", "why ", "when ", "where ", "can ", "should ", "please ")):
+        if lowered.startswith(
+            ("how ", "what ", "why ", "when ", "where ", "can ", "should ", "please ")
+        ):
             return fallback_title
         if "bottle" in lowered:
             return "Bottle Recycling Help"
@@ -447,7 +456,9 @@ def complete_with_tools(
         request_payload["extra_headers"] = extra_headers
 
     effective_timeout = (
-        timeout if timeout is not None else float(current_app.config.get("AI_LLM_TIMEOUT_SECONDS", 60) or 60)
+        timeout
+        if timeout is not None
+        else float(current_app.config.get("AI_LLM_TIMEOUT_SECONDS", 60) or 60)
     )
     request_payload["timeout"] = effective_timeout
 

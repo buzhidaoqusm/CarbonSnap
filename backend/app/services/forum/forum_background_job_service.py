@@ -1,14 +1,14 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
-from typing import Any, Callable
+from typing import Any
 
 from flask import current_app, has_app_context
 
 from app.extensions.db import db
 from app.services.forum import forum_indexing_service
 from app.services.recommendation import topic_mapping_service
-
 
 _EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="forum-maintenance")
 

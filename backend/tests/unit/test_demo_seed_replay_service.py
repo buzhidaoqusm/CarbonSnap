@@ -8,11 +8,21 @@ from sqlalchemy import select
 from werkzeug.security import generate_password_hash
 
 from app.extensions.db import db
-from app.models.ai import AIConversation, AIMessage, RecyclingAuditAttempt, RecyclingCase, WasteAnalysisRecord
+from app.models.ai import (
+    AIConversation,
+    AIMessage,
+    RecyclingAuditAttempt,
+    RecyclingCase,
+    WasteAnalysisRecord,
+)
 from app.models.ledger import Transaction
 from app.models.memory import UserMemoryItem
 from app.models.user import User
-from app.services.ai import ai_conversation_service, recycling_analysis_service, recycling_audit_service
+from app.services.ai import (
+    ai_conversation_service,
+    recycling_analysis_service,
+    recycling_audit_service,
+)
 from app.services.ai.demo_seed_replay_service import find_seed_replay_match
 
 
@@ -28,7 +38,9 @@ def _make_user() -> User:
 
 
 def _seed_image_data_url(filename: str) -> str:
-    seed_path = Path(__file__).resolve().parents[3] / "data" / "seeds" / "assets" / "seed-ai" / filename
+    seed_path = (
+        Path(__file__).resolve().parents[3] / "data" / "seeds" / "assets" / "seed-ai" / filename
+    )
     encoded = base64.b64encode(seed_path.read_bytes()).decode("ascii")
     suffix = seed_path.suffix.lower().lstrip(".") or "jpeg"
     media_type = "jpeg" if suffix == "jpg" else suffix
@@ -96,7 +108,11 @@ def test_stream_routed_chat_message_replays_seed_without_decision_engine(app, mo
         meta = events[0]
         conversation = db.session.get(AIConversation, meta["conversation_id"])
         messages = _messages_for_conversation(conversation.id)
-        cases = list(db.session.scalars(select(RecyclingCase).where(RecyclingCase.conversation_id == conversation.id)))
+        cases = list(
+            db.session.scalars(
+                select(RecyclingCase).where(RecyclingCase.conversation_id == conversation.id)
+            )
+        )
 
     assert meta["type"] == "meta"
     assert meta["demo_replay"] is True
@@ -110,11 +126,15 @@ def test_stream_routed_chat_message_replays_seed_without_decision_engine(app, mo
     assert len(cases) == 1
 
     analysis_payload_event = next(
-        event for event in events if event.get("type") == "stage_payload" and event.get("stage") == "analysis"
+        event
+        for event in events
+        if event.get("type") == "stage_payload" and event.get("stage") == "analysis"
     )
     awaiting_event = next(event for event in events if event.get("type") == "awaiting_location")
     done_event = events[-1]
-    replayed_text = "".join(str(event.get("content", "")) for event in events if event.get("type") == "delta")
+    replayed_text = "".join(
+        str(event.get("content", "")) for event in events if event.get("type") == "delta"
+    )
 
     assert analysis_payload_event["data"]["recycling_case_id"] == cases[0].id
     assert awaiting_event["data"]["recycling_case_id"] == cases[0].id
@@ -141,7 +161,9 @@ def test_stream_recycling_resume_continues_demo_replay_after_location(app, monke
                 image_data_url=image_data_url,
             )
         )
-        awaiting_event = next(event for event in initial_events if event.get("type") == "awaiting_location")
+        awaiting_event = next(
+            event for event in initial_events if event.get("type") == "awaiting_location"
+        )
         session_id = awaiting_event["data"]["session_id"]
 
         recycling_analysis_service.store_location_context(
@@ -154,24 +176,37 @@ def test_stream_recycling_resume_continues_demo_replay_after_location(app, monke
                 },
             }
         )
-        resume_events = list(recycling_analysis_service.stream_recycling_resume(session_id=session_id))
+        resume_events = list(
+            recycling_analysis_service.stream_recycling_resume(session_id=session_id)
+        )
         messages = _messages_for_conversation(initial_events[0]["conversation_id"])
         conversation = db.session.get(AIConversation, initial_events[0]["conversation_id"])
 
     nearby_event = next(event for event in resume_events if event.get("type") == "nearby_results")
-    replayed_text = "".join(str(event.get("content", "")) for event in resume_events if event.get("type") == "delta")
+    replayed_text = "".join(
+        str(event.get("content", "")) for event in resume_events if event.get("type") == "delta"
+    )
 
     assert resume_events[0]["demo_replay"] is True
-    assert nearby_event["data"]["nearby_locations"][0]["name"] == "Xiaowuji Large Solid Waste Transfer Station"
+    assert (
+        nearby_event["data"]["nearby_locations"][0]["name"]
+        == "Xiaowuji Large Solid Waste Transfer Station"
+    )
     assert "Nearby Recycling Options Found" in replayed_text
-    assert [message.message_type for message in messages] == ["image", "analysis_result", "tool_result"]
+    assert [message.message_type for message in messages] == [
+        "image",
+        "analysis_result",
+        "tool_result",
+    ]
     assert conversation.status == "completed"
     assert conversation.current_pending_action == "none"
     assert resume_events[-1] == {"type": "done", "stream_stage": "completed"}
 
 
 def test_stream_recycling_audit_replays_seed_audit_result(app, monkeypatch):
-    analysis_image_data_url = _seed_image_data_url("dual-case-recycling-chat-message-01-image_url.jpg")
+    analysis_image_data_url = _seed_image_data_url(
+        "dual-case-recycling-chat-message-01-image_url.jpg"
+    )
     audit_image_data_url = _seed_image_data_url("dual-case-recycling-chat-audit-01-image.png")
 
     monkeypatch.setattr(
@@ -193,7 +228,9 @@ def test_stream_recycling_audit_replays_seed_audit_result(app, monkeypatch):
             )
         )
         conversation_id = initial_events[0]["conversation_id"]
-        awaiting_event = next(event for event in initial_events if event.get("type") == "awaiting_location")
+        awaiting_event = next(
+            event for event in initial_events if event.get("type") == "awaiting_location"
+        )
         case_id = awaiting_event["data"]["recycling_case_id"]
 
         audit_events = list(
@@ -209,16 +246,25 @@ def test_stream_recycling_audit_replays_seed_audit_result(app, monkeypatch):
         refreshed_case = db.session.get(RecyclingCase, case_id)
         attempts = list(
             db.session.scalars(
-                select(RecyclingAuditAttempt).where(RecyclingAuditAttempt.recycling_case_id == case_id)
+                select(RecyclingAuditAttempt).where(
+                    RecyclingAuditAttempt.recycling_case_id == case_id
+                )
             )
         )
         record = db.session.scalar(
             select(WasteAnalysisRecord).where(WasteAnalysisRecord.recycling_case_id == case_id)
         )
-        transaction = db.session.scalar(select(Transaction).where(Transaction.source_id == record.id))
+        transaction = db.session.scalar(
+            select(Transaction).where(Transaction.source_id == record.id)
+        )
 
     payload_event = next(event for event in audit_events if event.get("type") == "stage_payload")
-    assert [event["type"] for event in audit_events] == ["meta", "stage_start", "stage_payload", "done"]
+    assert [event["type"] for event in audit_events] == [
+        "meta",
+        "stage_start",
+        "stage_payload",
+        "done",
+    ]
     assert payload_event["stage"] == "finalize"
     assert payload_event["data"]["audit_result"]["audit_result"] == "passed"
     assert payload_event["data"]["demo_replay"] is True
@@ -233,9 +279,15 @@ def test_stream_recycling_audit_replays_seed_audit_result(app, monkeypatch):
 
 
 def test_stream_recycling_audit_matches_retry_by_image_when_text_differs(app, monkeypatch):
-    analysis_image_data_url = _seed_image_data_url("dual-case-recycling-chat-message-06-image_url.jpg")
-    unclear_audit_image_data_url = _seed_image_data_url("dual-case-recycling-chat-audit-02-image.png")
-    passed_audit_image_data_url = _seed_image_data_url("dual-case-recycling-chat-audit-03-image.png")
+    analysis_image_data_url = _seed_image_data_url(
+        "dual-case-recycling-chat-message-06-image_url.jpg"
+    )
+    unclear_audit_image_data_url = _seed_image_data_url(
+        "dual-case-recycling-chat-audit-02-image.png"
+    )
+    passed_audit_image_data_url = _seed_image_data_url(
+        "dual-case-recycling-chat-audit-03-image.png"
+    )
 
     monkeypatch.setattr(
         recycling_audit_service,
@@ -256,7 +308,9 @@ def test_stream_recycling_audit_matches_retry_by_image_when_text_differs(app, mo
             )
         )
         conversation_id = initial_events[0]["conversation_id"]
-        awaiting_event = next(event for event in initial_events if event.get("type") == "awaiting_location")
+        awaiting_event = next(
+            event for event in initial_events if event.get("type") == "awaiting_location"
+        )
         case_id = awaiting_event["data"]["recycling_case_id"]
 
         unclear_events = list(
@@ -285,13 +339,17 @@ def test_stream_recycling_audit_matches_retry_by_image_when_text_differs(app, mo
             )
         )
 
-    unclear_payload = next(event for event in unclear_events if event.get("type") == "stage_payload")
+    unclear_payload = next(
+        event for event in unclear_events if event.get("type") == "stage_payload"
+    )
     passed_payload = next(event for event in passed_events if event.get("type") == "stage_payload")
 
     assert unclear_payload["data"]["audit_result"]["audit_result"] == "unclear"
     assert unclear_events[-1] == {"type": "done", "stream_stage": "audit"}
     assert passed_payload["data"]["audit_result"]["audit_result"] == "passed"
-    assert passed_payload["data"]["audit_result"]["audit_reason"].startswith("The photo clearly shows a power bank")
+    assert passed_payload["data"]["audit_result"]["audit_reason"].startswith(
+        "The photo clearly shows a power bank"
+    )
     assert passed_events[-1] == {"type": "done", "stream_stage": "finalized"}
     assert [attempt.audit_result for attempt in attempts] == ["unclear", "passed"]
     assert refreshed_case.status == "audit_passed"
@@ -303,7 +361,9 @@ def test_stream_routed_chat_message_replays_text_seed_without_stage_start(app, m
     monkeypatch.setattr(
         ai_decision_engine,
         "decide_message",
-        lambda **kwargs: (_ for _ in ()).throw(AssertionError("demo replay should not call AI routing")),
+        lambda **kwargs: (_ for _ in ()).throw(
+            AssertionError("demo replay should not call AI routing")
+        ),
     )
 
     with app.app_context():
@@ -322,12 +382,18 @@ def test_stream_routed_chat_message_replays_text_seed_without_stage_start(app, m
         messages = _messages_for_conversation(meta["conversation_id"])
 
     assert not any(event.get("type") == "stage_start" for event in events)
-    assert "".join(str(event.get("content", "")) for event in events if event.get("type") == "delta") == (
-        "Hello! How can I assist you today?"
-    )
+    assert "".join(
+        str(event.get("content", "")) for event in events if event.get("type") == "delta"
+    ) == ("Hello! How can I assist you today?")
     assert [message.message_type for message in messages] == ["text", "text"]
-    assert json.loads(messages[0].content_json)["demo_seed_message_key"] == "memory-preference-chat-message-01"
-    assert json.loads(messages[1].content_json)["demo_seed_message_key"] == "memory-preference-chat-message-02"
+    assert (
+        json.loads(messages[0].content_json)["demo_seed_message_key"]
+        == "memory-preference-chat-message-01"
+    )
+    assert (
+        json.loads(messages[1].content_json)["demo_seed_message_key"]
+        == "memory-preference-chat-message-02"
+    )
 
 
 def test_stream_routed_chat_message_emits_seed_memory_updates_in_meta(app, monkeypatch):
@@ -336,7 +402,9 @@ def test_stream_routed_chat_message_emits_seed_memory_updates_in_meta(app, monke
     monkeypatch.setattr(
         ai_decision_engine,
         "decide_message",
-        lambda **kwargs: (_ for _ in ()).throw(AssertionError("demo replay should not call AI routing")),
+        lambda **kwargs: (_ for _ in ()).throw(
+            AssertionError("demo replay should not call AI routing")
+        ),
     )
 
     with app.app_context():
@@ -379,7 +447,9 @@ def test_stream_routed_chat_message_replays_nearby_follow_up_without_extra_stage
     monkeypatch.setattr(
         ai_decision_engine,
         "decide_message",
-        lambda **kwargs: (_ for _ in ()).throw(AssertionError("demo replay should not call AI routing")),
+        lambda **kwargs: (_ for _ in ()).throw(
+            AssertionError("demo replay should not call AI routing")
+        ),
     )
 
     with app.app_context():
@@ -395,11 +465,16 @@ def test_stream_routed_chat_message_replays_nearby_follow_up_without_extra_stage
         )
 
     nearby_event = next(event for event in events if event.get("type") == "nearby_results")
-    replayed_text = "".join(str(event.get("content", "")) for event in events if event.get("type") == "delta")
+    replayed_text = "".join(
+        str(event.get("content", "")) for event in events if event.get("type") == "delta"
+    )
 
     assert not any(event.get("type") == "stage_start" for event in events)
     assert nearby_event["data"]["suppress_completion_audit"] is True
-    assert nearby_event["data"]["nearby_locations"][0]["name"] == "Xiaowuji Large Solid Waste Transfer Station"
+    assert (
+        nearby_event["data"]["nearby_locations"][0]["name"]
+        == "Xiaowuji Large Solid Waste Transfer Station"
+    )
     assert "Nearby Disposal Locations Found" in replayed_text
     assert events[-1] == {"type": "done", "stream_stage": "completed"}
 
@@ -410,7 +485,9 @@ def test_stream_routed_chat_message_replays_clarification_options(app, monkeypat
     monkeypatch.setattr(
         ai_decision_engine,
         "decide_message",
-        lambda **kwargs: (_ for _ in ()).throw(AssertionError("demo replay should not call AI routing")),
+        lambda **kwargs: (_ for _ in ()).throw(
+            AssertionError("demo replay should not call AI routing")
+        ),
     )
 
     with app.app_context():

@@ -1,0 +1,80 @@
+[project]
+name = "carbonsnap-backend"
+version = "0.1.0"
+description = "CarbonSnap backend: recycling assistant API and agent runtime"
+requires-python = "==3.12.*"
+dependencies = [
+    "Flask==3.1.0",
+    "Flask-Cors==5.0.0",
+    "Flask-JWT-Extended==4.7.1",
+    "Flask-Migrate==4.1.0",
+    "Flask-SQLAlchemy==3.1.1",
+    "faiss-cpu==1.8.0.post1",
+    "httpx==0.28.1",
+    "langgraph==1.1.9",
+    "numpy==1.26.4",
+    "neo4j==6.1.0",
+    "openai==1.55.3",
+    "python-dotenv==1.0.1",
+    "Werkzeug>=3.0.0",
+    "gunicorn==25.3.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==8.3.5",
+    "pytest-flask==1.3.0",
+    "ruff>=0.14",
+    "mypy>=1.18",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Import the app package from the backend root regardless of how pytest is
+# invoked (python -m pytest adds CWD; the bare pytest entry point does not).
+pythonpath = ["."]
+filterwarnings = [
+    # SQLAlchemy 2.0 deprecations from the Flask-SQLAlchemy layer are tracked
+    # in the P1 migration, not something an individual test should fail on.
+    "ignore::DeprecationWarning:flask_sqlalchemy.*",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["migrations/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4"]
+ignore = [
+    "B008",  # function call in default argument — common in Flask/FastAPI
+    "E501",  # long lines: formatter owns wrapping
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Scripts bootstrap sys.path before importing the app package.
+"scripts/**" = ["E402"]
+# Package facades re-export names for callers.
+"**/__init__.py" = ["F401"]
+"tests/**" = ["B011"]
+"tests/conftest.py" = ["E402"]
+
+[tool.mypy]
+python_version = "3.12"
+# Start narrow and widen module by module. These are the agent-loop modules
+# P2 builds on; the legacy services carry ~70 pre-existing errors that the
+# rewrite will clear, and gating CI on them today would block every change.
+files = [
+    "app/services/ai/tool_calling_agent.py",
+    "app/services/ai/tool_registry.py",
+    "app/services/ai/tool_selection_shadow.py",
+    "app/services/ai/guardrails.py",
+    "app/services/ai/prompt_registry.py",
+]
+follow_imports = "silent"
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true

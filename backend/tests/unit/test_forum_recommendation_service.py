@@ -70,8 +70,12 @@ class TestForumRecommendationService:
             assert content_type == "post"
             assert content_ids == [first_post.id, second_post.id]
             return {
-                first_post.id: [SimpleNamespace(topic_id="plastic-recycling", confidence_score=1.0)],
-                second_post.id: [SimpleNamespace(topic_id="battery-recycling", confidence_score=1.0)],
+                first_post.id: [
+                    SimpleNamespace(topic_id="plastic-recycling", confidence_score=1.0)
+                ],
+                second_post.id: [
+                    SimpleNamespace(topic_id="battery-recycling", confidence_score=1.0)
+                ],
             }
 
         monkeypatch.setattr(
@@ -100,13 +104,17 @@ class TestForumRecommendationService:
         monkeypatch.setattr(
             forum_recommendation_service.behavior_event_repository,
             "list_active_forum_like_target_ids_for_user",
-            lambda *args, **kwargs: call_counts.__setitem__("likes", call_counts["likes"] + 1) or {second_post.id},
+            lambda *args, **kwargs: (
+                call_counts.__setitem__("likes", call_counts["likes"] + 1) or {second_post.id}
+            ),
         )
         monkeypatch.setattr(
             forum_recommendation_service.behavior_event_repository,
             "list_recent_topic_exposure_counts_for_user",
-            lambda *args, **kwargs: call_counts.__setitem__("exposure", call_counts["exposure"] + 1)
-            or {"battery-recycling": 2, "plastic-recycling": 1},
+            lambda *args, **kwargs: (
+                call_counts.__setitem__("exposure", call_counts["exposure"] + 1)
+                or {"battery-recycling": 2, "plastic-recycling": 1}
+            ),
         )
 
         context = forum_recommendation_service.build_ranking_context(
@@ -129,9 +137,9 @@ class TestForumRecommendationService:
         assert context["long_viewed_post_ids"] == {second_post.id}
         assert context["engaged_post_ids"] == {second_post.id}
         assert context["recent_topic_exposure"] == {"battery-recycling": 2, "plastic-recycling": 1}
-        assert [row.topic_id for row in context["topic_assignments_by_post_id"][second_post.id]] == [
-            "battery-recycling"
-        ]
+        assert [
+            row.topic_id for row in context["topic_assignments_by_post_id"][second_post.id]
+        ] == ["battery-recycling"]
 
     def test_preference_match_is_bounded_to_one(self):
         user = _make_user("bounded", "bounded@example.com")
@@ -199,14 +207,18 @@ class TestForumRecommendationService:
             "profile_snapshot": {"battery-recycling": 0.7},
             "topic_assignments_by_post_id": {
                 fallback_post.id: [SimpleNamespace(topic_id="uncategorized", confidence_score=1.0)],
-                matched_post.id: [SimpleNamespace(topic_id="battery-recycling", confidence_score=1.0)],
+                matched_post.id: [
+                    SimpleNamespace(topic_id="battery-recycling", confidence_score=1.0)
+                ],
             },
         }
 
         assert forum_recommendation_service._unfamiliarity_score(fallback_post, context) == 0.5
         assert forum_recommendation_service._unfamiliarity_score(matched_post, context) == 0.3
 
-    def test_is_exploitation_candidate_accepts_preference_match_recency_or_engagement(self, monkeypatch):
+    def test_is_exploitation_candidate_accepts_preference_match_recency_or_engagement(
+        self, monkeypatch
+    ):
         user = _make_user("exploit-candidate", "exploit-candidate@example.com")
         matched_post = _make_post(user.id, "Battery guide", "Battery guide content")
         fallback_post = _make_post(user.id, "Recent fallback", "Recent fallback content")
@@ -223,11 +235,15 @@ class TestForumRecommendationService:
             "viewed_post_ids": set(),
             "recent_topic_exposure": {},
             "topic_assignments_by_post_id": {
-                matched_post.id: [SimpleNamespace(topic_id="battery-recycling", confidence_score=1.0)]
+                matched_post.id: [
+                    SimpleNamespace(topic_id="battery-recycling", confidence_score=1.0)
+                ]
             },
         }
 
-        assert forum_recommendation_service.is_exploitation_candidate(matched_post, ranking_context=matched_context)
+        assert forum_recommendation_service.is_exploitation_candidate(
+            matched_post, ranking_context=matched_context
+        )
 
         monkeypatch.setattr(forum_recommendation_service, "_recency_score", lambda post: 0.6)
         monkeypatch.setattr(forum_recommendation_service, "_engagement_score", lambda post: 0.0)
@@ -299,12 +315,18 @@ class TestForumRecommendationService:
             "viewed_post_ids": set(),
             "recent_topic_exposure": {"battery-recycling": 1},
             "topic_assignments_by_post_id": {
-                strong_post.id: [SimpleNamespace(topic_id="battery-recycling", confidence_score=1.0)]
+                strong_post.id: [
+                    SimpleNamespace(topic_id="battery-recycling", confidence_score=1.0)
+                ]
             },
         }
 
-        assert forum_recommendation_service.is_exploration_candidate(weak_post, ranking_context=weak_context)
-        assert not forum_recommendation_service.is_exploration_candidate(weak_post, ranking_context=seen_context)
+        assert forum_recommendation_service.is_exploration_candidate(
+            weak_post, ranking_context=weak_context
+        )
+        assert not forum_recommendation_service.is_exploration_candidate(
+            weak_post, ranking_context=seen_context
+        )
         assert not forum_recommendation_service.is_exploration_candidate(
             weak_post,
             ranking_context=overexposed_context,
@@ -314,7 +336,9 @@ class TestForumRecommendationService:
             ranking_context=strong_context,
         )
 
-    def test_is_exploration_candidate_uses_uncategorized_fallback_when_assignments_are_missing(self):
+    def test_is_exploration_candidate_uses_uncategorized_fallback_when_assignments_are_missing(
+        self,
+    ):
         user = _make_user("explore-fallback", "explore-fallback@example.com")
         fallback_post = _make_post(user.id, "Fallback", "Fallback content")
 
@@ -363,10 +387,16 @@ class TestForumRecommendationService:
 
         monkeypatch.setattr(forum_recommendation_service, "_recency_score", lambda post: 0.6)
         monkeypatch.setattr(forum_recommendation_service, "_engagement_score", lambda post: 0.4)
-        monkeypatch.setattr(forum_recommendation_service, "_novelty_score", lambda post, ranking_context: 0.8)
+        monkeypatch.setattr(
+            forum_recommendation_service, "_novelty_score", lambda post, ranking_context: 0.8
+        )
 
-        assert forum_recommendation_service.exploit_score(post, ranking_context=context) == pytest.approx(0.64)
-        assert forum_recommendation_service.explore_score(post, ranking_context=context) == pytest.approx(0.47)
+        assert forum_recommendation_service.exploit_score(
+            post, ranking_context=context
+        ) == pytest.approx(0.64)
+        assert forum_recommendation_service.explore_score(
+            post, ranking_context=context
+        ) == pytest.approx(0.47)
 
     def test_merge_ranked_posts_preserves_deterministic_exploration_slots(self):
         user = _make_user("merge", "merge@example.com")
@@ -396,9 +426,13 @@ class TestForumRecommendationService:
             posts[8].id,
         ]
 
-    def test_merge_ranked_posts_avoids_three_same_dominant_topics_in_a_row_when_alternative_exists(self):
+    def test_merge_ranked_posts_avoids_three_same_dominant_topics_in_a_row_when_alternative_exists(
+        self,
+    ):
         user = _make_user("diverse", "diverse@example.com")
-        same_topic_posts = [_make_post(user.id, f"Battery {index}", "Battery content") for index in range(1, 4)]
+        same_topic_posts = [
+            _make_post(user.id, f"Battery {index}", "Battery content") for index in range(1, 4)
+        ]
         alternate_post = _make_post(user.id, "Plastic", "Plastic content")
         second_alternate_post = _make_post(user.id, "Glass", "Glass content")
 
@@ -439,7 +473,11 @@ class TestForumRecommendationService:
             for post in merged
         ]
 
-        assert dominant_topics[:3] == ["battery-recycling", "battery-recycling", "plastic-recycling"]
+        assert dominant_topics[:3] == [
+            "battery-recycling",
+            "battery-recycling",
+            "plastic-recycling",
+        ]
         assert not any(
             dominant_topics[index] == dominant_topics[index + 1] == dominant_topics[index + 2]
             for index in range(len(dominant_topics) - 2)
@@ -503,13 +541,17 @@ class TestForumRecommendationService:
             "list_content_topic_assignments_for_content_ids",
             lambda **kwargs: {
                 weak_post.id: [SimpleNamespace(topic_id="plastic-recycling", confidence_score=1.0)],
-                strong_post.id: [SimpleNamespace(topic_id="battery-recycling", confidence_score=1.0)],
+                strong_post.id: [
+                    SimpleNamespace(topic_id="battery-recycling", confidence_score=1.0)
+                ],
             },
         )
         monkeypatch.setattr(
             forum_recommendation_service.preference_profile_repository,
             "list_content_topic_assignments",
-            lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("per-post lookup should not be used")),
+            lambda *args, **kwargs: (_ for _ in ()).throw(
+                AssertionError("per-post lookup should not be used")
+            ),
         )
         monkeypatch.setattr(
             forum_recommendation_service.behavior_event_repository,
@@ -605,9 +647,9 @@ class TestForumRecommendationService:
         monkeypatch.setattr(
             forum_recommendation_service.behavior_event_repository,
             "list_behavior_target_ids_for_user",
-            lambda user_id, **kwargs: {viewed.id}
-            if kwargs.get("action_types") == ["view", "long_view"]
-            else set(),
+            lambda user_id, **kwargs: (
+                {viewed.id} if kwargs.get("action_types") == ["view", "long_view"] else set()
+            ),
         )
         monkeypatch.setattr(forum_recommendation_service, "_engagement_score", lambda post: 0.0)
 

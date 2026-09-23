@@ -43,7 +43,9 @@ class _FakeClient:
 
 
 class TestOSMPublicMapProvider:
-    def test_search_nearby_recycling_points_retries_same_endpoint_before_failing_over(self, app, monkeypatch):
+    def test_search_nearby_recycling_points_retries_same_endpoint_before_failing_over(
+        self, app, monkeypatch
+    ):
         app.config["OSM_OVERPASS_URL"] = "https://primary.example/api/interpreter"
         app.config["OSM_OVERPASS_FALLBACK_URLS"] = ["https://backup.example/api/interpreter"]
         app.config["OSM_OVERPASS_MAX_ATTEMPTS_PER_ENDPOINT"] = 2
@@ -76,13 +78,17 @@ class TestOSMPublicMapProvider:
 
         with app.app_context():
             provider = OSMPublicMapProvider()
-            results = provider.search_nearby_recycling_points(lat=1.3521, lng=103.8198, area_label="Singapore")
+            results = provider.search_nearby_recycling_points(
+                lat=1.3521, lng=103.8198, area_label="Singapore"
+            )
 
         assert len(results) == 1
         assert results[0]["name"] == "Recovered Primary Recycling Point"
         assert responses["https://primary.example/api/interpreter"] == []
 
-    def test_search_nearby_recycling_points_falls_back_when_primary_overpass_fails(self, app, monkeypatch):
+    def test_search_nearby_recycling_points_falls_back_when_primary_overpass_fails(
+        self, app, monkeypatch
+    ):
         app.config["OSM_OVERPASS_URL"] = "https://primary.example/api/interpreter"
         app.config["OSM_OVERPASS_FALLBACK_URLS"] = ["https://backup.example/api/interpreter"]
         app.config["OSM_OVERPASS_MAX_ATTEMPTS_PER_ENDPOINT"] = 2
@@ -115,7 +121,9 @@ class TestOSMPublicMapProvider:
 
         with app.app_context():
             provider = OSMPublicMapProvider()
-            results = provider.search_nearby_recycling_points(lat=1.3521, lng=103.8198, area_label="Singapore")
+            results = provider.search_nearby_recycling_points(
+                lat=1.3521, lng=103.8198, area_label="Singapore"
+            )
 
         assert len(results) == 1
         assert results[0]["name"] == "Backup Recycling Point"

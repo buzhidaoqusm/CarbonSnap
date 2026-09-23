@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Generator
+from collections.abc import Generator
+from typing import Any
 
 from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
 
 from app.repositories.ai import conversation_repository, recycling_case_repository
 from app.repositories.ledger import ledger_repository
 from app.services.ai.image_storage_service import store_data_url_image
-from app.services.ai.openrouter_service import OpenRouterConfigError, complete_json
 from app.services.ai.memory_service import rebuild_user_preferences_summary
+from app.services.ai.openrouter_service import OpenRouterConfigError, complete_json
 from app.services.recommendation import behavior_event_service, preference_profile_service
 
 
@@ -89,7 +90,9 @@ def _normalize_audit_payload(raw: dict[str, Any]) -> dict[str, Any]:
         elif audit_result == "failed":
             audit_reason = "The completion photo does not clearly show a completed recycling task."
         else:
-            audit_reason = "The completion photo does not provide enough evidence to verify completion."
+            audit_reason = (
+                "The completion photo does not provide enough evidence to verify completion."
+            )
 
     return {
         "audit_result": audit_result,

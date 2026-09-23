@@ -3,8 +3,8 @@
 
 from app.models.ai import (  # noqa: F401
     AIConversation,
-    AIMessageDecision,
     AIMessage,
+    AIMessageDecision,
     RecyclingAuditAttempt,
     RecyclingCase,
     WasteAnalysisRecord,

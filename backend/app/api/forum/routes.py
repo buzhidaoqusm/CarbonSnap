@@ -18,8 +18,8 @@ from flask import Blueprint, request
 from flask_jwt_extended import jwt_required
 
 from app.services.ai.image_storage_service import ImageStorageError, store_data_url_image
-from app.services.forum.forum_service import ForumError
 from app.services.forum import forum_service
+from app.services.forum.forum_service import ForumError
 from app.utils.auth_identity import (
     UnresolvableJwtIdentityError,
     get_optional_current_user_id,
@@ -50,6 +50,7 @@ def _parse_pagination() -> tuple[int, int]:
 # Posts
 # ---------------------------------------------------------------------------
 
+
 @forum_bp.post("/forum/uploads")
 @jwt_required()
 def upload_forum_image():
@@ -65,6 +66,7 @@ def upload_forum_image():
         return fail(40001, str(exc))
 
     return ok({"url": image_url}, status=201)
+
 
 @forum_bp.post("/forum/posts")
 @jwt_required()
@@ -147,6 +149,7 @@ def delete_post(post_id: int):
 # Comments
 # ---------------------------------------------------------------------------
 
+
 @forum_bp.post("/forum/posts/<int:post_id>/comments")
 @jwt_required()
 def create_comment(post_id: int):
@@ -203,6 +206,7 @@ def delete_comment(comment_id: int):
 # ---------------------------------------------------------------------------
 # Likes
 # ---------------------------------------------------------------------------
+
 
 @forum_bp.post("/forum/likes")
 @jwt_required()

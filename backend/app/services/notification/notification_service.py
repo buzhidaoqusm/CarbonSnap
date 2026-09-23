@@ -9,7 +9,7 @@ Design:
 """
 
 import logging
-from datetime import timezone
+from datetime import UTC
 
 from app.repositories.forum import forum_repository
 from app.repositories.notification import notification_repository
@@ -31,16 +31,18 @@ class NotificationError(Exception):
 # Serializer
 # ---------------------------------------------------------------------------
 
+
 def _serialize_datetime_utc(value) -> str:
     if value is None:
         return ""
 
     if value.tzinfo is None:
-        normalized = value.replace(tzinfo=timezone.utc)
+        normalized = value.replace(tzinfo=UTC)
     else:
-        normalized = value.astimezone(timezone.utc)
+        normalized = value.astimezone(UTC)
 
     return normalized.isoformat().replace("+00:00", "Z")
+
 
 def _build_body(n) -> str:
     event_type = str(getattr(n, "event_type", "") or "").strip().lower()
@@ -118,6 +120,7 @@ def _serialize(n) -> dict:
 # Core dispatch
 # ---------------------------------------------------------------------------
 
+
 def dispatch(
     *,
     recipient_user_id: int,
@@ -140,7 +143,10 @@ def dispatch(
     except Exception:
         logger.exception(
             "Failed to dispatch notification: event=%s recipient=%s source=%s/%s",
-            event_type, recipient_user_id, source_type, source_id,
+            event_type,
+            recipient_user_id,
+            source_type,
+            source_id,
         )
 
 
@@ -148,6 +154,7 @@ def dispatch(
 # Domain event shortcuts
 # (each helper documents its expected caller and what it notifies)
 # ---------------------------------------------------------------------------
+
 
 def on_post_liked(*, recipient_user_id: int, post_id: int, liker_username: str) -> None:
     """Called by forum service after a post is liked."""
@@ -249,6 +256,7 @@ def on_project_completed(*, recipient_user_id: int, project_id: int, project_tit
 # ---------------------------------------------------------------------------
 # Query operations (used by notification API routes)
 # ---------------------------------------------------------------------------
+
 
 def list_notifications(
     user_id: int, page: int, per_page: int, *, unread_only: bool = False

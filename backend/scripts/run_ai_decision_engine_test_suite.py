@@ -4,7 +4,6 @@ import os
 import sys
 from pathlib import Path
 
-
 DEFAULT_TEST_TARGETS = [
     "tests/unit/test_ai_decision_engine.py",
     "tests/unit/test_intent_router.py",

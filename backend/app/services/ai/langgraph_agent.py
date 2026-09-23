@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Generator, Literal, TypedDict
-
+from collections.abc import Generator
+from typing import Any, Literal, TypedDict
 
 GraphRoute = Literal["clarification", "recycling", "general"]
 
@@ -265,10 +265,13 @@ def _execute_clarification_node(state: GraphAgentState) -> GraphAgentState:
     user_message = persisted["user_message"]
     assistant_message = persisted.get("assistant_message")
     result = {
-        "reply": decision.get("clarification_question") or "Could you clarify which recycling task you mean?",
+        "reply": decision.get("clarification_question")
+        or "Could you clarify which recycling task you mean?",
         "model": None,
         "usage": {},
-        "conversation_id": conversation.id if conversation is not None else state.get("conversation_id"),
+        "conversation_id": conversation.id
+        if conversation is not None
+        else state.get("conversation_id"),
         "conversation_title": conversation.title if conversation is not None else None,
         "user_message_id": user_message.id if user_message is not None else None,
         "assistant_message_id": assistant_message.id if assistant_message is not None else None,

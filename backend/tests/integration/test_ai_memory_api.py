@@ -53,7 +53,9 @@ class TestAiMemoryApi:
             captured_prompt_memory.update(kwargs.get("prompt_memory") or {})
             return {"reply": "Sure, I will keep it concise.", "model": "test-model", "usage": {}}
 
-        monkeypatch.setattr(ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter)
+        monkeypatch.setattr(
+            ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter
+        )
         monkeypatch.setattr(
             "app.services.ai.memory_extractor.complete_json_diagnostic",
             lambda **kwargs: {

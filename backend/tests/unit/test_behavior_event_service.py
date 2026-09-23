@@ -2,7 +2,7 @@
 
 import json
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from werkzeug.security import generate_password_hash
 
@@ -100,7 +100,7 @@ def _make_project(creator: User, title: str = "Neighborhood cleanup") -> Project
         title=title,
         description="A practical community sustainability project.",
         points_target=150,
-        deadline_at=datetime.now(timezone.utc) + timedelta(days=10),
+        deadline_at=datetime.now(UTC) + timedelta(days=10),
     )
     db.session.add(project)
     db.session.flush()
@@ -326,7 +326,9 @@ class TestBehaviorEventService:
             topics=[{"topic_id": "community-cleanup", "confidence_score": 0.9}],
         )
 
-        view_event = behavior_event_service.record_project_view(user_id=supporter.id, project_id=project.id)
+        view_event = behavior_event_service.record_project_view(
+            user_id=supporter.id, project_id=project.id
+        )
         contribute_event = behavior_event_service.record_project_contribute(
             user_id=supporter.id,
             project_id=project.id,
