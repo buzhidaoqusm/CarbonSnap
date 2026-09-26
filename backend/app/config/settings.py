@@ -123,6 +123,11 @@ def load_app_settings(app: Flask) -> None:
     app.config["AI_LLM_TIMEOUT_SECONDS"] = float(
         os.getenv("AI_LLM_TIMEOUT_SECONDS", "60").strip() or "60"
     )
+    # Router, memory extraction and title calls: short, never retried, and
+    # each has a fallback. Keeps a hanging provider from outliving the worker.
+    app.config["AI_LLM_AUX_TIMEOUT_SECONDS"] = float(
+        os.getenv("AI_LLM_AUX_TIMEOUT_SECONDS", "15").strip() or "15"
+    )
     # Provider-side retries for transient failures (429/5xx/timeouts), handled
     # by the OpenAI SDK. Tests set 0 so a blocked call fails immediately.
     app.config["AI_LLM_MAX_RETRIES"] = int(os.getenv("AI_LLM_MAX_RETRIES", "2").strip() or "2")

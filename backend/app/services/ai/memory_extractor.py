@@ -51,6 +51,7 @@ def extract_explicit_memory_candidates_detailed(
             ensure_ascii=False,
         ),
         system_prompt=_memory_extractor_system_prompt(),
+        auxiliary=True,
     )
 
     payload = diagnostic.get("payload")

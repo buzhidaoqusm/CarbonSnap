@@ -369,6 +369,7 @@ def generate_conversation_title(
             user_message=user_message,
             image_data_url=image_data_url,
             system_prompt=prompt,
+            auxiliary=True,
         )
         title = _clean_title_candidate(str(response.get("reply", "")))
         if _is_valid_conversation_title(title):
@@ -423,8 +424,19 @@ def _send_completion_request(
     *,
     messages: list[dict[str, Any]],
     stream: bool,
+    auxiliary: bool = False,
 ) -> Any:
     client = _get_client()
+    if auxiliary:
+        # Routing, memory extraction and titles run before the first token and
+        # every caller has a fallback, so a slow one is abandoned rather than
+        # retried: three retries on each of them is what let one chat turn
+        # outlive gunicorn's worker timeout.
+        aux_timeout = float(current_app.config.get("AI_LLM_AUX_TIMEOUT_SECONDS", 15) or 15)
+        client = client.with_options(
+            timeout=Timeout(aux_timeout, connect=LLM_CONNECT_TIMEOUT_SECONDS),
+            max_retries=0,
+        )
     model = _get_provider_settings()["model"]
 
     request_payload: dict[str, Any] = {
@@ -547,6 +559,7 @@ def complete_text(
     image_data_url: str | None = None,
     system_prompt: str | None = None,
     prompt_memory: dict[str, Any] | None = None,
+    auxiliary: bool = False,
 ) -> dict[str, Any]:
     messages = build_messages(
         user_message=user_message,
@@ -555,7 +568,7 @@ def complete_text(
         system_prompt=system_prompt,
         prompt_memory=prompt_memory,
     )
-    completion = _send_completion_request(messages=messages, stream=False)
+    completion = _send_completion_request(messages=messages, stream=False, auxiliary=auxiliary)
 
     reply = ""
     if completion.choices:
@@ -604,6 +617,7 @@ def complete_json_diagnostic(
     image_data_url: str | None = None,
     system_prompt: str | None = None,
     prompt_memory: dict[str, Any] | None = None,
+    auxiliary: bool = False,
 ) -> dict[str, Any]:
     try:
         response = complete_text(
@@ -612,6 +626,7 @@ def complete_json_diagnostic(
             image_data_url=image_data_url,
             system_prompt=system_prompt,
             prompt_memory=prompt_memory,
+            auxiliary=auxiliary,
         )
     except Exception as exc:
         return {

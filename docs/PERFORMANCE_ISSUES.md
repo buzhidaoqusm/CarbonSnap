@@ -33,7 +33,7 @@ docker compose -f docker-compose.yml -f docker-compose.bench.yml --profile bench
 | 3 | 单用户首 token 就要 10 s | ttft **10.7 s**（其中 10.2 s 在串行等 LLM） | P2 | < 4 s |
 | 4 | 首 token 前 10 s 没有任何进度 | 心跳之后 **10.2 s** 无事件 | P2 | 每个阶段都推送事件 |
 | 5 | 用户关掉页面，服务端不停 | 继续占用 worker **8.5 s**，打满 4 次 LLM 调用，留下没有回复的会话 | P1 | 断开后 < 1 s 释放 |
-| 6 | LLM 调用实际没有超时 | 配置 60 s，实际 **600 s**（SDK 默认值） | 马上可修 | 配置值生效 |
+| 6 | ~~LLM 调用实际没有超时~~ ✅ 已修 | provider 卡住时：600 s 后 worker 被强杀 → **105 s 后返回错误事件** | 已修（2026-09-26） | 配置值生效 |
 | 7 | 每个并发会话约 115 MB | 3 个 worker 共 320 MB，12 个共 1.04 GB | P1 | 内存不随并发线性增长 |
 
 ---
@@ -139,20 +139,34 @@ docker compose logs fake-llm -t --tail 10
 uv run --no-project --with requests python tools/load_test/probe.py disconnect
 ```
 
-## 6. LLM 调用实际没有超时
+## 6. LLM 调用实际没有超时 ✅ 已修复
 
-`AI_LLM_TIMEOUT_SECONDS=60` 只在 `complete_with_tools` 里用到，而它所在的工具调用 agent 默认是关闭的。
-主路径上的调用（[openrouter_service.py:431](../backend/app/services/ai/openrouter_service.py) 的
-`create()`）没有传 timeout，用的是 OpenAI SDK 的默认值 **600 s**。
+**原来的问题**：`AI_LLM_TIMEOUT_SECONDS=60` 只在 `complete_with_tools` 里用到，而它所在的工具调用
+agent 默认是关闭的。主路径上的调用都没有传 timeout，用的是 OpenAI SDK 的默认值 600 s。
+provider 卡住时，worker 会等到 600 s 被 gunicorn 强杀，用户只收到一个中途断开的 500。
 
-实测：假 LLM 每次调用要 68 s 才返回（超过配置的 60 s），但没有一次超时或重试，整轮对话用了
-**272 s**。
+**修复过程中发现的第二层问题**：让 60 s 超时生效后，SDK 默认会重试 2 次，而首 token 之前有 3 次
+串行调用，重试把等待时间放大了 3 倍，一轮对话还是会超过 600 s，worker 照样被强杀。
 
-按代码推演最坏情况：provider 真的卡死时，一次调用要等 600 s，正好撞上 gunicorn 的 600 s 超时，
-worker 会在请求中途被强杀，用户收不到任何错误信息。只要 3 个请求碰上 provider 卡死，整个服务就会
-瘫痪 10 分钟。
+**修复方式**：
+- 超时设在客户端上，所有调用都会生效；连接超时单独设为 5 s。
+- 路由、记忆提取、标题生成这 3 个首 token 之前的"辅助调用"改用
+  `AI_LLM_AUX_TIMEOUT_SECONDS`（默认 15 s），并且不重试。这 3 个调用失败后都有兜底，
+  超时只会让这一轮用上兜底结果（比如标题变成 "New chat"），不会报错。
+- 回答调用保持 60 s 超时和 2 次重试。对流式调用来说，60 s 限制的是两次收到数据之间的间隔，
+  不是总时长，所以正常的长回答不会被误杀。
 
-这是一个小改动，不用等 P1：把 timeout 传给 `_get_client()` 创建的客户端就行。
+实测（假 LLM 每次调用卡 65 s）：
+
+| | 修复前 | 只修超时 | 最终 |
+|---|---|---|---|
+| 路由 / 记忆提取 / 标题 | 各等 68 s | 各 3 × 60 s | 各 15 s |
+| 回答 | 等到 65 s 才出首 token | — | 60 s 后超时 |
+| 一轮对话 | 272 s 后才完成；彻底卡死时 600 s 被强杀 | 600 s 被强杀 | **105 s** |
+| 用户看到的 | 一直转圈 | 中途断开，只有一个 500 | 正常的错误事件 |
+
+回答调用只超时了一次，没有重试：假 LLM 先返回响应头再卡住，而 SDK 只在拿到响应头之前重试。
+如果 provider 连响应头都不返回，回答调用会重试 2 次，最坏约 45 + 180 = 225 s，仍然在 600 s 以内。
 
 ```bash
 FAKE_LLM_FIRST_TOKEN_MS=65000 docker compose -f docker-compose.yml -f docker-compose.bench.yml --profile bench up -d fake-llm

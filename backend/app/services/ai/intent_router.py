@@ -307,6 +307,7 @@ def classify_intent_detailed(
         ),
         image_data_url=image_data_url,
         system_prompt=_router_system_prompt(),
+        auxiliary=True,
     )
 
     payload = diagnostic.get("payload")
