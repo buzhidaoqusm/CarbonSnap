@@ -8,8 +8,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-from flask import current_app, has_app_context
-
+from app.core.config import get_settings
 from app.services.ai.openrouter_service import embed_texts
 
 try:  # pragma: no cover - exercised implicitly when faiss is installed
@@ -116,24 +115,14 @@ def _resolve_storage_dir(storage_dir: str | Path | None) -> Path:
     if storage_dir is not None:
         return Path(storage_dir)
 
-    if has_app_context():
-        configured = current_app.config.get("FORUM_RAG_FAISS_DIR")
-        if configured:
-            return Path(str(configured))
-
-    return Path.cwd() / "data" / "faiss"
+    return get_settings().forum_rag_faiss_dir
 
 
 def _resolve_embedding_model(embedding_model: str | None) -> str | None:
     if embedding_model:
         return embedding_model
 
-    if has_app_context():
-        configured = str(current_app.config.get("FORUM_RAG_EMBEDDING_MODEL", "") or "").strip()
-        if configured:
-            return configured
-
-    return None
+    return get_settings().forum_rag_embedding_model
 
 
 def _default_embedder(embedding_model: str | None) -> Callable[[list[str]], list[list[float]]]:

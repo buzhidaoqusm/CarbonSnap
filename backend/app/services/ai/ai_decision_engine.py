@@ -3,8 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from flask import current_app
-
+from app.core.config import get_settings
 from app.repositories.ai import message_decision_repository
 from app.services.ai.agent_trace_service import build_trace_shell
 from app.services.ai.case_resolver import resolve_target_case_detailed
@@ -101,7 +100,7 @@ def _run_decision_pipeline(
     llm_first: bool,
     label: str,
 ) -> dict[str, Any]:
-    max_turns = int(current_app.config.get("AI_SHORT_TERM_MEMORY_TURNS", 10) or 10)
+    max_turns = get_settings().ai_short_term_memory_turns
     prompt_memory = get_prompt_memory_summary(user_id)
     context = build_context_bundle(
         conversation_id=conversation_id,
@@ -230,28 +229,15 @@ def _serialize_shadow_decision(decision: dict[str, Any]) -> dict[str, Any]:
 
 
 def _get_engine_mode() -> str:
-    mode = (
-        str(current_app.config.get("AI_DECISION_ENGINE_MODE", "llm_first") or "llm_first")
-        .strip()
-        .lower()
-    )
-    if mode not in {"compat", "shadow", "llm_first"}:
-        return "llm_first"
-    return mode
+    return get_settings().ai_decision_engine_mode
 
 
 def _get_engine_version() -> str:
-    return (
-        str(
-            current_app.config.get("AI_DECISION_ENGINE_VERSION", "decision-engine-v2")
-            or "decision-engine-v2"
-        ).strip()
-        or "decision-engine-v2"
-    )
+    return get_settings().ai_decision_engine_version
 
 
 def _trace_enabled() -> bool:
-    return bool(current_app.config.get("AI_TRACE_ENABLED", True))
+    return get_settings().ai_trace_enabled
 
 
 def _build_decision_trace(
@@ -298,11 +284,7 @@ def _build_decision_trace(
 
 
 def _get_confidence_threshold() -> float:
-    try:
-        threshold = float(current_app.config.get("AI_DECISION_CONFIDENCE_THRESHOLD", 0.65) or 0.65)
-    except (TypeError, ValueError):
-        threshold = 0.65
-    return max(0.0, min(1.0, threshold))
+    return get_settings().ai_decision_confidence_threshold
 
 
 def _decide_forum_retrieval(

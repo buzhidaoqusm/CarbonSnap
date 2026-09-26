@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 from uuid import uuid4
 
-from flask import current_app
+from app.core.config import get_settings
 
 
 class ImageStorageError(ValueError):
@@ -29,7 +29,7 @@ def store_data_url_image(data_url: str, *, namespace: str = "ai") -> str:
     if not image_value:
         raise ImageStorageError("Image data is required.")
 
-    uploads_prefix = current_app.config["UPLOAD_URL_PREFIX"].rstrip("/")
+    uploads_prefix = get_settings().upload_url_prefix.rstrip("/")
     if image_value.startswith(f"{uploads_prefix}/"):
         return image_value
 
@@ -60,20 +60,7 @@ def store_data_url_image(data_url: str, *, namespace: str = "ai") -> str:
 
 
 def _resolve_upload_root() -> Path:
-    configured_root = Path(current_app.config["UPLOAD_ROOT"]).resolve()
-    try:
-        configured_root.mkdir(parents=True, exist_ok=True)
-        probe_path = configured_root / ".write_test"
-        probe_path.write_bytes(b"")
-        probe_path.unlink(missing_ok=True)
-        return configured_root
-    except OSError:
-        # Test sandboxes may override UPLOAD_ROOT to a temp directory outside the
-        # writable workspace. Fall back to the repo-local upload directory so the
-        # public URL contract keeps working.
-        fallback_root = (
-            Path(current_app.root_path).resolve().parents[1] / "data" / "uploads"
-        ).resolve()
-        fallback_root.mkdir(parents=True, exist_ok=True)
-        current_app.config["UPLOAD_ROOT"] = str(fallback_root)
-        return fallback_root
+    # Created at startup. If it is not writable that is a deployment error and
+    # should surface, not be papered over by writing uploads somewhere the
+    # /api/uploads route does not serve from.
+    return get_settings().upload_root.resolve()

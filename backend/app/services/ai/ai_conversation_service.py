@@ -5,9 +5,9 @@ from collections.abc import Generator
 from datetime import datetime
 from typing import Any
 
-from flask import current_app
 from sqlalchemy import func, select
 
+from app.core.config import get_settings
 from app.extensions.db import db
 from app.models.ai import AIConversation, AIMessage, RecyclingCase
 from app.repositories.ai import conversation_repository, recycling_case_repository
@@ -159,7 +159,7 @@ def _resolve_history_for_request(
     conversation: AIConversation | None,
     supplied_history: list[dict[str, Any]] | None,
 ) -> tuple[list[dict[str, Any]], list[Any] | None]:
-    max_turns = int(current_app.config.get("AI_SHORT_TERM_MEMORY_TURNS", 10) or 10)
+    max_turns = get_settings().ai_short_term_memory_turns
 
     if conversation is None:
         return _trim_history_to_recent_turns(supplied_history or [], max_turns=max_turns), None
@@ -268,7 +268,7 @@ def _build_short_term_system_prompt(
     forum_candidates: list[dict[str, Any]] | None = None,
     graph_context: dict[str, Any] | None = None,
 ) -> str:
-    max_turns = int(current_app.config.get("AI_SHORT_TERM_MEMORY_TURNS", 10) or 10)
+    max_turns = get_settings().ai_short_term_memory_turns
     lines = [
         _SHORT_TERM_MEMORY_INSTRUCTION,
         f"Active short-term memory window: recent {max_turns} turns from this chat only.",
@@ -655,7 +655,7 @@ def complete_chat_message(
     if user_id is None:
         request_history = _trim_history_to_recent_turns(
             history or [],
-            max_turns=int(current_app.config.get("AI_SHORT_TERM_MEMORY_TURNS", 10) or 10),
+            max_turns=get_settings().ai_short_term_memory_turns,
         )
         short_term_system_prompt = _build_short_term_system_prompt(
             history=request_history,
@@ -696,7 +696,7 @@ def complete_chat_message(
         conversation_id=conversation.id,
         user_id=user_id,
         supplied_history=history,
-        max_turns=int(current_app.config.get("AI_SHORT_TERM_MEMORY_TURNS", 10) or 10),
+        max_turns=get_settings().ai_short_term_memory_turns,
         prompt_memory=prompt_memory,
         client_context=client_context,
     )
@@ -854,7 +854,7 @@ def complete_tool_calling_agent_message(
     if user_id is None:
         request_history = _trim_history_to_recent_turns(
             history or [],
-            max_turns=int(current_app.config.get("AI_SHORT_TERM_MEMORY_TURNS", 10) or 10),
+            max_turns=get_settings().ai_short_term_memory_turns,
         )
         if image_data_url:
             store_data_url_image(image_data_url, namespace="chat")
@@ -972,7 +972,7 @@ def _build_shadow_selection_messages(
     selection-only shadow call (no tools are executed)."""
     request_history = _trim_history_to_recent_turns(
         history or [],
-        max_turns=int(current_app.config.get("AI_SHORT_TERM_MEMORY_TURNS", 10) or 10),
+        max_turns=get_settings().ai_short_term_memory_turns,
     )
     return build_messages(
         user_message=message,
@@ -1130,7 +1130,7 @@ def stream_chat_message(
     if user_id is None:
         request_history = _trim_history_to_recent_turns(
             history or [],
-            max_turns=int(current_app.config.get("AI_SHORT_TERM_MEMORY_TURNS", 10) or 10),
+            max_turns=get_settings().ai_short_term_memory_turns,
         )
         short_term_system_prompt = _build_short_term_system_prompt(
             history=request_history,
@@ -1183,7 +1183,7 @@ def stream_chat_message(
         conversation_id=conversation.id,
         user_id=user_id,
         supplied_history=history,
-        max_turns=int(current_app.config.get("AI_SHORT_TERM_MEMORY_TURNS", 10) or 10),
+        max_turns=get_settings().ai_short_term_memory_turns,
         prompt_memory=prompt_memory,
         client_context=client_context,
     )
@@ -1308,7 +1308,7 @@ def complete_routed_chat_message(
     if demo_replay is not None:
         return demo_replay
 
-    if current_app.config.get("AI_GRAPH_AGENT_ENABLED", False) and is_langgraph_available():
+    if get_settings().ai_graph_agent_enabled and is_langgraph_available():
         return complete_graph_agent_message(
             user_id=user_id,
             message=message,
@@ -1406,7 +1406,7 @@ def stream_routed_chat_message(
         yield from demo_replay_stream
         return
 
-    if current_app.config.get("AI_GRAPH_AGENT_ENABLED", False) and is_langgraph_available():
+    if get_settings().ai_graph_agent_enabled and is_langgraph_available():
         yield from stream_graph_agent_message(
             user_id=user_id,
             message=message,

@@ -5,7 +5,8 @@ from time import sleep
 from typing import Any
 
 import httpx
-from flask import current_app
+
+from app.core.config import get_settings
 
 
 class MapProviderError(RuntimeError):
@@ -14,25 +15,18 @@ class MapProviderError(RuntimeError):
 
 class OSMPublicMapProvider:
     def __init__(self) -> None:
-        self.nominatim_url = current_app.config["OSM_NOMINATIM_URL"].rstrip("/")
-        self.overpass_url = current_app.config["OSM_OVERPASS_URL"]
-        self.overpass_fallback_urls = list(current_app.config.get("OSM_OVERPASS_FALLBACK_URLS", []))
-        self.overpass_timeout_seconds = float(
-            current_app.config.get("OSM_OVERPASS_TIMEOUT_SECONDS", 30.0)
-        )
-        self.overpass_connect_timeout_seconds = float(
-            current_app.config.get("OSM_OVERPASS_CONNECT_TIMEOUT_SECONDS", 8.0)
-        )
-        self.overpass_max_attempts_per_endpoint = max(
-            1, int(current_app.config.get("OSM_OVERPASS_MAX_ATTEMPTS_PER_ENDPOINT", 2))
-        )
-        self.overpass_retry_backoff_ms = max(
-            0, int(current_app.config.get("OSM_OVERPASS_RETRY_BACKOFF_MS", 400))
-        )
-        self.user_agent = current_app.config["OSM_USER_AGENT"]
-        self.search_radius_meters = current_app.config["AI_MAP_SEARCH_RADIUS_METERS"]
-        self.search_limit = current_app.config["AI_MAP_SEARCH_LIMIT"]
-        self.recycling_tags = current_app.config["AI_OSM_RECYCLING_TAGS"]
+        config = get_settings()
+        self.nominatim_url = config.osm_nominatim_url.rstrip("/")
+        self.overpass_url = config.osm_overpass_url
+        self.overpass_fallback_urls = config.osm_overpass_fallback_urls
+        self.overpass_timeout_seconds = config.osm_overpass_timeout_seconds
+        self.overpass_connect_timeout_seconds = config.osm_overpass_connect_timeout_seconds
+        self.overpass_max_attempts_per_endpoint = config.osm_overpass_max_attempts_per_endpoint
+        self.overpass_retry_backoff_ms = config.osm_overpass_retry_backoff_ms
+        self.user_agent = config.osm_user_agent
+        self.search_radius_meters = config.ai_map_search_radius_meters
+        self.search_limit = config.ai_map_search_limit
+        self.recycling_tags = config.ai_osm_recycling_tags
 
     def geocode_area(self, area: str) -> dict[str, Any]:
         query = area.strip()

@@ -133,6 +133,11 @@ docs/adr/
 
 ### 3.1 配置解耦（2 天）
 
+> ✅ **已完成（2026-09-26）**。业务代码里的 `current_app.config` 从 77 处降到 5 处，剩下的都是
+> 测试专用开关（`TESTING`、`FORUM_BACKGROUND_JOBS_*`、`FORUM_RAG_ENABLE_TEST_INDEXING`），留到 3.4
+> 换测试客户端时处理。路线图原来写的"43 个文件、96 处"是过时的数字，实际是 18 个文件、77 处。
+> 取值校验（范围、可选值、空值即默认）从各个读取点收拢到 `Settings`，配置不合法时启动即报错。
+
 - 新建 `app/core/config.py`：`Settings(BaseSettings)`，把 `app/config/settings.py` 里的 60 多个配置项搬过去，带上类型和默认值；`get_settings()` 用 `lru_cache` 缓存。
 - 把 43 个文件里 96 处 `current_app.config.get(...)` 换成 `get_settings().xxx`。这是和 Flask 解耦的第一步。
 - 过渡期让 `load_app_settings()` 从 `Settings` 回填 `app.config`，Flask 照常能跑。

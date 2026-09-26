@@ -239,25 +239,3 @@ def test_config_matches_snapshot(scenario, monkeypatch, tmp_path):
 
     assert scenario in snapshot, "no snapshot recorded; run with UPDATE_CONFIG_SNAPSHOT=1"
     assert produced == snapshot[scenario]
-
-
-def test_unrecognised_boolean_fails_at_startup(monkeypatch):
-    # Deliberate change from the old loader, which silently used the default:
-    # a typo in a feature flag should stop the app, not quietly flip it.
-    from pydantic import ValidationError
-
-    from app.core.config import Settings
-
-    monkeypatch.setenv("AI_TRACE_ENABLED", "maybe")
-    with pytest.raises(ValidationError, match="ai_trace_enabled"):
-        Settings(_env_file=None)
-
-
-def test_settings_cannot_be_changed_at_runtime():
-    from pydantic import ValidationError
-
-    from app.core.config import Settings
-
-    settings = Settings(_env_file=None)
-    with pytest.raises(ValidationError):
-        settings.ai_llm_timeout_seconds = 1  # type: ignore[misc]

@@ -12,6 +12,7 @@ from typing import Any
 
 from flask import current_app
 
+from app.core.config import get_settings
 from app.extensions.db import db
 from app.models.ai import RecyclingCase
 from app.repositories.ai import conversation_repository, recycling_case_repository
@@ -71,7 +72,7 @@ def get_seed_demo_replay_stream(
     image_data_url: str | None,
     conversation_id: int | None,
 ) -> Generator[dict[str, Any], None, None] | None:
-    if not current_app.config.get("AI_DEMO_REPLAY_ENABLED"):
+    if not get_settings().ai_demo_replay_enabled:
         return None
 
     match = find_seed_replay_match(message=message, image_data_url=image_data_url)
@@ -311,7 +312,7 @@ def complete_seed_demo_replay(
 
 
 def get_seed_demo_resume_stream(session_id: str) -> Generator[dict[str, Any], None, None] | None:
-    if not current_app.config.get("AI_DEMO_REPLAY_ENABLED"):
+    if not get_settings().ai_demo_replay_enabled:
         return None
 
     paused_context = get_paused_context(session_id)
@@ -421,7 +422,7 @@ def get_seed_demo_audit_stream(
     message: str,
     image_data_url: str,
 ) -> Generator[dict[str, Any], None, None] | None:
-    if not current_app.config.get("AI_DEMO_REPLAY_ENABLED"):
+    if not get_settings().ai_demo_replay_enabled:
         return None
 
     seed_case_ref = _seed_case_ref_for_replayed_case(
@@ -688,7 +689,7 @@ def _stream_awaiting_location(
 
 
 def _stream_text_as_deltas(text: str, *, stage: str) -> Generator[dict[str, Any], None, None]:
-    chunk_size = int(current_app.config.get("AI_DEMO_REPLAY_CHUNK_SIZE", 120) or 120)
+    chunk_size = get_settings().ai_demo_replay_chunk_size
     for index in range(0, len(text), chunk_size):
         yield {
             "type": "delta",
@@ -1027,7 +1028,7 @@ def _load_seed_json(folder: str, filename: str) -> dict[str, Any] | None:
 
 
 def _seed_asset_path_from_upload_url(upload_url: str) -> Path | None:
-    uploads_prefix = str(current_app.config.get("UPLOAD_URL_PREFIX") or "/api/uploads").rstrip("/")
+    uploads_prefix = get_settings().upload_url_prefix.rstrip("/")
     if not upload_url.startswith(f"{uploads_prefix}/"):
         return None
     relative_path = upload_url[len(uploads_prefix) + 1 :]

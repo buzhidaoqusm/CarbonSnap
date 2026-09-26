@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from flask import current_app
+from app.core.config import get_settings
 
 _PARAGRAPH_SPLIT_RE = re.compile(r"\n\s*\n+")
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?。！？])\s+")
@@ -27,8 +27,8 @@ def chunk_forum_post(*, title: str, content: str, version: int) -> list[dict[str
             }
         ]
 
-    target_tokens = int(current_app.config.get("FORUM_RAG_CHUNK_TARGET_TOKENS", 420) or 420)
-    overlap_tokens = int(current_app.config.get("FORUM_RAG_CHUNK_OVERLAP_TOKENS", 70) or 70)
+    target_tokens = get_settings().forum_rag_chunk_target_tokens
+    overlap_tokens = get_settings().forum_rag_chunk_overlap_tokens
 
     segments = _build_segments(normalized_content, target_tokens=target_tokens)
     chunks: list[dict[str, Any]] = []

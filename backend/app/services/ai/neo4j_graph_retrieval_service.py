@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import os
 from collections.abc import Iterable
 from typing import Any
 
-from flask import current_app, has_app_context
-
+from app.core.config import get_settings
 from app.services.ai.entity_extraction_service import extract_recycling_entities
 
 GRAPH_CONTEXT_CYPHER = """
@@ -130,11 +128,12 @@ LIMIT 12
 
 
 def is_configured() -> bool:
+    config = get_settings()
     return bool(
-        _get_bool_config("AI_NEO4J_GRAPHRAG_ENABLED", False)
-        and _get_config_value("NEO4J_URI")
-        and _get_config_value("NEO4J_USERNAME")
-        and _get_config_value("NEO4J_PASSWORD")
+        config.ai_neo4j_graphrag_enabled
+        and config.neo4j_uri
+        and config.neo4j_username
+        and config.neo4j_password
     )
 
 
@@ -147,7 +146,7 @@ def query_graph_context(
     resolved_entities = entities or extract_recycling_entities(message)
     entity_names = _entity_names_for_lookup(resolved_entities)
 
-    if not _get_bool_config("AI_NEO4J_GRAPHRAG_ENABLED", False):
+    if not get_settings().ai_neo4j_graphrag_enabled:
         return _fallback_context(
             entities=resolved_entities,
             fallback_reason="feature_disabled",
@@ -385,12 +384,10 @@ def _create_driver() -> Any:
     except ImportError as exc:
         raise RuntimeError("neo4j_driver_missing") from exc
 
+    config = get_settings()
     return GraphDatabase.driver(
-        _get_config_value("NEO4J_URI"),
-        auth=(
-            _get_config_value("NEO4J_USERNAME"),
-            _get_config_value("NEO4J_PASSWORD"),
-        ),
+        config.neo4j_uri,
+        auth=(config.neo4j_username, config.neo4j_password),
     )
 
 
@@ -570,18 +567,3 @@ def _record_get(record: Any, key: str) -> Any:
         return record[key]
     except Exception:
         return getattr(record, key, None)
-
-
-def _get_config_value(name: str) -> str:
-    if has_app_context():
-        return str(current_app.config.get(name, "") or "").strip()
-    return os.getenv(name, "").strip()
-
-
-def _get_bool_config(name: str, default: bool) -> bool:
-    if has_app_context():
-        return bool(current_app.config.get(name, default))
-    raw_value = os.getenv(name)
-    if raw_value is None:
-        return default
-    return raw_value.strip().lower() in {"1", "true", "yes", "on"}

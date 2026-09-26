@@ -30,7 +30,7 @@ import threading
 from datetime import UTC, datetime
 from typing import Any
 
-from flask import current_app
+from app.core.config import get_settings
 
 VALID_MODES = {"rule", "model", "shadow"}
 
@@ -44,10 +44,10 @@ def resolve_tool_selection_mode() -> str:
     legacy ``AI_TOOL_CALLING_AGENT_ENABLED`` boolean maps to ``model`` so the
     already-wired flag keeps working; the safe default is ``rule``.
     """
-    raw = str(current_app.config.get("AI_TOOL_SELECTION_MODE", "") or "").strip().lower()
-    if raw in VALID_MODES:
-        return raw
-    if bool(current_app.config.get("AI_TOOL_CALLING_AGENT_ENABLED", False)):
+    mode = get_settings().ai_tool_selection_mode
+    if mode:
+        return mode
+    if get_settings().ai_tool_calling_agent_enabled:
         return "model"
     return "rule"
 
@@ -150,7 +150,7 @@ def record_shadow_comparison(record: dict[str, Any]) -> None:
 
     Never raises: shadow logging must not break the serving path.
     """
-    path = str(current_app.config.get("AI_TOOL_SELECTION_SHADOW_LOG", "") or "").strip()
+    path = get_settings().ai_tool_selection_shadow_log
     if not path:
         return
     try:

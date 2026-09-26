@@ -6,10 +6,10 @@ from collections.abc import Generator
 from datetime import date, datetime
 from typing import Any
 
-from flask import current_app
 from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
 
 from app.ai.tools.map.osm_public_provider import MapProviderError, OSMPublicMapProvider
+from app.core.config import get_settings
 from app.repositories.ai import conversation_repository, recycling_case_repository
 from app.services.ai.ai_decision_engine import persist_message_decision
 from app.services.ai.conversation_context_builder import build_runtime_reply_context
@@ -297,8 +297,8 @@ def _parse_optional_int(value: Any) -> int | None:
 
 def _location_state_ttl_seconds(location_state: dict[str, Any]) -> int:
     if str(location_state.get("location_source") or "").lower() == "manual":
-        return current_app.config["AI_MANUAL_LOCATION_TTL_HOURS"] * 3600
-    return current_app.config["AI_BROWSER_LOCATION_TTL_MINUTES"] * 60
+        return get_settings().ai_manual_location_ttl_hours * 3600
+    return get_settings().ai_browser_location_ttl_minutes * 60
 
 
 def _restore_session_from_persisted_context(
@@ -571,7 +571,7 @@ def stream_recycling_analysis(
     runtime_context = build_runtime_reply_context(
         conversation_id=conversation.id if conversation is not None else conversation_id,
         user_id=effective_user_id,
-        max_turns=int(current_app.config.get("AI_SHORT_TERM_MEMORY_TURNS", 10) or 10),
+        max_turns=get_settings().ai_short_term_memory_turns,
         prompt_memory=prompt_memory,
         client_context=client_context,
     )
@@ -968,7 +968,7 @@ def store_location_context(payload: dict[str, Any]) -> dict[str, Any]:
             manual_area=None,
             normalized_area=None,
             skip_nearby_search=True,
-            ttl_seconds=current_app.config["AI_BROWSER_LOCATION_TTL_MINUTES"] * 60,
+            ttl_seconds=get_settings().ai_browser_location_ttl_minutes * 60,
         )
         _sync_conversation_session_context(session.get("conversation_id"), session)
         return serialize_session(session)
@@ -989,7 +989,7 @@ def store_location_context(payload: dict[str, Any]) -> dict[str, Any]:
             manual_area=None,
             normalized_area=None,
             skip_nearby_search=False,
-            ttl_seconds=current_app.config["AI_BROWSER_LOCATION_TTL_MINUTES"] * 60,
+            ttl_seconds=get_settings().ai_browser_location_ttl_minutes * 60,
         )
         _sync_conversation_session_context(session.get("conversation_id"), session)
         return serialize_session(session)
@@ -1008,7 +1008,7 @@ def store_location_context(payload: dict[str, Any]) -> dict[str, Any]:
             manual_area=manual_area,
             normalized_area=area_result["normalized_area"],
             skip_nearby_search=False,
-            ttl_seconds=current_app.config["AI_MANUAL_LOCATION_TTL_HOURS"] * 3600,
+            ttl_seconds=get_settings().ai_manual_location_ttl_hours * 3600,
         )
         _sync_conversation_session_context(session.get("conversation_id"), session)
         return serialize_session(session)
@@ -1022,7 +1022,7 @@ def store_location_context(payload: dict[str, Any]) -> dict[str, Any]:
             manual_area=None,
             normalized_area=None,
             skip_nearby_search=False,
-            ttl_seconds=current_app.config["AI_BROWSER_LOCATION_TTL_MINUTES"] * 60,
+            ttl_seconds=get_settings().ai_browser_location_ttl_minutes * 60,
         )
         _sync_conversation_session_context(session.get("conversation_id"), session)
         return serialize_session(session)
@@ -1530,7 +1530,7 @@ def _can_execute_nearby_search(location_state: dict[str, Any] | None) -> bool:
 
 
 def _resolve_emission_factor(waste_type: str) -> float:
-    emission_factors = current_app.config["AI_EMISSION_FACTORS"]
+    emission_factors = get_settings().ai_emission_factors
     normalized = waste_type.strip().lower()
     for key, value in emission_factors.items():
         if key != "default" and key in normalized:

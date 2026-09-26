@@ -13,28 +13,22 @@ from app.services.ai import ai_conversation_service, tool_selection_shadow
 # ---------------------------------------------------------------------------
 
 
-def test_resolve_mode_defaults_to_rule(app, monkeypatch):
-    monkeypatch.setitem(app.config, "AI_TOOL_SELECTION_MODE", "")
-    monkeypatch.setitem(app.config, "AI_TOOL_CALLING_AGENT_ENABLED", False)
+def test_resolve_mode_defaults_to_rule(app, monkeypatch, override_settings):
+    override_settings(ai_tool_selection_mode="")
+    override_settings(ai_tool_calling_agent_enabled=False)
     assert tool_selection_shadow.resolve_tool_selection_mode() == "rule"
 
 
-def test_resolve_mode_legacy_flag_maps_to_model(app, monkeypatch):
-    monkeypatch.setitem(app.config, "AI_TOOL_SELECTION_MODE", "")
-    monkeypatch.setitem(app.config, "AI_TOOL_CALLING_AGENT_ENABLED", True)
+def test_resolve_mode_legacy_flag_maps_to_model(app, monkeypatch, override_settings):
+    override_settings(ai_tool_selection_mode="")
+    override_settings(ai_tool_calling_agent_enabled=True)
     assert tool_selection_shadow.resolve_tool_selection_mode() == "model"
 
 
-def test_resolve_mode_explicit_overrides_legacy(app, monkeypatch):
-    monkeypatch.setitem(app.config, "AI_TOOL_SELECTION_MODE", "shadow")
-    monkeypatch.setitem(app.config, "AI_TOOL_CALLING_AGENT_ENABLED", True)
+def test_resolve_mode_explicit_overrides_legacy(app, monkeypatch, override_settings):
+    override_settings(ai_tool_selection_mode="shadow")
+    override_settings(ai_tool_calling_agent_enabled=True)
     assert tool_selection_shadow.resolve_tool_selection_mode() == "shadow"
-
-
-def test_resolve_mode_ignores_garbage(app, monkeypatch):
-    monkeypatch.setitem(app.config, "AI_TOOL_SELECTION_MODE", "banana")
-    monkeypatch.setitem(app.config, "AI_TOOL_CALLING_AGENT_ENABLED", False)
-    assert tool_selection_shadow.resolve_tool_selection_mode() == "rule"
 
 
 # ---------------------------------------------------------------------------
@@ -109,9 +103,9 @@ def test_model_tool_selection_extracts_and_dedups(app):
 # ---------------------------------------------------------------------------
 
 
-def test_record_shadow_comparison_writes_jsonl(app, monkeypatch, tmp_path):
+def test_record_shadow_comparison_writes_jsonl(app, monkeypatch, tmp_path, override_settings):
     log_path = tmp_path / "shadow.jsonl"
-    monkeypatch.setitem(app.config, "AI_TOOL_SELECTION_SHADOW_LOG", str(log_path))
+    override_settings(ai_tool_selection_shadow_log=str(log_path))
     tool_selection_shadow.record_shadow_comparison({"mode": "shadow", "jaccard": 0.5})
     tool_selection_shadow.record_shadow_comparison({"mode": "shadow", "jaccard": 1.0})
 
@@ -120,8 +114,10 @@ def test_record_shadow_comparison_writes_jsonl(app, monkeypatch, tmp_path):
     assert json.loads(lines[0])["jaccard"] == 0.5
 
 
-def test_record_shadow_comparison_noop_when_unconfigured(app, monkeypatch, tmp_path):
-    monkeypatch.setitem(app.config, "AI_TOOL_SELECTION_SHADOW_LOG", "")
+def test_record_shadow_comparison_noop_when_unconfigured(
+    app, monkeypatch, tmp_path, override_settings
+):
+    override_settings(ai_tool_selection_shadow_log="")
     # Should not raise and should not create anything.
     tool_selection_shadow.record_shadow_comparison({"mode": "shadow"})
     assert list(tmp_path.iterdir()) == []
@@ -136,8 +132,8 @@ def _decision():
     return {"should_retrieve_forum": True, "prompt_memory": {}, "memory_candidates": []}
 
 
-def test_mode_rule_serves_rule_reply_without_shadow(app, monkeypatch):
-    monkeypatch.setitem(app.config, "AI_TOOL_SELECTION_MODE", "rule")
+def test_mode_rule_serves_rule_reply_without_shadow(app, monkeypatch, override_settings):
+    override_settings(ai_tool_selection_mode="rule")
     called = {}
 
     def fake_chat(**kwargs):
@@ -158,9 +154,9 @@ def test_mode_rule_serves_rule_reply_without_shadow(app, monkeypatch):
     assert called.get("chat") is True
 
 
-def test_mode_model_serves_loop_and_attaches_free_comparison(app, monkeypatch):
-    monkeypatch.setitem(app.config, "AI_TOOL_SELECTION_MODE", "model")
-    monkeypatch.setitem(app.config, "AI_TOOL_SELECTION_SHADOW_LOG", "")
+def test_mode_model_serves_loop_and_attaches_free_comparison(app, monkeypatch, override_settings):
+    override_settings(ai_tool_selection_mode="model")
+    override_settings(ai_tool_selection_shadow_log="")
 
     def fake_loop(**kwargs):
         return {
@@ -181,10 +177,12 @@ def test_mode_model_serves_loop_and_attaches_free_comparison(app, monkeypatch):
     assert result["trace"]["tool_selection_shadow"]["exact_match"] is True
 
 
-def test_mode_shadow_serves_rule_reply_and_logs_model_selection(app, monkeypatch, tmp_path):
-    monkeypatch.setitem(app.config, "AI_TOOL_SELECTION_MODE", "shadow")
+def test_mode_shadow_serves_rule_reply_and_logs_model_selection(
+    app, monkeypatch, tmp_path, override_settings
+):
+    override_settings(ai_tool_selection_mode="shadow")
     log_path = tmp_path / "shadow.jsonl"
-    monkeypatch.setitem(app.config, "AI_TOOL_SELECTION_SHADOW_LOG", str(log_path))
+    override_settings(ai_tool_selection_shadow_log=str(log_path))
 
     def fake_chat(**kwargs):
         return {"reply": "rule-reply", "trace": {}}

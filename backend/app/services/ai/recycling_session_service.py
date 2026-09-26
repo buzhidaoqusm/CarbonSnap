@@ -6,7 +6,7 @@ from threading import Lock
 from typing import Any
 from uuid import uuid4
 
-from flask import current_app
+from app.core.config import get_settings
 
 _SESSION_STORE: dict[str, dict[str, Any]] = {}
 _SESSION_LOCK = Lock()
@@ -185,7 +185,7 @@ def serialize_session(session: dict[str, Any]) -> dict[str, Any]:
 
 
 def _cleanup_expired_sessions_locked() -> None:
-    max_idle_hours = int(current_app.config.get("AI_MANUAL_LOCATION_TTL_HOURS", 24))
+    max_idle_hours = get_settings().ai_manual_location_ttl_hours
     cutoff = _utc_now() - timedelta(hours=max_idle_hours)
     expired_session_ids = [
         session_id

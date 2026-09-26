@@ -8,16 +8,12 @@ code not yet moved to get_settings() keep working while P1 migrates callers.
 from datetime import timedelta
 from typing import Any
 
-from dotenv import load_dotenv
 from flask import Flask
 
-from app.core.config import Settings, _env_file, get_settings
+from app.core.config import Settings, get_settings
 
 
 def load_app_settings(app: Flask) -> None:
-    # Still exported to os.environ for the few callers that read os.getenv
-    # directly; removed once they read get_settings() instead.
-    load_dotenv(dotenv_path=_env_file(), override=False)
     settings = get_settings()
 
     # Directories are created at startup, not while parsing settings.

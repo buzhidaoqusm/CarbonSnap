@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any, Literal, TypedDict
 
-from flask import current_app
+from app.core.config import get_settings
 
 RiskLevel = Literal["low", "medium", "high"]
 
@@ -392,7 +392,7 @@ def _is_graph_retrieval_enabled() -> bool:
 
 
 def _resolve_emission_factor(item_type: str) -> float:
-    emission_factors = current_app.config.get("AI_EMISSION_FACTORS") or {"default": 1.0}
+    emission_factors = get_settings().ai_emission_factors or {"default": 1.0}
     normalized = str(item_type or "").strip().lower()
     for key, value in emission_factors.items():
         if key != "default" and str(key).lower() in normalized:

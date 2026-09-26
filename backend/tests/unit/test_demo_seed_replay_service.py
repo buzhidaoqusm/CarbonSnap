@@ -83,7 +83,9 @@ def test_find_seed_replay_match_supports_text_only_seed_messages(app):
     assert match.assistant_messages[0].seed_key == "memory-preference-chat-message-02"
 
 
-def test_stream_routed_chat_message_replays_seed_without_decision_engine(app, monkeypatch):
+def test_stream_routed_chat_message_replays_seed_without_decision_engine(
+    app, monkeypatch, override_settings
+):
     image_data_url = _seed_image_data_url("dual-case-recycling-chat-message-01-image_url.jpg")
 
     def fail_decision_engine(**kwargs):
@@ -94,7 +96,7 @@ def test_stream_routed_chat_message_replays_seed_without_decision_engine(app, mo
     monkeypatch.setattr(ai_decision_engine, "decide_message", fail_decision_engine)
 
     with app.app_context():
-        monkeypatch.setitem(app.config, "AI_DEMO_REPLAY_ENABLED", True)
+        override_settings(ai_demo_replay_enabled=True)
         user = _make_user()
 
         events = list(
@@ -147,11 +149,13 @@ def test_stream_routed_chat_message_replays_seed_without_decision_engine(app, mo
     assert done_event == {"type": "done", "stream_stage": "awaiting_location"}
 
 
-def test_stream_recycling_resume_continues_demo_replay_after_location(app, monkeypatch):
+def test_stream_recycling_resume_continues_demo_replay_after_location(
+    app, monkeypatch, override_settings
+):
     image_data_url = _seed_image_data_url("dual-case-recycling-chat-message-01-image_url.jpg")
 
     with app.app_context():
-        monkeypatch.setitem(app.config, "AI_DEMO_REPLAY_ENABLED", True)
+        override_settings(ai_demo_replay_enabled=True)
         user = _make_user()
 
         initial_events = list(
@@ -203,7 +207,7 @@ def test_stream_recycling_resume_continues_demo_replay_after_location(app, monke
     assert resume_events[-1] == {"type": "done", "stream_stage": "completed"}
 
 
-def test_stream_recycling_audit_replays_seed_audit_result(app, monkeypatch):
+def test_stream_recycling_audit_replays_seed_audit_result(app, monkeypatch, override_settings):
     analysis_image_data_url = _seed_image_data_url(
         "dual-case-recycling-chat-message-01-image_url.jpg"
     )
@@ -216,7 +220,7 @@ def test_stream_recycling_audit_replays_seed_audit_result(app, monkeypatch):
     )
 
     with app.app_context():
-        monkeypatch.setitem(app.config, "AI_DEMO_REPLAY_ENABLED", True)
+        override_settings(ai_demo_replay_enabled=True)
         user = _make_user()
         monkeypatch.setattr(recycling_audit_service, "_get_authenticated_user_id", lambda: user.id)
 
@@ -278,7 +282,9 @@ def test_stream_recycling_audit_replays_seed_audit_result(app, monkeypatch):
     assert audit_events[-1] == {"type": "done", "stream_stage": "finalized"}
 
 
-def test_stream_recycling_audit_matches_retry_by_image_when_text_differs(app, monkeypatch):
+def test_stream_recycling_audit_matches_retry_by_image_when_text_differs(
+    app, monkeypatch, override_settings
+):
     analysis_image_data_url = _seed_image_data_url(
         "dual-case-recycling-chat-message-06-image_url.jpg"
     )
@@ -296,7 +302,7 @@ def test_stream_recycling_audit_matches_retry_by_image_when_text_differs(app, mo
     )
 
     with app.app_context():
-        monkeypatch.setitem(app.config, "AI_DEMO_REPLAY_ENABLED", True)
+        override_settings(ai_demo_replay_enabled=True)
         user = _make_user()
         monkeypatch.setattr(recycling_audit_service, "_get_authenticated_user_id", lambda: user.id)
 
@@ -355,7 +361,9 @@ def test_stream_recycling_audit_matches_retry_by_image_when_text_differs(app, mo
     assert refreshed_case.status == "audit_passed"
 
 
-def test_stream_routed_chat_message_replays_text_seed_without_stage_start(app, monkeypatch):
+def test_stream_routed_chat_message_replays_text_seed_without_stage_start(
+    app, monkeypatch, override_settings
+):
     from app.services.ai import ai_decision_engine
 
     monkeypatch.setattr(
@@ -367,7 +375,7 @@ def test_stream_routed_chat_message_replays_text_seed_without_stage_start(app, m
     )
 
     with app.app_context():
-        monkeypatch.setitem(app.config, "AI_DEMO_REPLAY_ENABLED", True)
+        override_settings(ai_demo_replay_enabled=True)
         user = _make_user()
 
         events = list(
@@ -396,7 +404,9 @@ def test_stream_routed_chat_message_replays_text_seed_without_stage_start(app, m
     )
 
 
-def test_stream_routed_chat_message_emits_seed_memory_updates_in_meta(app, monkeypatch):
+def test_stream_routed_chat_message_emits_seed_memory_updates_in_meta(
+    app, monkeypatch, override_settings
+):
     from app.services.ai import ai_decision_engine
 
     monkeypatch.setattr(
@@ -408,7 +418,7 @@ def test_stream_routed_chat_message_emits_seed_memory_updates_in_meta(app, monke
     )
 
     with app.app_context():
-        monkeypatch.setitem(app.config, "AI_DEMO_REPLAY_ENABLED", True)
+        override_settings(ai_demo_replay_enabled=True)
         user = _make_user()
 
         events = list(
@@ -441,7 +451,9 @@ def test_stream_routed_chat_message_emits_seed_memory_updates_in_meta(app, monke
     assert memory_items[0].source_type == "explicit_chat"
 
 
-def test_stream_routed_chat_message_replays_nearby_follow_up_without_extra_stage(app, monkeypatch):
+def test_stream_routed_chat_message_replays_nearby_follow_up_without_extra_stage(
+    app, monkeypatch, override_settings
+):
     from app.services.ai import ai_decision_engine
 
     monkeypatch.setattr(
@@ -453,7 +465,7 @@ def test_stream_routed_chat_message_replays_nearby_follow_up_without_extra_stage
     )
 
     with app.app_context():
-        monkeypatch.setitem(app.config, "AI_DEMO_REPLAY_ENABLED", True)
+        override_settings(ai_demo_replay_enabled=True)
         user = _make_user()
 
         events = list(
@@ -479,7 +491,9 @@ def test_stream_routed_chat_message_replays_nearby_follow_up_without_extra_stage
     assert events[-1] == {"type": "done", "stream_stage": "completed"}
 
 
-def test_stream_routed_chat_message_replays_clarification_options(app, monkeypatch):
+def test_stream_routed_chat_message_replays_clarification_options(
+    app, monkeypatch, override_settings
+):
     from app.services.ai import ai_decision_engine
 
     monkeypatch.setattr(
@@ -491,7 +505,7 @@ def test_stream_routed_chat_message_replays_clarification_options(app, monkeypat
     )
 
     with app.app_context():
-        monkeypatch.setitem(app.config, "AI_DEMO_REPLAY_ENABLED", True)
+        override_settings(ai_demo_replay_enabled=True)
         user = _make_user()
 
         events = list(
@@ -517,7 +531,9 @@ def test_stream_routed_chat_message_replays_clarification_options(app, monkeypat
     assert events[-1] == {"type": "done", "stream_stage": "clarification"}
 
 
-def test_stream_routed_chat_message_falls_through_when_demo_disabled(app, monkeypatch):
+def test_stream_routed_chat_message_falls_through_when_demo_disabled(
+    app, monkeypatch, override_settings
+):
     image_data_url = _seed_image_data_url("dual-case-recycling-chat-message-01-image_url.jpg")
     calls = {"count": 0}
 
@@ -548,7 +564,7 @@ def test_stream_routed_chat_message_falls_through_when_demo_disabled(app, monkey
     )
 
     with app.app_context():
-        monkeypatch.setitem(app.config, "AI_DEMO_REPLAY_ENABLED", False)
+        override_settings(ai_demo_replay_enabled=False)
         events = list(
             ai_conversation_service.stream_routed_chat_message(
                 user_id=None,

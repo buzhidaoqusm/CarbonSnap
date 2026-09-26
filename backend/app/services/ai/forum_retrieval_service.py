@@ -4,9 +4,8 @@ import re
 from collections import defaultdict
 from typing import Any
 
-from flask import current_app
-
 from app.ai.rag.indexing import build_forum_rag_index
+from app.core.config import get_settings
 from app.repositories.forum import forum_repository
 from app.services.ai.guardrails import scan_retrieved_text_for_injection
 
@@ -40,7 +39,7 @@ def retrieve_forum_references(
     safe_candidates = [item for item in aggregated if item.get("guardrail_status") == "passed"]
     blocked_candidates = [item for item in aggregated if item.get("guardrail_status") == "blocked"]
 
-    configured_final_top_k = int(current_app.config.get("FORUM_RAG_FINAL_TOP_K", 4) or 4)
+    configured_final_top_k = get_settings().forum_rag_final_top_k
     max_candidates = max(int(limit or 0), 1) if limit is not None else configured_final_top_k
     return {
         "query": normalized_query,
@@ -164,13 +163,13 @@ def _keyword_recall(query: str) -> list[dict[str, Any]]:
         ),
         reverse=True,
     )
-    top_k = int(current_app.config.get("FORUM_RAG_KEYWORD_TOP_K", 8) or 8)
+    top_k = get_settings().forum_rag_keyword_top_k
     return scored_hits[:top_k]
 
 
 def _vector_recall(query: str) -> list[dict[str, Any]]:
     try:
-        top_k = int(current_app.config.get("FORUM_RAG_VECTOR_TOP_K", 8) or 8)
+        top_k = get_settings().forum_rag_vector_top_k
         matches = build_forum_rag_index().search(query, top_k=top_k)
     except Exception:
         return []

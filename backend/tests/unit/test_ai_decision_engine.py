@@ -297,28 +297,6 @@ class TestDecisionModes:
         assert "prompt_memory" not in decision["shadow_decision"]
         assert calls == [True, False]
 
-    def test_invalid_mode_falls_back_to_llm_first(self, monkeypatch, app, override_settings):
-        override_settings(ai_decision_engine_mode="rollbackish")
-
-        def fake_pipeline(**kwargs):
-            return {
-                "engine_version": "decision-engine-v2",
-                "pipeline_label": kwargs["label"],
-                "intent": "general_chat",
-            }
-
-        monkeypatch.setattr(ai_decision_engine, "_run_decision_pipeline", fake_pipeline)
-
-        decision = ai_decision_engine.decide_message(
-            user_id=1,
-            conversation_id=2,
-            message="Thanks.",
-            image_data_url=None,
-        )
-
-        assert decision["decision_mode"] == "llm_first"
-        assert decision["pipeline_label"] == "llm_first"
-
 
 class TestDecisionPipeline:
     def test_follow_up_uses_resolver_and_keeps_target_case_when_confident(
@@ -742,24 +720,10 @@ class TestPersistenceAndHelpers:
             "needs_clarification": True,
         }
 
-    @pytest.mark.parametrize(
-        ("configured_value", "expected"),
-        [
-            ("bad-value", 0.65),
-            (-1, 0.0),
-            (2, 1.0),
-            (0.4, 0.4),
-        ],
-    )
-    def test_get_confidence_threshold_falls_back_and_clamps(
-        self, app, configured_value, expected, override_settings
-    ):
-        override_settings(ai_decision_confidence_threshold=configured_value)
-        assert ai_decision_engine._get_confidence_threshold() == expected
-
-    def test_get_engine_version_returns_default_for_blank_value(self, app, override_settings):
-        override_settings(ai_decision_engine_version="   ")
-        assert ai_decision_engine._get_engine_version() == "decision-engine-v2"
+    def test_get_confidence_threshold_reads_setting(self, app, override_settings):
+        # Range checks and defaults live in Settings (test_settings_validation).
+        override_settings(ai_decision_confidence_threshold=0.4)
+        assert ai_decision_engine._get_confidence_threshold() == 0.4
 
     def test_serialize_shadow_decision_omits_internal_fields(self):
         serialized = ai_decision_engine._serialize_shadow_decision(

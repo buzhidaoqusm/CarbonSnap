@@ -5,8 +5,9 @@ import re
 from collections.abc import Generator, Iterable
 from typing import Any
 
-from flask import current_app
 from openai import OpenAI, Timeout
+
+from app.core.config import get_settings
 
 # Reaching the provider should take well under a second; waiting the full read
 # timeout to learn it is unreachable only holds the worker longer.
@@ -18,36 +19,25 @@ class OpenRouterConfigError(RuntimeError):
 
 
 def _get_provider_name() -> str:
-    provider = (
-        str(current_app.config.get("LLM_PROVIDER", "openrouter") or "openrouter").strip().lower()
-    )
-    return provider or "openrouter"
+    return get_settings().llm_provider
 
 
 def _get_provider_settings() -> dict[str, str]:
-    provider = _get_provider_name()
+    config = get_settings()
 
-    if provider == "qwen":
+    if config.llm_provider == "qwen":
         return {
             "provider": "qwen",
-            "api_key": str(current_app.config.get("QWEN_API_KEY", "") or "").strip(),
-            "base_url": str(
-                current_app.config.get(
-                    "QWEN_BASE_URL",
-                    "https://dashscope.aliyuncs.com/compatible-mode/v1",
-                )
-                or ""
-            ).strip(),
-            "model": str(current_app.config.get("QWEN_MODEL", "qwen-plus") or "").strip(),
+            "api_key": config.qwen_api_key,
+            "base_url": config.qwen_base_url,
+            "model": config.qwen_model,
         }
 
     return {
         "provider": "openrouter",
-        "api_key": str(current_app.config.get("OPENROUTER_API_KEY", "") or "").strip(),
-        "base_url": str(
-            current_app.config.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1") or ""
-        ).strip(),
-        "model": str(current_app.config.get("OPENROUTER_MODEL", "openai/gpt-5.2") or "").strip(),
+        "api_key": config.openrouter_api_key,
+        "base_url": config.openrouter_base_url,
+        "model": config.openrouter_model,
     }
 
 
@@ -60,12 +50,12 @@ def _get_client() -> OpenAI:
     # Set on the client so every call gets it; without it the SDK waits up to
     # 600 s. For streams the read timeout bounds the gap between chunks, not
     # the whole response, so long answers are not cut off.
-    read_timeout = float(current_app.config.get("AI_LLM_TIMEOUT_SECONDS", 60) or 60)
+    config = get_settings()
     return OpenAI(
         base_url=settings["base_url"],
         api_key=api_key,
-        max_retries=int(current_app.config.get("AI_LLM_MAX_RETRIES", 2) or 0),
-        timeout=Timeout(read_timeout, connect=LLM_CONNECT_TIMEOUT_SECONDS),
+        max_retries=config.ai_llm_max_retries,
+        timeout=Timeout(config.ai_llm_timeout_seconds, connect=LLM_CONNECT_TIMEOUT_SECONDS),
     )
 
 
@@ -73,8 +63,8 @@ def _build_extra_headers() -> dict[str, str]:
     if _get_provider_name() != "openrouter":
         return {}
 
-    site_url = current_app.config.get("OPENROUTER_SITE_URL", "")
-    site_name = current_app.config.get("OPENROUTER_SITE_NAME", "")
+    site_url = get_settings().openrouter_site_url
+    site_name = get_settings().openrouter_site_name
 
     extra_headers: dict[str, str] = {}
     if site_url:
@@ -172,10 +162,7 @@ def _normalize_embedding_input(text: str) -> str:
 
 
 def _get_embedding_model() -> str:
-    model = str(current_app.config.get("FORUM_RAG_EMBEDDING_MODEL", "") or "").strip()
-    if model:
-        return model
-    return "text-embedding-v3"
+    return get_settings().forum_rag_embedding_model
 
 
 def _send_embedding_request(*, inputs: list[str], model: str | None = None) -> Any:
@@ -432,9 +419,10 @@ def _send_completion_request(
         # every caller has a fallback, so a slow one is abandoned rather than
         # retried: three retries on each of them is what let one chat turn
         # outlive gunicorn's worker timeout.
-        aux_timeout = float(current_app.config.get("AI_LLM_AUX_TIMEOUT_SECONDS", 15) or 15)
         client = client.with_options(
-            timeout=Timeout(aux_timeout, connect=LLM_CONNECT_TIMEOUT_SECONDS),
+            timeout=Timeout(
+                get_settings().ai_llm_aux_timeout_seconds, connect=LLM_CONNECT_TIMEOUT_SECONDS
+            ),
             max_retries=0,
         )
     model = _get_provider_settings()["model"]
@@ -476,11 +464,7 @@ def complete_with_tools(
     if extra_headers:
         request_payload["extra_headers"] = extra_headers
 
-    effective_timeout = (
-        timeout
-        if timeout is not None
-        else float(current_app.config.get("AI_LLM_TIMEOUT_SECONDS", 60) or 60)
-    )
+    effective_timeout = timeout if timeout is not None else get_settings().ai_llm_timeout_seconds
     request_payload["timeout"] = effective_timeout
 
     completion = client.chat.completions.create(**request_payload)

@@ -21,7 +21,7 @@ import json
 from collections.abc import Callable
 from typing import Any, TypedDict
 
-from flask import current_app
+from app.core.config import get_settings
 
 DEFAULT_MAX_ITERATIONS = 4
 
@@ -285,13 +285,7 @@ def _default_tools_schema(*, exclude_high_risk: bool) -> list[dict[str, Any]]:
 
 
 def _configured_max_iterations() -> int:
-    try:
-        return int(
-            current_app.config.get("AI_AGENT_MAX_ITERATIONS", DEFAULT_MAX_ITERATIONS)
-            or DEFAULT_MAX_ITERATIONS
-        )
-    except Exception:
-        return DEFAULT_MAX_ITERATIONS
+    return get_settings().ai_agent_max_iterations
 
 
 # ---------------------------------------------------------------------------
