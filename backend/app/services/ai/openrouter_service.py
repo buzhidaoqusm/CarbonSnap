@@ -6,7 +6,11 @@ from collections.abc import Generator, Iterable
 from typing import Any
 
 from flask import current_app
-from openai import OpenAI
+from openai import OpenAI, Timeout
+
+# Reaching the provider should take well under a second; waiting the full read
+# timeout to learn it is unreachable only holds the worker longer.
+LLM_CONNECT_TIMEOUT_SECONDS = 5.0
 
 
 class OpenRouterConfigError(RuntimeError):
@@ -53,10 +57,15 @@ def _get_client() -> OpenAI:
     if not api_key:
         raise OpenRouterConfigError(f"{settings['provider'].upper()} API key is not configured.")
 
+    # Set on the client so every call gets it; without it the SDK waits up to
+    # 600 s. For streams the read timeout bounds the gap between chunks, not
+    # the whole response, so long answers are not cut off.
+    read_timeout = float(current_app.config.get("AI_LLM_TIMEOUT_SECONDS", 60) or 60)
     return OpenAI(
         base_url=settings["base_url"],
         api_key=api_key,
         max_retries=int(current_app.config.get("AI_LLM_MAX_RETRIES", 2) or 0),
+        timeout=Timeout(read_timeout, connect=LLM_CONNECT_TIMEOUT_SECONDS),
     )
 
 
