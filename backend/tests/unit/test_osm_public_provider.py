@@ -44,12 +44,14 @@ class _FakeClient:
 
 class TestOSMPublicMapProvider:
     def test_search_nearby_recycling_points_retries_same_endpoint_before_failing_over(
-        self, app, monkeypatch
+        self, app, monkeypatch, override_settings
     ):
-        app.config["OSM_OVERPASS_URL"] = "https://primary.example/api/interpreter"
-        app.config["OSM_OVERPASS_FALLBACK_URLS"] = ["https://backup.example/api/interpreter"]
-        app.config["OSM_OVERPASS_MAX_ATTEMPTS_PER_ENDPOINT"] = 2
-        app.config["OSM_OVERPASS_RETRY_BACKOFF_MS"] = 0
+        override_settings(osm_overpass_url="https://primary.example/api/interpreter")
+        override_settings(
+            osm_overpass_fallback_urls_json='["https://backup.example/api/interpreter"]'
+        )
+        override_settings(osm_overpass_max_attempts_per_endpoint=2)
+        override_settings(osm_overpass_retry_backoff_ms=0)
 
         responses = {
             "https://primary.example/api/interpreter": [
@@ -87,12 +89,14 @@ class TestOSMPublicMapProvider:
         assert responses["https://primary.example/api/interpreter"] == []
 
     def test_search_nearby_recycling_points_falls_back_when_primary_overpass_fails(
-        self, app, monkeypatch
+        self, app, monkeypatch, override_settings
     ):
-        app.config["OSM_OVERPASS_URL"] = "https://primary.example/api/interpreter"
-        app.config["OSM_OVERPASS_FALLBACK_URLS"] = ["https://backup.example/api/interpreter"]
-        app.config["OSM_OVERPASS_MAX_ATTEMPTS_PER_ENDPOINT"] = 2
-        app.config["OSM_OVERPASS_RETRY_BACKOFF_MS"] = 0
+        override_settings(osm_overpass_url="https://primary.example/api/interpreter")
+        override_settings(
+            osm_overpass_fallback_urls_json='["https://backup.example/api/interpreter"]'
+        )
+        override_settings(osm_overpass_max_attempts_per_endpoint=2)
+        override_settings(osm_overpass_retry_backoff_ms=0)
 
         responses = {
             "https://primary.example/api/interpreter": [

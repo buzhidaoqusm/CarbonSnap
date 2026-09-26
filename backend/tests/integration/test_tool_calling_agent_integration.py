@@ -160,17 +160,17 @@ def _general_decision():
 
 
 def test_graph_agent_general_route_runs_tool_calling_agent_with_persistence(
-    app, monkeypatch, make_auth_headers
+    app, monkeypatch, make_auth_headers, override_settings
 ):
     """Full product path: Graph Agent general route -> tool-calling loop ->
     real tool execution -> persisted assistant message + trace."""
     from app.services.ai import ai_conversation_service, ai_decision_engine
     from app.services.ai.langgraph_agent import complete_graph_agent_message
 
-    app.config.update(
-        AI_GRAPH_AGENT_ENABLED=True,
-        AI_TOOL_CALLING_AGENT_ENABLED=True,
-        AI_DEMO_REPLAY_ENABLED=False,
+    override_settings(
+        ai_graph_agent_enabled=True,
+        ai_tool_calling_agent_enabled=True,
+        ai_demo_replay_enabled=False,
     )
     monkeypatch.setattr(ai_decision_engine, "decide_message", lambda **kwargs: _general_decision())
     # New-conversation title generation makes its own LLM call; pin it so the

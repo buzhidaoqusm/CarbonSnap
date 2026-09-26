@@ -17,10 +17,10 @@ class TestForumChunking:
         with app.app_context():
             assert normalize_forum_text("  hello \n   world  ") == "hello world"
 
-    def test_chunk_post_text_preserves_title_and_generates_metadata(self, app):
+    def test_chunk_post_text_preserves_title_and_generates_metadata(self, app, override_settings):
         with app.app_context():
-            app.config["FORUM_RAG_CHUNK_TARGET_TOKENS"] = 20
-            app.config["FORUM_RAG_CHUNK_OVERLAP_TOKENS"] = 3
+            override_settings(forum_rag_chunk_target_tokens=20)
+            override_settings(forum_rag_chunk_overlap_tokens=3)
 
             chunks = chunk_forum_post(
                 title="Bottle Recycling",

@@ -196,18 +196,17 @@ def test_explicit_timeout_is_passed_through(app, monkeypatch, patch_headers):
     assert captured_kwargs["timeout"] == 12.5
 
 
-def test_default_timeout_falls_back_to_app_config(app, monkeypatch, patch_headers):
+def test_default_timeout_falls_back_to_configured_setting(
+    app, monkeypatch, patch_headers, override_settings
+):
     completion = _make_completion(content="ok", tool_calls=None)
     fake_client = _install_client(monkeypatch, completion)
 
+    override_settings(ai_llm_timeout_seconds=42)
     with app.app_context():
-        app.config["AI_LLM_TIMEOUT_SECONDS"] = 42
-        try:
-            openrouter_service.complete_with_tools(
-                messages=[{"role": "user", "content": "hi"}],
-            )
-        finally:
-            app.config.pop("AI_LLM_TIMEOUT_SECONDS", None)
+        openrouter_service.complete_with_tools(
+            messages=[{"role": "user", "content": "hi"}],
+        )
 
     captured_kwargs = fake_client.chat.completions.calls[0]
     assert captured_kwargs["timeout"] == 42.0

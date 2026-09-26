@@ -48,11 +48,11 @@ def _general_decision():
 
 
 def test_ai_chat_uses_langgraph_when_feature_flag_enabled(
-    client, app, make_auth_headers, monkeypatch
+    client, app, make_auth_headers, monkeypatch, override_settings
 ):
-    app.config.update(
-        AI_GRAPH_AGENT_ENABLED=True,
-        AI_DEMO_REPLAY_ENABLED=False,
+    override_settings(
+        ai_graph_agent_enabled=True,
+        ai_demo_replay_enabled=False,
     )
     monkeypatch.setattr(
         "app.services.ai.ai_decision_engine.decide_message",
@@ -81,11 +81,11 @@ def test_ai_chat_uses_langgraph_when_feature_flag_enabled(
 
 
 def test_ai_chat_stream_uses_langgraph_when_feature_flag_enabled(
-    client, app, make_auth_headers, monkeypatch
+    client, app, make_auth_headers, monkeypatch, override_settings
 ):
-    app.config.update(
-        AI_GRAPH_AGENT_ENABLED=True,
-        AI_DEMO_REPLAY_ENABLED=False,
+    override_settings(
+        ai_graph_agent_enabled=True,
+        ai_demo_replay_enabled=False,
     )
     monkeypatch.setattr(
         "app.services.ai.ai_decision_engine.decide_message",
@@ -116,11 +116,11 @@ def test_ai_chat_stream_uses_langgraph_when_feature_flag_enabled(
 
 
 def test_ai_chat_keeps_existing_route_when_graph_agent_disabled(
-    client, app, make_auth_headers, monkeypatch
+    client, app, make_auth_headers, monkeypatch, override_settings
 ):
-    app.config.update(
-        AI_GRAPH_AGENT_ENABLED=False,
-        AI_DEMO_REPLAY_ENABLED=False,
+    override_settings(
+        ai_graph_agent_enabled=False,
+        ai_demo_replay_enabled=False,
     )
     monkeypatch.setattr(
         "app.services.ai.ai_decision_engine.decide_message",

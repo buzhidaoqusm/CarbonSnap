@@ -7,13 +7,13 @@ import pytest
 from app.services.ai import intent_router, memory_extractor, openrouter_service
 
 
-def test_client_applies_configured_timeout(app):
+def test_client_applies_configured_timeout(app, override_settings):
     # Regression: AI_LLM_TIMEOUT_SECONDS used to reach only complete_with_tools,
     # so the main chat path ran on the SDK's 600 s default and a hanging
     # provider held a worker until gunicorn killed it.
     with app.app_context():
-        app.config["OPENROUTER_API_KEY"] = "test-key"
-        app.config["AI_LLM_TIMEOUT_SECONDS"] = 42
+        override_settings(openrouter_api_key="test-key")
+        override_settings(ai_llm_timeout_seconds=42)
 
         client = openrouter_service._get_client()
 
@@ -44,9 +44,11 @@ def recording_client(app, monkeypatch):
     return client
 
 
-def test_auxiliary_call_uses_short_timeout_without_retries(app, recording_client):
+def test_auxiliary_call_uses_short_timeout_without_retries(
+    app, recording_client, override_settings
+):
     with app.app_context():
-        app.config["AI_LLM_AUX_TIMEOUT_SECONDS"] = 7
+        override_settings(ai_llm_aux_timeout_seconds=7)
         openrouter_service.complete_text(user_message="hi", auxiliary=True)
 
     (options,) = recording_client.options

@@ -57,6 +57,9 @@ os.environ.update(
         "OSM_OVERPASS_RETRY_BACKOFF_MS": "0",
         "AI_LLM_TIMEOUT_SECONDS": "5",
         "AI_LLM_MAX_RETRIES": "0",
+        "AI_DECISION_ENGINE_MODE": "llm_first",
+        "AI_DECISION_ENGINE_VERSION": "decision-engine-v2",
+        "AI_DECISION_CONFIDENCE_THRESHOLD": "0.65",
         # Optional subsystems stay off unless a test turns them on.
         "AI_GRAPH_AGENT_ENABLED": "false",
         "AI_NEO4J_GRAPHRAG_ENABLED": "false",
@@ -87,9 +90,6 @@ def app():
     flask_app.config.update(
         TESTING=True,
         JWT_ACCESS_TOKEN_EXPIRES=False,
-        AI_DECISION_ENGINE_MODE="llm_first",
-        AI_DECISION_ENGINE_VERSION="decision-engine-v2",
-        AI_DECISION_CONFIDENCE_THRESHOLD=0.65,
     )
     with flask_app.app_context():
         # Fail loudly rather than destroying a real database: db_session below
@@ -158,6 +158,30 @@ def restore_app_config(app):
     yield
     app.config.clear()
     app.config.update(original)
+
+
+@pytest.fixture
+def override_settings(app, monkeypatch):
+    """Change settings for one test: ``override_settings(ai_trace_enabled=False)``.
+
+    Updates both get_settings() and the legacy app.config keys, so a test works
+    whether the code under test has moved to get_settings() yet or not. Both
+    are restored when the test ends. Values are used as given, not validated.
+    """
+    from app.config.settings import legacy_config
+    from app.core import config
+
+    def apply(**changes):
+        unknown = sorted(set(changes) - set(config.Settings.model_fields))
+        # Settings ignores unknown names, so a typo here would silently change
+        # nothing and the test would pass for the wrong reason.
+        assert not unknown, f"Unknown settings: {unknown}"
+        updated = config.get_settings().model_copy(update=changes)
+        monkeypatch.setattr(config, "_override", updated)
+        app.config.update(legacy_config(updated))
+        return updated
+
+    return apply
 
 
 # ---------------------------------------------------------------------------

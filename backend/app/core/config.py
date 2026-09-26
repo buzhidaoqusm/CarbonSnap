@@ -196,6 +196,20 @@ def _env_file() -> Path:
 
 
 @lru_cache
-def get_settings() -> Settings:
+def _load_settings() -> Settings:
     """Parse the environment once; every later call returns the same object."""
     return Settings(_env_file=_env_file(), _env_file_encoding="utf-8")  # type: ignore[call-arg]
+
+
+# Set only by the tests' override_settings fixture, which restores it after
+# each test. Production code never assigns it.
+_override: Settings | None = None
+
+
+def get_settings() -> Settings:
+    return _override if _override is not None else _load_settings()
+
+
+def clear_settings_cache() -> None:
+    """Re-read the environment on the next get_settings() call."""
+    _load_settings.cache_clear()

@@ -82,8 +82,15 @@ def test_app_settings_expose_neo4j_config(app, monkeypatch):
     monkeypatch.setenv("NEO4J_PASSWORD", "password")
 
     from app.config.settings import load_app_settings
+    from app.core.config import clear_settings_cache
 
-    load_app_settings(app)
+    # Settings are parsed once per process; re-read them for the patched env,
+    # and again afterwards so later tests see the original environment.
+    clear_settings_cache()
+    try:
+        load_app_settings(app)
+    finally:
+        clear_settings_cache()
 
     assert app.config["NEO4J_URI"] == "bolt://localhost:7687"
     assert app.config["NEO4J_USERNAME"] == "neo4j"

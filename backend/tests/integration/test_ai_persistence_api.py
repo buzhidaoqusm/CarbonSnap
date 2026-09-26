@@ -62,9 +62,9 @@ def _extract_sse_payloads(response) -> list[dict]:
 
 class TestChatPersistenceApi:
     def test_authenticated_chat_persists_conversation_and_messages(
-        self, client, make_auth_headers, monkeypatch, app
+        self, client, make_auth_headers, monkeypatch, app, override_settings
     ):
-        app.config["AI_DEMO_REPLAY_ENABLED"] = False
+        override_settings(ai_demo_replay_enabled=False)
         _, headers = make_auth_headers()
 
         def fake_chat_with_openrouter(**kwargs):
@@ -213,9 +213,9 @@ class TestChatPersistenceApi:
         assert response.status_code == 401
 
     def test_stream_chat_persists_after_completion(
-        self, client, make_auth_headers, monkeypatch, app
+        self, client, make_auth_headers, monkeypatch, app, override_settings
     ):
-        app.config["AI_DEMO_REPLAY_ENABLED"] = False
+        override_settings(ai_demo_replay_enabled=False)
         _, headers = make_auth_headers()
 
         def fake_stream_chat_with_openrouter(**kwargs):

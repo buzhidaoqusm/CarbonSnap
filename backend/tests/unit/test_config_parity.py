@@ -22,7 +22,7 @@ import pytest
 from flask import Flask
 
 from app.config.settings import load_app_settings
-from app.core.config import get_settings
+from app.core.config import clear_settings_cache
 
 SNAPSHOT = Path(__file__).resolve().parents[1] / "fixtures" / "config_snapshot.json"
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -211,12 +211,12 @@ def _load_config(monkeypatch, tmp_path: Path, env: dict[str, str]) -> dict[str, 
         monkeypatch.setenv(name, value.replace("<tmp>", str(tmp_path)))
 
     # Settings are parsed once and cached; each scenario needs a fresh parse.
-    get_settings.cache_clear()
+    clear_settings_cache()
     flask_app = Flask("config-parity")
     try:
         load_app_settings(flask_app)
     finally:
-        get_settings.cache_clear()
+        clear_settings_cache()
     loaded = {key: flask_app.config[key] for key in sorted(flask_app.config)}
     # Only what load_app_settings owns: drop Flask's built-in defaults.
     baseline = Flask("baseline").config

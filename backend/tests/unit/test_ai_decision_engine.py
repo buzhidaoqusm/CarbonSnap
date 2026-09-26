@@ -106,9 +106,9 @@ def _case(case_id: int, predicted_item: str, stage: str) -> dict:
 
 class TestDecisionModes:
     def test_llm_first_mode_uses_safe_default_and_disables_business_fallback(
-        self, monkeypatch, app
+        self, monkeypatch, app, override_settings
     ):
-        app.config["AI_DECISION_ENGINE_MODE"] = "llm_first"
+        override_settings(ai_decision_engine_mode="llm_first")
 
         captured: dict[str, bool] = {}
         monkeypatch.setattr(ai_decision_engine, "get_prompt_memory_summary", lambda user_id: {})
@@ -161,8 +161,10 @@ class TestDecisionModes:
             "extractor_allow_heuristic_fallback": False,
         }
 
-    def test_compat_mode_uses_primary_pipeline_without_shadow_metadata(self, monkeypatch, app):
-        app.config["AI_DECISION_ENGINE_MODE"] = "compat"
+    def test_compat_mode_uses_primary_pipeline_without_shadow_metadata(
+        self, monkeypatch, app, override_settings
+    ):
+        override_settings(ai_decision_engine_mode="compat")
 
         captured: dict[str, bool] = {}
         monkeypatch.setattr(ai_decision_engine, "get_prompt_memory_summary", lambda user_id: {})
@@ -237,8 +239,10 @@ class TestDecisionModes:
             "extractor_allow_heuristic_fallback": True,
         }
 
-    def test_shadow_mode_persists_shadow_decision_metadata(self, monkeypatch, app):
-        app.config["AI_DECISION_ENGINE_MODE"] = "shadow"
+    def test_shadow_mode_persists_shadow_decision_metadata(
+        self, monkeypatch, app, override_settings
+    ):
+        override_settings(ai_decision_engine_mode="shadow")
 
         monkeypatch.setattr(ai_decision_engine, "get_prompt_memory_summary", lambda user_id: {})
         monkeypatch.setattr(
@@ -293,8 +297,8 @@ class TestDecisionModes:
         assert "prompt_memory" not in decision["shadow_decision"]
         assert calls == [True, False]
 
-    def test_invalid_mode_falls_back_to_llm_first(self, monkeypatch, app):
-        app.config["AI_DECISION_ENGINE_MODE"] = "rollbackish"
+    def test_invalid_mode_falls_back_to_llm_first(self, monkeypatch, app, override_settings):
+        override_settings(ai_decision_engine_mode="rollbackish")
 
         def fake_pipeline(**kwargs):
             return {
@@ -317,9 +321,11 @@ class TestDecisionModes:
 
 
 class TestDecisionPipeline:
-    def test_follow_up_uses_resolver_and_keeps_target_case_when_confident(self, monkeypatch, app):
-        app.config["AI_DECISION_ENGINE_MODE"] = "llm_first"
-        app.config["AI_DECISION_CONFIDENCE_THRESHOLD"] = 0.65
+    def test_follow_up_uses_resolver_and_keeps_target_case_when_confident(
+        self, monkeypatch, app, override_settings
+    ):
+        override_settings(ai_decision_engine_mode="llm_first")
+        override_settings(ai_decision_confidence_threshold=0.65)
 
         monkeypatch.setattr(ai_decision_engine, "get_prompt_memory_summary", lambda user_id: {})
         monkeypatch.setattr(
@@ -365,8 +371,10 @@ class TestDecisionPipeline:
         assert decision["needs_clarification"] is False
         assert decision["should_retrieve_forum"] is True
 
-    def test_resolver_clarification_overrides_router_clarification_fields(self, monkeypatch, app):
-        app.config["AI_DECISION_ENGINE_MODE"] = "llm_first"
+    def test_resolver_clarification_overrides_router_clarification_fields(
+        self, monkeypatch, app, override_settings
+    ):
+        override_settings(ai_decision_engine_mode="llm_first")
 
         monkeypatch.setattr(ai_decision_engine, "get_prompt_memory_summary", lambda user_id: {})
         monkeypatch.setattr(
@@ -428,10 +436,12 @@ class TestDecisionPipeline:
             {"label": "Battery", "reply_text": "I mean the batteries."},
         ]
 
-    def test_multi_case_low_confidence_follow_up_forces_clarification(self, monkeypatch, app):
-        app.config["AI_DECISION_ENGINE_MODE"] = "llm_first"
-        app.config["AI_DECISION_CONFIDENCE_THRESHOLD"] = 0.7
-        app.config["AI_DECISION_ENGINE_VERSION"] = "decision-engine-test"
+    def test_multi_case_low_confidence_follow_up_forces_clarification(
+        self, monkeypatch, app, override_settings
+    ):
+        override_settings(ai_decision_engine_mode="llm_first")
+        override_settings(ai_decision_confidence_threshold=0.7)
+        override_settings(ai_decision_engine_version="decision-engine-test")
 
         monkeypatch.setattr(ai_decision_engine, "get_prompt_memory_summary", lambda user_id: {})
         monkeypatch.setattr(
@@ -476,9 +486,11 @@ class TestDecisionPipeline:
         assert decision["target_case_id"] is None
         assert len(decision["clarification_options"]) == 2
 
-    def test_confidence_equal_to_threshold_keeps_target_case(self, monkeypatch, app):
-        app.config["AI_DECISION_ENGINE_MODE"] = "llm_first"
-        app.config["AI_DECISION_CONFIDENCE_THRESHOLD"] = 0.65
+    def test_confidence_equal_to_threshold_keeps_target_case(
+        self, monkeypatch, app, override_settings
+    ):
+        override_settings(ai_decision_engine_mode="llm_first")
+        override_settings(ai_decision_confidence_threshold=0.65)
 
         monkeypatch.setattr(ai_decision_engine, "get_prompt_memory_summary", lambda user_id: {})
         monkeypatch.setattr(
@@ -523,8 +535,8 @@ class TestDecisionPipeline:
 
 
 class TestForumRetrieval:
-    def test_recycling_intents_enable_forum_retrieval(self, monkeypatch, app):
-        app.config["AI_DECISION_ENGINE_MODE"] = "llm_first"
+    def test_recycling_intents_enable_forum_retrieval(self, monkeypatch, app, override_settings):
+        override_settings(ai_decision_engine_mode="llm_first")
 
         monkeypatch.setattr(ai_decision_engine, "get_prompt_memory_summary", lambda user_id: {})
         monkeypatch.setattr(
@@ -739,12 +751,14 @@ class TestPersistenceAndHelpers:
             (0.4, 0.4),
         ],
     )
-    def test_get_confidence_threshold_falls_back_and_clamps(self, app, configured_value, expected):
-        app.config["AI_DECISION_CONFIDENCE_THRESHOLD"] = configured_value
+    def test_get_confidence_threshold_falls_back_and_clamps(
+        self, app, configured_value, expected, override_settings
+    ):
+        override_settings(ai_decision_confidence_threshold=configured_value)
         assert ai_decision_engine._get_confidence_threshold() == expected
 
-    def test_get_engine_version_returns_default_for_blank_value(self, app):
-        app.config["AI_DECISION_ENGINE_VERSION"] = "   "
+    def test_get_engine_version_returns_default_for_blank_value(self, app, override_settings):
+        override_settings(ai_decision_engine_version="   ")
         assert ai_decision_engine._get_engine_version() == "decision-engine-v2"
 
     def test_serialize_shadow_decision_omits_internal_fields(self):
