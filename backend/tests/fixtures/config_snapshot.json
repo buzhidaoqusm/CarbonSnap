@@ -1,0 +1,365 @@
+{
+  "blanks": {
+    "AI_AGENT_MAX_ITERATIONS": 4,
+    "AI_BROWSER_LOCATION_TTL_MINUTES": 60,
+    "AI_DECISION_CONFIDENCE_THRESHOLD": 0.65,
+    "AI_DECISION_ENGINE_MODE": "llm_first",
+    "AI_DECISION_ENGINE_VERSION": "decision-engine-v2",
+    "AI_DEMO_REPLAY_CHUNK_SIZE": 120,
+    "AI_DEMO_REPLAY_ENABLED": false,
+    "AI_EMISSION_FACTORS": {
+      "aluminum can": 2.5,
+      "battery": 3.8,
+      "cardboard": 0.8,
+      "default": 1.0,
+      "electronics": 3.2,
+      "glass": 0.5,
+      "metal": 1.9,
+      "metal can": 2.1,
+      "paper": 1.0,
+      "plastic": 1.4,
+      "plastic bottle": 1.5
+    },
+    "AI_GRAPH_AGENT_ENABLED": false,
+    "AI_LLM_AUX_TIMEOUT_SECONDS": 15.0,
+    "AI_LLM_MAX_RETRIES": 2,
+    "AI_LLM_TIMEOUT_SECONDS": 60.0,
+    "AI_MANUAL_LOCATION_TTL_HOURS": 24,
+    "AI_MAP_SEARCH_LIMIT": 12,
+    "AI_MAP_SEARCH_RADIUS_METERS": 3000,
+    "AI_NEO4J_GRAPHRAG_ENABLED": false,
+    "AI_OSM_RECYCLING_TAGS": [
+      {
+        "key": "amenity",
+        "value": "recycling"
+      },
+      {
+        "key": "recycling_type",
+        "value": "centre"
+      },
+      {
+        "key": "recycling_type",
+        "value": "container"
+      },
+      {
+        "key": "amenity",
+        "value": "waste_disposal"
+      },
+      {
+        "key": "amenity",
+        "value": "waste_transfer_station"
+      }
+    ],
+    "AI_PROMPTOPS_SHADOW_ENABLED": false,
+    "AI_SHORT_TERM_MEMORY_TURNS": 10,
+    "AI_TOOL_CALLING_AGENT_ENABLED": false,
+    "AI_TOOL_SELECTION_MODE": "",
+    "AI_TOOL_SELECTION_SHADOW_LOG": "",
+    "AI_TRACE_ENABLED": true,
+    "AI_TRACE_INCLUDE_RETRIEVAL_EXCERPTS": true,
+    "FORUM_RAG_CHUNK_OVERLAP_TOKENS": 70,
+    "FORUM_RAG_CHUNK_TARGET_TOKENS": 420,
+    "FORUM_RAG_EMBEDDING_MODEL": "text-embedding-v3",
+    "FORUM_RAG_FAISS_DIR": "<repo>/data/faiss",
+    "FORUM_RAG_FINAL_TOP_K": 4,
+    "FORUM_RAG_KEYWORD_TOP_K": 8,
+    "FORUM_RAG_VECTOR_TOP_K": 8,
+    "JWT_ACCESS_TOKEN_EXPIRES": {
+      "timedelta_seconds": 604800.0
+    },
+    "JWT_SECRET_KEY": "dev-secret-change-in-production",
+    "LLM_PROVIDER": "openrouter",
+    "NEO4J_PASSWORD": "",
+    "NEO4J_URI": "",
+    "NEO4J_USERNAME": "",
+    "OPENROUTER_API_KEY": "",
+    "OPENROUTER_BASE_URL": "https://openrouter.ai/api/v1",
+    "OPENROUTER_MODEL": "openai/gpt-5.2",
+    "OPENROUTER_SITE_NAME": "CarbonSnap",
+    "OPENROUTER_SITE_URL": "",
+    "OSM_NOMINATIM_URL": "https://nominatim.openstreetmap.org",
+    "OSM_OVERPASS_CONNECT_TIMEOUT_SECONDS": 8.0,
+    "OSM_OVERPASS_FALLBACK_URLS": [
+      "https://overpass.kumi.systems/api/interpreter",
+      "https://overpass.private.coffee/api/interpreter"
+    ],
+    "OSM_OVERPASS_MAX_ATTEMPTS_PER_ENDPOINT": 2,
+    "OSM_OVERPASS_RETRY_BACKOFF_MS": 400,
+    "OSM_OVERPASS_TIMEOUT_SECONDS": 30.0,
+    "OSM_OVERPASS_URL": "https://overpass-api.de/api/interpreter",
+    "OSM_USER_AGENT": "CarbonSnap/0.1 (development)",
+    "QWEN_API_KEY": "",
+    "QWEN_BASE_URL": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "QWEN_MODEL": "qwen-plus",
+    "SQLALCHEMY_DATABASE_URI": "sqlite:///<repo>/data/carbonsnap.db",
+    "SQLALCHEMY_TRACK_MODIFICATIONS": false,
+    "UPLOAD_ROOT": "<repo>/data/uploads",
+    "UPLOAD_URL_PREFIX": "/api/uploads"
+  },
+  "defaults": {
+    "AI_AGENT_MAX_ITERATIONS": 4,
+    "AI_BROWSER_LOCATION_TTL_MINUTES": 60,
+    "AI_DECISION_CONFIDENCE_THRESHOLD": 0.65,
+    "AI_DECISION_ENGINE_MODE": "llm_first",
+    "AI_DECISION_ENGINE_VERSION": "decision-engine-v2",
+    "AI_DEMO_REPLAY_CHUNK_SIZE": 120,
+    "AI_DEMO_REPLAY_ENABLED": false,
+    "AI_EMISSION_FACTORS": {
+      "aluminum can": 2.5,
+      "battery": 3.8,
+      "cardboard": 0.8,
+      "default": 1.0,
+      "electronics": 3.2,
+      "glass": 0.5,
+      "metal": 1.9,
+      "metal can": 2.1,
+      "paper": 1.0,
+      "plastic": 1.4,
+      "plastic bottle": 1.5
+    },
+    "AI_GRAPH_AGENT_ENABLED": false,
+    "AI_LLM_AUX_TIMEOUT_SECONDS": 15.0,
+    "AI_LLM_MAX_RETRIES": 2,
+    "AI_LLM_TIMEOUT_SECONDS": 60.0,
+    "AI_MANUAL_LOCATION_TTL_HOURS": 24,
+    "AI_MAP_SEARCH_LIMIT": 12,
+    "AI_MAP_SEARCH_RADIUS_METERS": 3000,
+    "AI_NEO4J_GRAPHRAG_ENABLED": false,
+    "AI_OSM_RECYCLING_TAGS": [
+      {
+        "key": "amenity",
+        "value": "recycling"
+      },
+      {
+        "key": "recycling_type",
+        "value": "centre"
+      },
+      {
+        "key": "recycling_type",
+        "value": "container"
+      },
+      {
+        "key": "amenity",
+        "value": "waste_disposal"
+      },
+      {
+        "key": "amenity",
+        "value": "waste_transfer_station"
+      }
+    ],
+    "AI_PROMPTOPS_SHADOW_ENABLED": false,
+    "AI_SHORT_TERM_MEMORY_TURNS": 10,
+    "AI_TOOL_CALLING_AGENT_ENABLED": false,
+    "AI_TOOL_SELECTION_MODE": "",
+    "AI_TOOL_SELECTION_SHADOW_LOG": "",
+    "AI_TRACE_ENABLED": true,
+    "AI_TRACE_INCLUDE_RETRIEVAL_EXCERPTS": true,
+    "FORUM_RAG_CHUNK_OVERLAP_TOKENS": 70,
+    "FORUM_RAG_CHUNK_TARGET_TOKENS": 420,
+    "FORUM_RAG_EMBEDDING_MODEL": "text-embedding-v3",
+    "FORUM_RAG_FAISS_DIR": "<repo>/data/faiss",
+    "FORUM_RAG_FINAL_TOP_K": 4,
+    "FORUM_RAG_KEYWORD_TOP_K": 8,
+    "FORUM_RAG_VECTOR_TOP_K": 8,
+    "JWT_ACCESS_TOKEN_EXPIRES": {
+      "timedelta_seconds": 604800.0
+    },
+    "JWT_SECRET_KEY": "dev-secret-change-in-production",
+    "LLM_PROVIDER": "openrouter",
+    "NEO4J_PASSWORD": "",
+    "NEO4J_URI": "",
+    "NEO4J_USERNAME": "",
+    "OPENROUTER_API_KEY": "",
+    "OPENROUTER_BASE_URL": "https://openrouter.ai/api/v1",
+    "OPENROUTER_MODEL": "openai/gpt-5.2",
+    "OPENROUTER_SITE_NAME": "CarbonSnap",
+    "OPENROUTER_SITE_URL": "",
+    "OSM_NOMINATIM_URL": "https://nominatim.openstreetmap.org",
+    "OSM_OVERPASS_CONNECT_TIMEOUT_SECONDS": 8.0,
+    "OSM_OVERPASS_FALLBACK_URLS": [
+      "https://overpass.kumi.systems/api/interpreter",
+      "https://overpass.private.coffee/api/interpreter"
+    ],
+    "OSM_OVERPASS_MAX_ATTEMPTS_PER_ENDPOINT": 2,
+    "OSM_OVERPASS_RETRY_BACKOFF_MS": 400,
+    "OSM_OVERPASS_TIMEOUT_SECONDS": 30.0,
+    "OSM_OVERPASS_URL": "https://overpass-api.de/api/interpreter",
+    "OSM_USER_AGENT": "CarbonSnap/0.1 (development)",
+    "QWEN_API_KEY": "",
+    "QWEN_BASE_URL": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "QWEN_MODEL": "qwen-plus",
+    "SQLALCHEMY_DATABASE_URI": "sqlite:///<repo>/data/carbonsnap.db",
+    "SQLALCHEMY_TRACK_MODIFICATIONS": false,
+    "UPLOAD_ROOT": "<repo>/data/uploads",
+    "UPLOAD_URL_PREFIX": "/api/uploads"
+  },
+  "malformed_json": {
+    "AI_AGENT_MAX_ITERATIONS": 4,
+    "AI_BROWSER_LOCATION_TTL_MINUTES": 60,
+    "AI_DECISION_CONFIDENCE_THRESHOLD": 0.65,
+    "AI_DECISION_ENGINE_MODE": "llm_first",
+    "AI_DECISION_ENGINE_VERSION": "decision-engine-v2",
+    "AI_DEMO_REPLAY_CHUNK_SIZE": 120,
+    "AI_DEMO_REPLAY_ENABLED": false,
+    "AI_EMISSION_FACTORS": {
+      "aluminum can": 2.5,
+      "battery": 3.8,
+      "cardboard": 0.8,
+      "default": 1.0,
+      "electronics": 3.2,
+      "glass": 0.5,
+      "metal": 1.9,
+      "metal can": 2.1,
+      "paper": 1.0,
+      "plastic": 1.4,
+      "plastic bottle": 1.5
+    },
+    "AI_GRAPH_AGENT_ENABLED": false,
+    "AI_LLM_AUX_TIMEOUT_SECONDS": 15.0,
+    "AI_LLM_MAX_RETRIES": 2,
+    "AI_LLM_TIMEOUT_SECONDS": 60.0,
+    "AI_MANUAL_LOCATION_TTL_HOURS": 24,
+    "AI_MAP_SEARCH_LIMIT": 12,
+    "AI_MAP_SEARCH_RADIUS_METERS": 3000,
+    "AI_NEO4J_GRAPHRAG_ENABLED": false,
+    "AI_OSM_RECYCLING_TAGS": [
+      {
+        "key": "amenity",
+        "value": "recycling"
+      },
+      {
+        "key": "recycling_type",
+        "value": "centre"
+      },
+      {
+        "key": "recycling_type",
+        "value": "container"
+      },
+      {
+        "key": "amenity",
+        "value": "waste_disposal"
+      },
+      {
+        "key": "amenity",
+        "value": "waste_transfer_station"
+      }
+    ],
+    "AI_PROMPTOPS_SHADOW_ENABLED": false,
+    "AI_SHORT_TERM_MEMORY_TURNS": 10,
+    "AI_TOOL_CALLING_AGENT_ENABLED": false,
+    "AI_TOOL_SELECTION_MODE": "",
+    "AI_TOOL_SELECTION_SHADOW_LOG": "",
+    "AI_TRACE_ENABLED": true,
+    "AI_TRACE_INCLUDE_RETRIEVAL_EXCERPTS": true,
+    "FORUM_RAG_CHUNK_OVERLAP_TOKENS": 70,
+    "FORUM_RAG_CHUNK_TARGET_TOKENS": 420,
+    "FORUM_RAG_EMBEDDING_MODEL": "text-embedding-v3",
+    "FORUM_RAG_FAISS_DIR": "<repo>/data/faiss",
+    "FORUM_RAG_FINAL_TOP_K": 4,
+    "FORUM_RAG_KEYWORD_TOP_K": 8,
+    "FORUM_RAG_VECTOR_TOP_K": 8,
+    "JWT_ACCESS_TOKEN_EXPIRES": {
+      "timedelta_seconds": 604800.0
+    },
+    "JWT_SECRET_KEY": "dev-secret-change-in-production",
+    "LLM_PROVIDER": "openrouter",
+    "NEO4J_PASSWORD": "",
+    "NEO4J_URI": "",
+    "NEO4J_USERNAME": "",
+    "OPENROUTER_API_KEY": "",
+    "OPENROUTER_BASE_URL": "https://openrouter.ai/api/v1",
+    "OPENROUTER_MODEL": "openai/gpt-5.2",
+    "OPENROUTER_SITE_NAME": "CarbonSnap",
+    "OPENROUTER_SITE_URL": "",
+    "OSM_NOMINATIM_URL": "https://nominatim.openstreetmap.org",
+    "OSM_OVERPASS_CONNECT_TIMEOUT_SECONDS": 8.0,
+    "OSM_OVERPASS_FALLBACK_URLS": [
+      "https://overpass.kumi.systems/api/interpreter",
+      "https://overpass.private.coffee/api/interpreter"
+    ],
+    "OSM_OVERPASS_MAX_ATTEMPTS_PER_ENDPOINT": 2,
+    "OSM_OVERPASS_RETRY_BACKOFF_MS": 400,
+    "OSM_OVERPASS_TIMEOUT_SECONDS": 30.0,
+    "OSM_OVERPASS_URL": "https://overpass-api.de/api/interpreter",
+    "OSM_USER_AGENT": "CarbonSnap/0.1 (development)",
+    "QWEN_API_KEY": "",
+    "QWEN_BASE_URL": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "QWEN_MODEL": "qwen-plus",
+    "SQLALCHEMY_DATABASE_URI": "sqlite:///<repo>/data/carbonsnap.db",
+    "SQLALCHEMY_TRACK_MODIFICATIONS": false,
+    "UPLOAD_ROOT": "<repo>/data/uploads",
+    "UPLOAD_URL_PREFIX": "/api/uploads"
+  },
+  "overrides": {
+    "AI_AGENT_MAX_ITERATIONS": 7,
+    "AI_BROWSER_LOCATION_TTL_MINUTES": 15,
+    "AI_DECISION_CONFIDENCE_THRESHOLD": 0.8,
+    "AI_DECISION_ENGINE_MODE": "compat",
+    "AI_DECISION_ENGINE_VERSION": "decision-engine-v9",
+    "AI_DEMO_REPLAY_CHUNK_SIZE": 64,
+    "AI_DEMO_REPLAY_ENABLED": true,
+    "AI_EMISSION_FACTORS": {
+      "default": 0.5,
+      "plastic": 2.0
+    },
+    "AI_GRAPH_AGENT_ENABLED": true,
+    "AI_LLM_AUX_TIMEOUT_SECONDS": 5.0,
+    "AI_LLM_MAX_RETRIES": 0,
+    "AI_LLM_TIMEOUT_SECONDS": 30.5,
+    "AI_MANUAL_LOCATION_TTL_HOURS": 48,
+    "AI_MAP_SEARCH_LIMIT": 3,
+    "AI_MAP_SEARCH_RADIUS_METERS": 500,
+    "AI_NEO4J_GRAPHRAG_ENABLED": true,
+    "AI_OSM_RECYCLING_TAGS": [
+      {
+        "key": "amenity",
+        "value": "bin"
+      }
+    ],
+    "AI_PROMPTOPS_SHADOW_ENABLED": true,
+    "AI_SHORT_TERM_MEMORY_TURNS": 4,
+    "AI_TOOL_CALLING_AGENT_ENABLED": true,
+    "AI_TOOL_SELECTION_MODE": "shadow",
+    "AI_TOOL_SELECTION_SHADOW_LOG": "/var/log/shadow.jsonl",
+    "AI_TRACE_ENABLED": false,
+    "AI_TRACE_INCLUDE_RETRIEVAL_EXCERPTS": false,
+    "FORUM_RAG_CHUNK_OVERLAP_TOKENS": 10,
+    "FORUM_RAG_CHUNK_TARGET_TOKENS": 200,
+    "FORUM_RAG_EMBEDDING_MODEL": "embed-x",
+    "FORUM_RAG_FAISS_DIR": "<tmp>/faiss",
+    "FORUM_RAG_FINAL_TOP_K": 2,
+    "FORUM_RAG_KEYWORD_TOP_K": 5,
+    "FORUM_RAG_VECTOR_TOP_K": 6,
+    "JWT_ACCESS_TOKEN_EXPIRES": {
+      "timedelta_seconds": 604800.0
+    },
+    "JWT_SECRET_KEY": "s3cret",
+    "LLM_PROVIDER": "qwen",
+    "NEO4J_PASSWORD": "pw",
+    "NEO4J_URI": "bolt://neo:7687",
+    "NEO4J_USERNAME": "neo",
+    "OPENROUTER_API_KEY": "or-key",
+    "OPENROUTER_BASE_URL": "https://or.example/v1",
+    "OPENROUTER_MODEL": "model-x",
+    "OPENROUTER_SITE_NAME": "Site",
+    "OPENROUTER_SITE_URL": "https://site.example",
+    "OSM_NOMINATIM_URL": "https://nominatim.example",
+    "OSM_OVERPASS_CONNECT_TIMEOUT_SECONDS": 2.0,
+    "OSM_OVERPASS_FALLBACK_URLS": [
+      "https://a.example",
+      "https://b.example"
+    ],
+    "OSM_OVERPASS_MAX_ATTEMPTS_PER_ENDPOINT": 4,
+    "OSM_OVERPASS_RETRY_BACKOFF_MS": 100,
+    "OSM_OVERPASS_TIMEOUT_SECONDS": 12.5,
+    "OSM_OVERPASS_URL": "https://overpass.example/api",
+    "OSM_USER_AGENT": "Agent/1",
+    "QWEN_API_KEY": "qwen-key",
+    "QWEN_BASE_URL": "https://qwen.example/v1",
+    "QWEN_MODEL": "qwen-max",
+    "SQLALCHEMY_DATABASE_URI": "postgresql+psycopg://u:p@db:5432/app",
+    "SQLALCHEMY_TRACK_MODIFICATIONS": false,
+    "UPLOAD_ROOT": "<tmp>/uploads",
+    "UPLOAD_URL_PREFIX": "/files"
+  }
+}
