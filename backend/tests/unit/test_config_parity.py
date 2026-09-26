@@ -22,6 +22,7 @@ import pytest
 from flask import Flask
 
 from app.config.settings import load_app_settings
+from app.core.config import get_settings
 
 SNAPSHOT = Path(__file__).resolve().parents[1] / "fixtures" / "config_snapshot.json"
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -209,8 +210,13 @@ def _load_config(monkeypatch, tmp_path: Path, env: dict[str, str]) -> dict[str, 
     for name, value in env.items():
         monkeypatch.setenv(name, value.replace("<tmp>", str(tmp_path)))
 
+    # Settings are parsed once and cached; each scenario needs a fresh parse.
+    get_settings.cache_clear()
     flask_app = Flask("config-parity")
-    load_app_settings(flask_app)
+    try:
+        load_app_settings(flask_app)
+    finally:
+        get_settings.cache_clear()
     loaded = {key: flask_app.config[key] for key in sorted(flask_app.config)}
     # Only what load_app_settings owns: drop Flask's built-in defaults.
     baseline = Flask("baseline").config
@@ -233,3 +239,25 @@ def test_config_matches_snapshot(scenario, monkeypatch, tmp_path):
 
     assert scenario in snapshot, "no snapshot recorded; run with UPDATE_CONFIG_SNAPSHOT=1"
     assert produced == snapshot[scenario]
+
+
+def test_unrecognised_boolean_fails_at_startup(monkeypatch):
+    # Deliberate change from the old loader, which silently used the default:
+    # a typo in a feature flag should stop the app, not quietly flip it.
+    from pydantic import ValidationError
+
+    from app.core.config import Settings
+
+    monkeypatch.setenv("AI_TRACE_ENABLED", "maybe")
+    with pytest.raises(ValidationError, match="ai_trace_enabled"):
+        Settings(_env_file=None)
+
+
+def test_settings_cannot_be_changed_at_runtime():
+    from pydantic import ValidationError
+
+    from app.core.config import Settings
+
+    settings = Settings(_env_file=None)
+    with pytest.raises(ValidationError):
+        settings.ai_llm_timeout_seconds = 1  # type: ignore[misc]

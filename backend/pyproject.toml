@@ -18,6 +18,7 @@ dependencies = [
     "python-dotenv==1.0.1",
     "Werkzeug>=3.0.0",
     "gunicorn==25.3.0",
+    "pydantic-settings==2.15.0",
 ]
 
 [dependency-groups]
@@ -73,6 +74,8 @@ files = [
     "app/services/ai/tool_selection_shadow.py",
     "app/services/ai/guardrails.py",
     "app/services/ai/prompt_registry.py",
+    "app/core/config.py",
+    "app/config/settings.py",
 ]
 follow_imports = "silent"
 ignore_missing_imports = true

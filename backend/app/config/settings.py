@@ -1,234 +1,91 @@
-import os
+"""Flask glue for app.core.config.Settings.
+
+Parsing and defaults live in app/core/config.py. This module copies them into
+app.config under the old key names, so Flask extensions (SQLAlchemy, JWT) and
+code not yet moved to get_settings() keep working while P1 migrates callers.
+"""
+
 from datetime import timedelta
-from json import loads as json_loads
-from pathlib import Path
 
 from dotenv import load_dotenv
 from flask import Flask
 
+from app.core.config import _env_file, get_settings
+
 
 def load_app_settings(app: Flask) -> None:
-    backend_root = Path(__file__).resolve().parents[2]
-    # ENV_FILE lets tests, containers and CI point somewhere else (or at an
-    # empty file) instead of picking up a developer's local .env.
-    env_path = Path(os.getenv("ENV_FILE", backend_root / ".env"))
+    # Still exported to os.environ for the few callers that read os.getenv
+    # directly; removed once they read get_settings() instead.
+    load_dotenv(dotenv_path=_env_file(), override=False)
+    settings = get_settings()
 
-    load_dotenv(dotenv_path=env_path, override=False)
+    # Directories are created at startup, not while parsing settings.
+    settings.forum_rag_faiss_dir.mkdir(parents=True, exist_ok=True)
+    settings.upload_root.mkdir(parents=True, exist_ok=True)
 
-    # Database
-    _db_default = f"sqlite:///{backend_root.parent / 'data' / 'carbonsnap.db'}"
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", _db_default)
-    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
-    # JWT — override JWT_SECRET_KEY in production via .env
-    app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "dev-secret-change-in-production")
-    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(days=7)
-
-    app.config["LLM_PROVIDER"] = (
-        os.getenv("LLM_PROVIDER", "openrouter").strip().lower() or "openrouter"
+    app.config.update(
+        # Flask extensions
+        SQLALCHEMY_DATABASE_URI=settings.database_url,
+        SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        JWT_SECRET_KEY=settings.jwt_secret_key,
+        JWT_ACCESS_TOKEN_EXPIRES=timedelta(days=7),
+        # LLM provider
+        LLM_PROVIDER=settings.llm_provider,
+        OPENROUTER_API_KEY=settings.openrouter_api_key,
+        OPENROUTER_BASE_URL=settings.openrouter_base_url,
+        OPENROUTER_MODEL=settings.openrouter_model,
+        OPENROUTER_SITE_URL=settings.openrouter_site_url,
+        OPENROUTER_SITE_NAME=settings.openrouter_site_name,
+        QWEN_API_KEY=settings.qwen_api_key,
+        QWEN_BASE_URL=settings.qwen_base_url,
+        QWEN_MODEL=settings.qwen_model,
+        AI_LLM_TIMEOUT_SECONDS=settings.ai_llm_timeout_seconds,
+        AI_LLM_AUX_TIMEOUT_SECONDS=settings.ai_llm_aux_timeout_seconds,
+        AI_LLM_MAX_RETRIES=settings.ai_llm_max_retries,
+        # OpenStreetMap
+        OSM_NOMINATIM_URL=settings.osm_nominatim_url,
+        OSM_OVERPASS_URL=settings.osm_overpass_url,
+        OSM_OVERPASS_FALLBACK_URLS=settings.osm_overpass_fallback_urls,
+        OSM_OVERPASS_TIMEOUT_SECONDS=settings.osm_overpass_timeout_seconds,
+        OSM_OVERPASS_CONNECT_TIMEOUT_SECONDS=settings.osm_overpass_connect_timeout_seconds,
+        OSM_OVERPASS_MAX_ATTEMPTS_PER_ENDPOINT=settings.osm_overpass_max_attempts_per_endpoint,
+        OSM_OVERPASS_RETRY_BACKOFF_MS=settings.osm_overpass_retry_backoff_ms,
+        OSM_USER_AGENT=settings.osm_user_agent,
+        AI_OSM_RECYCLING_TAGS=settings.ai_osm_recycling_tags,
+        # Location and map search
+        AI_BROWSER_LOCATION_TTL_MINUTES=settings.ai_browser_location_ttl_minutes,
+        AI_MANUAL_LOCATION_TTL_HOURS=settings.ai_manual_location_ttl_hours,
+        AI_MAP_SEARCH_RADIUS_METERS=settings.ai_map_search_radius_meters,
+        AI_MAP_SEARCH_LIMIT=settings.ai_map_search_limit,
+        # Conversation, decision engine and agents
+        AI_SHORT_TERM_MEMORY_TURNS=settings.ai_short_term_memory_turns,
+        AI_DECISION_ENGINE_VERSION=settings.ai_decision_engine_version,
+        AI_DECISION_CONFIDENCE_THRESHOLD=settings.ai_decision_confidence_threshold,
+        AI_DECISION_ENGINE_MODE=settings.ai_decision_engine_mode,
+        AI_TRACE_ENABLED=settings.ai_trace_enabled,
+        AI_TRACE_INCLUDE_RETRIEVAL_EXCERPTS=settings.ai_trace_include_retrieval_excerpts,
+        AI_GRAPH_AGENT_ENABLED=settings.ai_graph_agent_enabled,
+        AI_TOOL_CALLING_AGENT_ENABLED=settings.ai_tool_calling_agent_enabled,
+        AI_TOOL_SELECTION_MODE=settings.ai_tool_selection_mode,
+        AI_TOOL_SELECTION_SHADOW_LOG=settings.ai_tool_selection_shadow_log,
+        AI_AGENT_MAX_ITERATIONS=settings.ai_agent_max_iterations,
+        AI_PROMPTOPS_SHADOW_ENABLED=settings.ai_promptops_shadow_enabled,
+        AI_DEMO_REPLAY_ENABLED=settings.ai_demo_replay_enabled,
+        AI_DEMO_REPLAY_CHUNK_SIZE=settings.ai_demo_replay_chunk_size,
+        AI_EMISSION_FACTORS=settings.ai_emission_factors,
+        # Forum RAG / graph
+        FORUM_RAG_CHUNK_TARGET_TOKENS=settings.forum_rag_chunk_target_tokens,
+        FORUM_RAG_CHUNK_OVERLAP_TOKENS=settings.forum_rag_chunk_overlap_tokens,
+        FORUM_RAG_KEYWORD_TOP_K=settings.forum_rag_keyword_top_k,
+        FORUM_RAG_VECTOR_TOP_K=settings.forum_rag_vector_top_k,
+        FORUM_RAG_FINAL_TOP_K=settings.forum_rag_final_top_k,
+        FORUM_RAG_FAISS_DIR=str(settings.forum_rag_faiss_dir),
+        FORUM_RAG_EMBEDDING_MODEL=settings.forum_rag_embedding_model,
+        AI_NEO4J_GRAPHRAG_ENABLED=settings.ai_neo4j_graphrag_enabled,
+        NEO4J_URI=settings.neo4j_uri,
+        NEO4J_USERNAME=settings.neo4j_username,
+        NEO4J_PASSWORD=settings.neo4j_password,
+        # Uploads
+        UPLOAD_ROOT=str(settings.upload_root),
+        UPLOAD_URL_PREFIX=settings.upload_url_prefix,
     )
-    app.config["OPENROUTER_API_KEY"] = os.getenv("OPENROUTER_API_KEY", "").strip()
-    app.config["OPENROUTER_BASE_URL"] = os.getenv(
-        "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
-    ).strip()
-    app.config["OPENROUTER_MODEL"] = os.getenv("OPENROUTER_MODEL", "openai/gpt-5.2").strip()
-    app.config["OPENROUTER_SITE_URL"] = os.getenv("OPENROUTER_SITE_URL", "").strip()
-    app.config["OPENROUTER_SITE_NAME"] = os.getenv("OPENROUTER_SITE_NAME", "CarbonSnap").strip()
-    app.config["QWEN_API_KEY"] = os.getenv("QWEN_API_KEY", "").strip()
-    app.config["QWEN_BASE_URL"] = os.getenv(
-        "QWEN_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"
-    ).strip()
-    app.config["QWEN_MODEL"] = os.getenv("QWEN_MODEL", "qwen-plus").strip()
-    app.config["OSM_NOMINATIM_URL"] = os.getenv(
-        "OSM_NOMINATIM_URL", "https://nominatim.openstreetmap.org"
-    ).strip()
-    app.config["OSM_OVERPASS_URL"] = os.getenv(
-        "OSM_OVERPASS_URL", "https://overpass-api.de/api/interpreter"
-    ).strip()
-    app.config["OSM_OVERPASS_FALLBACK_URLS"] = _load_overpass_fallback_urls(
-        primary_url=app.config["OSM_OVERPASS_URL"]
-    )
-    app.config["OSM_OVERPASS_TIMEOUT_SECONDS"] = float(
-        os.getenv("OSM_OVERPASS_TIMEOUT_SECONDS", "30").strip()
-    )
-    app.config["OSM_OVERPASS_CONNECT_TIMEOUT_SECONDS"] = float(
-        os.getenv("OSM_OVERPASS_CONNECT_TIMEOUT_SECONDS", "8").strip()
-    )
-    app.config["OSM_OVERPASS_MAX_ATTEMPTS_PER_ENDPOINT"] = int(
-        os.getenv("OSM_OVERPASS_MAX_ATTEMPTS_PER_ENDPOINT", "2").strip()
-    )
-    app.config["OSM_OVERPASS_RETRY_BACKOFF_MS"] = int(
-        os.getenv("OSM_OVERPASS_RETRY_BACKOFF_MS", "400").strip()
-    )
-    app.config["OSM_USER_AGENT"] = os.getenv(
-        "OSM_USER_AGENT", "CarbonSnap/0.1 (development)"
-    ).strip()
-    app.config["AI_BROWSER_LOCATION_TTL_MINUTES"] = int(
-        os.getenv("AI_BROWSER_LOCATION_TTL_MINUTES", "60").strip()
-    )
-    app.config["AI_MANUAL_LOCATION_TTL_HOURS"] = int(
-        os.getenv("AI_MANUAL_LOCATION_TTL_HOURS", "24").strip()
-    )
-    app.config["AI_MAP_SEARCH_RADIUS_METERS"] = int(
-        os.getenv("AI_MAP_SEARCH_RADIUS_METERS", "3000").strip()
-    )
-    app.config["AI_MAP_SEARCH_LIMIT"] = int(os.getenv("AI_MAP_SEARCH_LIMIT", "12").strip())
-    app.config["AI_SHORT_TERM_MEMORY_TURNS"] = int(
-        os.getenv("AI_SHORT_TERM_MEMORY_TURNS", "10").strip()
-    )
-    app.config["FORUM_RAG_CHUNK_TARGET_TOKENS"] = int(
-        os.getenv("FORUM_RAG_CHUNK_TARGET_TOKENS", "420").strip()
-    )
-    app.config["FORUM_RAG_CHUNK_OVERLAP_TOKENS"] = int(
-        os.getenv("FORUM_RAG_CHUNK_OVERLAP_TOKENS", "70").strip()
-    )
-    app.config["FORUM_RAG_KEYWORD_TOP_K"] = int(os.getenv("FORUM_RAG_KEYWORD_TOP_K", "8").strip())
-    app.config["FORUM_RAG_VECTOR_TOP_K"] = int(os.getenv("FORUM_RAG_VECTOR_TOP_K", "8").strip())
-    app.config["FORUM_RAG_FINAL_TOP_K"] = int(os.getenv("FORUM_RAG_FINAL_TOP_K", "4").strip())
-    forum_rag_faiss_dir = Path(
-        os.getenv("FORUM_RAG_FAISS_DIR", backend_root.parent / "data" / "faiss")
-    )
-    forum_rag_faiss_dir.mkdir(parents=True, exist_ok=True)
-    app.config["FORUM_RAG_FAISS_DIR"] = str(forum_rag_faiss_dir)
-    app.config["FORUM_RAG_EMBEDDING_MODEL"] = os.getenv(
-        "FORUM_RAG_EMBEDDING_MODEL", "text-embedding-v3"
-    ).strip()
-    app.config["AI_DECISION_ENGINE_VERSION"] = (
-        os.getenv("AI_DECISION_ENGINE_VERSION", "decision-engine-v2").strip()
-        or "decision-engine-v2"
-    )
-    app.config["AI_DECISION_CONFIDENCE_THRESHOLD"] = float(
-        os.getenv("AI_DECISION_CONFIDENCE_THRESHOLD", "0.65").strip()
-    )
-    app.config["AI_DECISION_ENGINE_MODE"] = (
-        os.getenv("AI_DECISION_ENGINE_MODE", "llm_first").strip().lower() or "llm_first"
-    )
-    app.config["AI_TRACE_ENABLED"] = _get_bool_env("AI_TRACE_ENABLED", True)
-    app.config["AI_GRAPH_AGENT_ENABLED"] = _get_bool_env("AI_GRAPH_AGENT_ENABLED", False)
-    app.config["AI_TOOL_CALLING_AGENT_ENABLED"] = _get_bool_env(
-        "AI_TOOL_CALLING_AGENT_ENABLED", False
-    )
-    # Tool-selection rollout mode: "rule" (v1, default) | "model" (v2, A6) |
-    # "shadow" (serve v1, compare against v2's selection, A7). Empty falls back
-    # to the legacy AI_TOOL_CALLING_AGENT_ENABLED boolean (true -> "model").
-    app.config["AI_TOOL_SELECTION_MODE"] = os.getenv("AI_TOOL_SELECTION_MODE", "").strip().lower()
-    # JSONL sink for rule-vs-model tool-selection comparisons. Empty (default)
-    # disables logging so no file is written unless explicitly opted in.
-    app.config["AI_TOOL_SELECTION_SHADOW_LOG"] = os.getenv(
-        "AI_TOOL_SELECTION_SHADOW_LOG", ""
-    ).strip()
-    app.config["AI_AGENT_MAX_ITERATIONS"] = int(
-        os.getenv("AI_AGENT_MAX_ITERATIONS", "4").strip() or "4"
-    )
-    app.config["AI_LLM_TIMEOUT_SECONDS"] = float(
-        os.getenv("AI_LLM_TIMEOUT_SECONDS", "60").strip() or "60"
-    )
-    # Router, memory extraction and title calls: short, never retried, and
-    # each has a fallback. Keeps a hanging provider from outliving the worker.
-    app.config["AI_LLM_AUX_TIMEOUT_SECONDS"] = float(
-        os.getenv("AI_LLM_AUX_TIMEOUT_SECONDS", "15").strip() or "15"
-    )
-    # Provider-side retries for transient failures (429/5xx/timeouts), handled
-    # by the OpenAI SDK. Tests set 0 so a blocked call fails immediately.
-    app.config["AI_LLM_MAX_RETRIES"] = int(os.getenv("AI_LLM_MAX_RETRIES", "2").strip() or "2")
-    app.config["AI_NEO4J_GRAPHRAG_ENABLED"] = _get_bool_env("AI_NEO4J_GRAPHRAG_ENABLED", False)
-    app.config["NEO4J_URI"] = os.getenv("NEO4J_URI", "").strip()
-    app.config["NEO4J_USERNAME"] = os.getenv("NEO4J_USERNAME", "").strip()
-    app.config["NEO4J_PASSWORD"] = os.getenv("NEO4J_PASSWORD", "").strip()
-    app.config["AI_PROMPTOPS_SHADOW_ENABLED"] = _get_bool_env("AI_PROMPTOPS_SHADOW_ENABLED", False)
-    app.config["AI_TRACE_INCLUDE_RETRIEVAL_EXCERPTS"] = _get_bool_env(
-        "AI_TRACE_INCLUDE_RETRIEVAL_EXCERPTS", True
-    )
-    app.config["AI_DEMO_REPLAY_ENABLED"] = os.getenv(
-        "AI_DEMO_REPLAY_ENABLED", ""
-    ).strip().lower() in {"1", "true", "yes", "on"}
-    app.config["AI_DEMO_REPLAY_CHUNK_SIZE"] = int(
-        os.getenv("AI_DEMO_REPLAY_CHUNK_SIZE", "120").strip()
-    )
-    upload_root = Path(os.getenv("UPLOAD_ROOT", backend_root.parent / "data" / "uploads"))
-    upload_root.mkdir(parents=True, exist_ok=True)
-    app.config["UPLOAD_ROOT"] = str(upload_root)
-    app.config["UPLOAD_URL_PREFIX"] = (
-        os.getenv("UPLOAD_URL_PREFIX", "/api/uploads").strip() or "/api/uploads"
-    )
-    app.config["AI_EMISSION_FACTORS"] = _load_emission_factors()
-    app.config["AI_OSM_RECYCLING_TAGS"] = _load_osm_recycling_tags()
-
-
-def _get_bool_env(name: str, default: bool = False) -> bool:
-    raw_value = os.getenv(name)
-    if raw_value is None:
-        return default
-    normalized = raw_value.strip().lower()
-    if normalized in {"1", "true", "yes", "on"}:
-        return True
-    if normalized in {"0", "false", "no", "off"}:
-        return False
-    return default
-
-
-def _load_emission_factors() -> dict[str, float]:
-    raw_value = os.getenv("AI_EMISSION_FACTORS_JSON", "").strip()
-    if raw_value:
-        try:
-            parsed = json_loads(raw_value)
-            return {str(key).lower(): float(value) for key, value in parsed.items()}
-        except Exception:
-            pass
-
-    return {
-        "plastic bottle": 1.5,
-        "plastic": 1.4,
-        "paper": 1.0,
-        "cardboard": 0.8,
-        "glass": 0.5,
-        "metal can": 2.1,
-        "metal": 1.9,
-        "aluminum can": 2.5,
-        "electronics": 3.2,
-        "battery": 3.8,
-        "default": 1.0,
-    }
-
-
-def _load_osm_recycling_tags() -> list[dict[str, str]]:
-    raw_value = os.getenv("AI_OSM_RECYCLING_TAGS_JSON", "").strip()
-    if raw_value:
-        try:
-            parsed = json_loads(raw_value)
-            return [
-                {"key": str(item["key"]), "value": str(item["value"])}
-                for item in parsed
-                if isinstance(item, dict) and item.get("key") and item.get("value")
-            ]
-        except Exception:
-            pass
-
-    return [
-        {"key": "amenity", "value": "recycling"},
-        {"key": "recycling_type", "value": "centre"},
-        {"key": "recycling_type", "value": "container"},
-        {"key": "amenity", "value": "waste_disposal"},
-        {"key": "amenity", "value": "waste_transfer_station"},
-    ]
-
-
-def _load_overpass_fallback_urls(*, primary_url: str) -> list[str]:
-    raw_value = os.getenv("OSM_OVERPASS_FALLBACK_URLS_JSON", "").strip()
-    if raw_value:
-        try:
-            parsed = json_loads(raw_value)
-            if isinstance(parsed, list):
-                return [
-                    str(item).strip()
-                    for item in parsed
-                    if str(item).strip() and str(item).strip() != primary_url
-                ]
-        except Exception:
-            pass
-
-    defaults = [
-        "https://overpass.kumi.systems/api/interpreter",
-        "https://overpass.private.coffee/api/interpreter",
-    ]
-    return [url for url in defaults if url != primary_url]
