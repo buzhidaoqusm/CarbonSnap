@@ -75,7 +75,7 @@ services:
     image: python:3.12-slim
     command: ["python", "/app/tools/fake_llm/server.py"]
     environment:
-      FAKE_LLM_FIRST_TOKEN_MS: "400"
+      FAKE_LLM_FIRST_TOKEN_MS: "${FAKE_LLM_FIRST_TOKEN_MS:-400}"
       FAKE_LLM_TOKEN_INTERVAL_MS: "25"
       FAKE_LLM_TOKEN_COUNT: "120"
     ports:

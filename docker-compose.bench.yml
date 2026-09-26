@@ -12,6 +12,8 @@ services:
       LLM_PROVIDER: openrouter
       OPENROUTER_BASE_URL: http://fake-llm:9800/v1
       OPENROUTER_API_KEY: fake
+      # e.g. GUNICORN_CMD_ARGS="--workers 12" to see what more workers buy.
+      GUNICORN_CMD_ARGS: ${GUNICORN_CMD_ARGS:-}
     volumes: !override
       - bench-data:/data
 

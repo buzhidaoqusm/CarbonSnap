@@ -55,7 +55,7 @@ uv run --no-project --with locust locust -f tools/load_test/locustfile.py --host
 docker compose -f docker-compose.yml -f docker-compose.bench.yml --profile bench down -v
 ```
 
-`--users` 分别取 1 / 3 / 10 / 20，结果记入 [benchmarks.md](benchmarks.md)。压测用独立的数据卷，不会写入开发库。
+`--users` 分别取 1 / 3 / 10 / 20，结果记入 [benchmarks.md](benchmarks.md)。压测用独立的数据卷，不会写入开发库。逐个问题的复现实验见 [PERFORMANCE_ISSUES.md](PERFORMANCE_ISSUES.md)。
 
 ## 本地开发库恢复演示数据（在 `backend/` 下）
 
