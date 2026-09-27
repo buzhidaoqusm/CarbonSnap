@@ -145,6 +145,19 @@ docs/adr/
 
 ### 3.2 SQLite → PostgreSQL（2 天）
 
+> ✅ **已完成（2026-09-27）**。开发、测试、CI、容器全部跑在 PG 上。实际遇到的问题和原计划的出入：
+> - JSON、布尔、日期字段在 PG 上都没出问题（JSON 一直存成 Text）。真正的问题是：迁移里有一个 77 字符的
+>   约束名（PG 上限 63），空库根本迁移不了；两个测试只在 SQLite 上能过（外键指向不存在的行，
+>   以及 SQLite 复用被删行的 id 让断言变成了自己比自己）。
+> - 循环外键：迁移本来就用 ALTER 处理了，只有 `create_all/drop_all` 需要给两条外键加 `use_alter` 和名字。
+> - Flask-SQLAlchemy 的 `Session.get_bind()` 会无视 session 上的 bind，常见的"事务回滚"写法在这里会静默失效，
+>   改成把 `db.session` 换成绑定到同一连接的普通 SQLAlchemy session，并用 `test_db_isolation` 做了变异验证。
+> - 全量测试 300 s（SQLite）→ 396 s（PG + 每个测试建表）→ 230 s（PG + 事务回滚），setup 从 240 s 降到 1 s。
+> - 本机连 PG 必须用 `127.0.0.1`：Windows 上 `localhost` 先试 `::1`，每个新连接卡到 TCP 超时。
+> - 压测栈改用独立的 PG 数据卷；`down -v` 会删掉开发库，文档里已改成只删压测卷。
+> - SQLite vs PG 的对照实验见 `tools/db_compare.py`（外键 / 长度 / 类型：SQLite 全收，PG 全拒；
+>   A 持有写事务时 B 写另一张表：SQLite 等 5.5 s 后 `database is locked`，PG 0.03 s 提交）。
+
 - `DATABASE_URL` 指向 compose 里的 PG，在 PG 上把全部 Alembic 迁移跑一遍，修掉 SQLite 专属写法（`batch_alter_table` 在 PG 上也能用，重点检查 JSON、布尔和日期字段）。
 - 数据直接用现有 seed 脚本重建。
 - 测试库：CI 用 GitHub Actions 的 postgres service，本地用 compose 里的 PG。每个测试用事务回滚，替代现在的 `drop_all/create_all`。

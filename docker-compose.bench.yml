@@ -1,9 +1,12 @@
 # Load-test overlay: points the api at the fake provider and keeps benchmark
-# data out of ./data, so hundreds of throwaway accounts never reach the dev DB.
+# data in its own volumes (uploads and the postgres data directory), so
+# hundreds of throwaway accounts never reach the dev database.
 #
 #   docker compose -f docker-compose.yml -f docker-compose.bench.yml --profile bench up -d --build
-#   docker compose -f docker-compose.yml -f docker-compose.bench.yml --profile bench down -v
+#   docker compose -f docker-compose.yml -f docker-compose.bench.yml --profile bench down
+#   docker volume rm carbonsnap_bench-data carbonsnap_bench-postgres-data
 #
+# Not `down -v`: that also deletes postgres-data, the dev database.
 # See docs/benchmarks.md.
 
 services:
@@ -17,6 +20,10 @@ services:
     volumes: !override
       - bench-data:/data
 
+  postgres:
+    volumes: !override
+      - bench-postgres-data:/var/lib/postgresql/data
+
   fake-llm:
     environment:
       # "1" prints one line per provider call: how many calls a chat turn makes.
@@ -24,3 +31,4 @@ services:
 
 volumes:
   bench-data:
+  bench-postgres-data:

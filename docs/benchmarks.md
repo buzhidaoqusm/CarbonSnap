@@ -39,8 +39,9 @@ docker compose -f docker-compose.yml -f docker-compose.bench.yml --profile bench
 # 2. Load test, one run per user count (1, 3, 10, 20)
 uv run --no-project --with locust locust -f tools/load_test/locustfile.py     --host http://127.0.0.1:5000     --headless --users 20 --spawn-rate 2 --run-time 2m --only-summary
 
-# 3. Tear down, including the benchmark volume
-docker compose -f docker-compose.yml -f docker-compose.bench.yml --profile bench down -v
+# 3. Tear down, including the benchmark volumes (not the dev database)
+docker compose -f docker-compose.yml -f docker-compose.bench.yml --profile bench down
+docker volume rm carbonsnap_bench-data carbonsnap_bench-postgres-data
 ```
 
 Each user registers a throwaway account, then loops: POST a prompt, read the
