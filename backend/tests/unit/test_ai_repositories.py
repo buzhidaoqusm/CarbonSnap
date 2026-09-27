@@ -399,8 +399,18 @@ class TestRecyclingCaseRepository:
         assert refreshed_case.latest_audit_attempt_no == 2
         assert refreshed_case.status == "audit_failed"
 
-        marked = recycling_case_repository.mark_case_audit_passed(case.id, approved_analysis_id=42)
-        assert marked.approved_analysis_id == 42
+        analysis = WasteAnalysisRecord(
+            user_id=user.id,
+            recycling_case_id=case.id,
+            approved_audit_attempt_id=second_attempt.id,
+        )
+        db.session.add(analysis)
+        db.session.flush()
+
+        marked = recycling_case_repository.mark_case_audit_passed(
+            case.id, approved_analysis_id=analysis.id
+        )
+        assert marked.approved_analysis_id == analysis.id
         assert marked.status == "audit_passed"
 
 

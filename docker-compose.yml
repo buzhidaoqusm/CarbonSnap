@@ -3,9 +3,8 @@
 #   docker compose up -d                  api + postgres + redis
 #   docker compose --profile graph up -d  also starts neo4j for Graph Agent mode
 #
-# Postgres and Redis are already here because P1/P2 of docs/REFACTOR_ROADMAP.md
-# move the app onto them. Until that migration lands the API still defaults to
-# SQLite under ./data, so the stack is useful today and ready for the switch.
+# The API stores its data in the postgres service; ./data holds uploads and
+# the FAISS index. Redis is here for P2 of docs/REFACTOR_ROADMAP.md.
 
 services:
   api:
@@ -14,9 +13,7 @@ services:
     ports:
       - "127.0.0.1:5000:5000"
     environment:
-      # Swap to the postgres service in P1:
-      #   DATABASE_URL: postgresql+psycopg://carbonsnap:carbonsnap@postgres:5432/carbonsnap
-      DATABASE_URL: sqlite:////data/carbonsnap.db
+      DATABASE_URL: postgresql+psycopg://carbonsnap:carbonsnap@postgres:5432/carbonsnap
       UPLOAD_ROOT: /data/uploads
       FORUM_RAG_FAISS_DIR: /data/faiss
       REDIS_URL: redis://redis:6379/0

@@ -13,14 +13,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import text
-
 _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 _REPO_ROOT = _BACKEND_ROOT.parent
 sys.path.insert(0, str(_BACKEND_ROOT))
 
 from app import create_app
-from app.extensions.db import db
+from app.extensions.db import db, truncate_tables
 from app.models.ai import (
     AIConversation,
     AIMessage,
@@ -83,10 +81,6 @@ TABLE_MODEL_MAP = {
 }
 
 
-def _is_sqlite() -> bool:
-    return db.engine.dialect.name == "sqlite"
-
-
 def _existing_reset_tables() -> list[str]:
     existing_table_names = set(db.metadata.tables.keys())
     return [table_name for table_name in TARGET_RESET_TABLES if table_name in existing_table_names]
@@ -94,28 +88,7 @@ def _existing_reset_tables() -> list[str]:
 
 def _clear_target_tables() -> list[str]:
     table_names = _existing_reset_tables()
-
-    if _is_sqlite():
-        db.session.execute(text("PRAGMA foreign_keys=OFF"))
-        db.session.commit()
-
-    try:
-        for table_name in table_names:
-            db.session.execute(text(f'DELETE FROM "{table_name}"'))
-        if _is_sqlite():
-            try:
-                db.session.execute(text("DELETE FROM sqlite_sequence"))
-            except Exception:
-                pass
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-        raise
-    finally:
-        if _is_sqlite():
-            db.session.execute(text("PRAGMA foreign_keys=ON"))
-            db.session.commit()
-
+    truncate_tables(table_names)
     return table_names
 
 

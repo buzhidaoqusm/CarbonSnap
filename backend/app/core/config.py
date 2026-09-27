@@ -72,7 +72,9 @@ class Settings(BaseSettings):
     )
 
     # --- Database / auth ------------------------------------------------------
-    database_url: str = f"sqlite:///{DATA_ROOT / 'carbonsnap.db'}"
+    # The compose postgres service. 127.0.0.1 rather than localhost: on Windows
+    # localhost tries ::1 first, which the port binding does not answer.
+    database_url: str = "postgresql+psycopg://carbonsnap:carbonsnap@127.0.0.1:5432/carbonsnap"
     jwt_secret_key: str = "dev-secret-change-in-production"
 
     # --- LLM provider ----------------------------------------------------------

@@ -19,6 +19,7 @@ dependencies = [
     "Werkzeug>=3.0.0",
     "gunicorn==25.3.0",
     "pydantic-settings==2.15.0",
+    "psycopg[binary]==3.2.13",
 ]
 
 [dependency-groups]

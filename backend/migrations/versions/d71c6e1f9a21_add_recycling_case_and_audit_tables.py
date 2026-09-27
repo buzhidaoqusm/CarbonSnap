@@ -105,7 +105,7 @@ def upgrade():
             ["id"],
         )
         batch_op.create_foreign_key(
-            "fk_waste_analysis_records_approved_audit_attempt_id_recycling_audit_attempts",
+            "fk_waste_analysis_records_approved_audit_attempt_id",
             "recycling_audit_attempts",
             ["approved_audit_attempt_id"],
             ["id"],
@@ -115,7 +115,7 @@ def upgrade():
 def downgrade():
     with op.batch_alter_table("waste_analysis_records", schema=None) as batch_op:
         batch_op.drop_constraint(
-            "fk_waste_analysis_records_approved_audit_attempt_id_recycling_audit_attempts",
+            "fk_waste_analysis_records_approved_audit_attempt_id",
             type_="foreignkey",
         )
         batch_op.drop_constraint(

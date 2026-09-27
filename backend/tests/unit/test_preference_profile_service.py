@@ -218,6 +218,14 @@ class TestPreferenceProfileAggregation:
         first_profile = next(
             row for row in first_profiles if row.profile_key == "plastic-recycling"
         )
+        # Copy the values now: recomputing deletes this row, so the object
+        # cannot be read again later. (On SQLite the next insert reused its id,
+        # so reading it again silently returned the *new* row instead.)
+        first_scores = (
+            first_profile.raw_score,
+            first_profile.normalized_score,
+            first_profile.event_count,
+        )
 
         behavior_event_service.record_forum_unlike(
             user_id=user.id, target_type="post", target_id=post.id
@@ -235,9 +243,12 @@ class TestPreferenceProfileAggregation:
         )
 
         assert after_unlike_profiles == []
-        assert second_profile.raw_score == first_profile.raw_score
-        assert second_profile.normalized_score == first_profile.normalized_score
-        assert second_profile.event_count == first_profile.event_count == 1
+        assert (
+            second_profile.raw_score,
+            second_profile.normalized_score,
+            second_profile.event_count,
+        ) == first_scores
+        assert first_scores[2] == 1
 
     def test_ai_recycling_events_and_promotion_thresholds(self):
         user = _make_user("ai", "ai@example.com")

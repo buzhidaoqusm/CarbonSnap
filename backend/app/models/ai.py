@@ -39,8 +39,26 @@ class WasteAnalysisRecord(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     conversation_id = db.Column(db.Integer, db.ForeignKey("ai_conversations.id"))
-    recycling_case_id = db.Column(db.Integer, db.ForeignKey("recycling_cases.id"))
-    approved_audit_attempt_id = db.Column(db.Integer, db.ForeignKey("recycling_audit_attempts.id"))
+    # These two close foreign key cycles (recycling_cases and
+    # recycling_audit_attempts point back here), so they are added after the
+    # tables exist and dropped before them, as migration d71c6e1f9a21 does.
+    # use_alter needs a name for DROP CONSTRAINT.
+    recycling_case_id = db.Column(
+        db.Integer,
+        db.ForeignKey(
+            "recycling_cases.id",
+            use_alter=True,
+            name="fk_waste_analysis_records_recycling_case_id_recycling_cases",
+        ),
+    )
+    approved_audit_attempt_id = db.Column(
+        db.Integer,
+        db.ForeignKey(
+            "recycling_audit_attempts.id",
+            use_alter=True,
+            name="fk_waste_analysis_records_approved_audit_attempt_id",
+        ),
+    )
     image_url = db.Column(db.String(256))
     waste_type = db.Column(db.String(64))
     confidence = db.Column(db.Float, nullable=False, default=0.0)

@@ -16,7 +16,7 @@ CarbonSnap is a full-stack sustainability platform for recycling guidance, commu
 - **Frontend:** Vue 3, Vite, Vue Router, Vitest, GSAP, Three.js, Leaflet.
 - **Backend:** Flask, Flask-SQLAlchemy, Flask-Migrate, Flask-JWT-Extended, pytest.
 - **AI and retrieval:** OpenAI-compatible providers, FAISS, optional LangGraph and Neo4j.
-- **Data:** SQLite by default for local development, with configurable database URL support.
+- **Data:** PostgreSQL (the compose `postgres` service), migrated with Alembic.
 
 ## Repository Structure
 

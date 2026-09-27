@@ -1,14 +1,15 @@
 """Shared pytest fixtures for all test layers.
 
 Architecture:
-- Every test run gets its own throwaway SQLite file in a temp directory. The
-  environment is pinned *before* ``create_app()`` runs, because
+- Tests run on PostgreSQL, the same database as production, so dialect
+  behaviour (foreign keys, string lengths, types) is what gets tested. Start it
+  with ``docker compose up -d postgres``; ``TEST_DATABASE_URL`` points elsewhere.
+- Every run drops and recreates the test database, whose name must end in
+  ``_test``. The environment is pinned *before* ``create_app()`` runs, because
   Flask-SQLAlchemy 3.x builds the engine inside ``init_app`` — overriding
-  ``SQLALCHEMY_DATABASE_URI`` afterwards has no effect and silently leaves the
-  suite pointed at the developer's ``data/carbonsnap.db`` (which ``drop_all``
-  would then wipe).
+  ``SQLALCHEMY_DATABASE_URI`` afterwards has no effect.
 - `app` fixture is session-scoped (created once) and asserts the engine really
-  landed on the throwaway database.
+  landed on the test database.
 - `db_session` fixture is function-scoped: drops and recreates all tables
   before every test, guaranteeing full data isolation.
 - `client` provides a Flask test client.
@@ -21,10 +22,20 @@ from pathlib import Path
 from tempfile import mkdtemp
 
 import pytest
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
 
 # --- Pinned before importing the app: settings read os.environ at import/boot.
 _TEST_TMP_ROOT = Path(mkdtemp(prefix="carbonsnap-tests-"))
-_TEST_DB_PATH = _TEST_TMP_ROOT / "test.db"
+# 127.0.0.1, not localhost: on Windows localhost tries ::1 first, which the
+# compose port binding does not answer, and each new connection then hangs
+# until the TCP connect timeout.
+_TEST_DATABASE_URL = make_url(
+    os.environ.get(
+        "TEST_DATABASE_URL",
+        "postgresql+psycopg://carbonsnap:carbonsnap@127.0.0.1:5432/carbonsnap_test",
+    )
+)
 
 _EMPTY_ENV_FILE = _TEST_TMP_ROOT / "empty.env"
 _EMPTY_ENV_FILE.write_text("", encoding="utf-8")
@@ -35,7 +46,7 @@ os.environ.update(
         # in CI; everything the suite depends on is pinned below.
         "ENV_FILE": str(_EMPTY_ENV_FILE),
         # Never touch the developer's dev database.
-        "DATABASE_URL": f"sqlite:///{_TEST_DB_PATH}",
+        "DATABASE_URL": _TEST_DATABASE_URL.render_as_string(hide_password=False),
         "UPLOAD_ROOT": str(_TEST_TMP_ROOT / "uploads"),
         "UPLOAD_URL_PREFIX": "/api/uploads",
         "JWT_SECRET_KEY": "test-secret",
@@ -84,8 +95,30 @@ from app.models.user import User  # noqa: E402
 # ---------------------------------------------------------------------------
 
 
+def _recreate_test_database() -> None:
+    name = _TEST_DATABASE_URL.database or ""
+    # Fail loudly rather than destroying a real database.
+    assert name.endswith("_test"), (
+        f"Test database {name!r} does not end in '_test'. Refusing to drop it."
+    )
+    admin = create_engine(_TEST_DATABASE_URL.set(database="postgres"), isolation_level="AUTOCOMMIT")
+    try:
+        with admin.connect() as conn:
+            conn.execute(text(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)'))
+            conn.execute(text(f'CREATE DATABASE "{name}"'))
+    except Exception as exc:
+        pytest.exit(
+            f"Cannot reach PostgreSQL at {_TEST_DATABASE_URL!r}: {exc}. "
+            "Start it with: docker compose up -d postgres",
+            returncode=2,
+        )
+    finally:
+        admin.dispose()
+
+
 @pytest.fixture(scope="session")
 def app():
+    _recreate_test_database()
     flask_app = create_app()
     flask_app.config.update(
         TESTING=True,
@@ -94,10 +127,10 @@ def app():
     with flask_app.app_context():
         # Fail loudly rather than destroying a real database: db_session below
         # runs drop_all() before every single test.
-        bound_url = str(_db.engine.url)
-        assert str(_TEST_DB_PATH) in bound_url, (
-            f"Tests are bound to {bound_url!r} instead of the throwaway database "
-            f"at {_TEST_DB_PATH}. Refusing to run — drop_all() would wipe it."
+        bound = _db.engine.url.database
+        assert bound == _TEST_DATABASE_URL.database, (
+            f"Tests are bound to {bound!r} instead of {_TEST_DATABASE_URL.database!r}. "
+            "Refusing to run — drop_all() would wipe it."
         )
         yield flask_app
 
