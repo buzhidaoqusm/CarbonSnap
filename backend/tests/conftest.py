@@ -10,8 +10,9 @@ Architecture:
   ``SQLALCHEMY_DATABASE_URI`` afterwards has no effect.
 - `app` fixture is session-scoped (created once) and asserts the engine really
   landed on the test database.
-- `db_session` fixture is function-scoped: drops and recreates all tables
-  before every test, guaranteeing full data isolation.
+- Tables are created once per run. `db_session` runs every test inside one
+  outer transaction and rolls it back afterwards, so nothing a test writes is
+  seen by the next one, even though the code under test calls commit().
 - `client` provides a Flask test client.
 - `make_auth_headers` is a per-test factory that creates distinct users.
 """
@@ -22,8 +23,10 @@ from pathlib import Path
 from tempfile import mkdtemp
 
 import pytest
+from flask_sqlalchemy.session import _app_ctx_id
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
+from sqlalchemy.orm import scoped_session, sessionmaker
 
 # --- Pinned before importing the app: settings read os.environ at import/boot.
 _TEST_TMP_ROOT = Path(mkdtemp(prefix="carbonsnap-tests-"))
@@ -125,13 +128,13 @@ def app():
         JWT_ACCESS_TOKEN_EXPIRES=False,
     )
     with flask_app.app_context():
-        # Fail loudly rather than destroying a real database: db_session below
-        # runs drop_all() before every single test.
+        # Fail loudly rather than writing to a real database.
         bound = _db.engine.url.database
         assert bound == _TEST_DATABASE_URL.database, (
             f"Tests are bound to {bound!r} instead of {_TEST_DATABASE_URL.database!r}. "
-            "Refusing to run — drop_all() would wipe it."
+            "Refusing to run."
         )
+        _db.create_all()
         yield flask_app
 
 
@@ -218,18 +221,40 @@ def override_settings(app, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# DB isolation  (function-scoped — fresh tables for every test)
+# DB isolation  (function-scoped — every test is rolled back)
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture(autouse=True)
 def db_session(app):
-    """Drop and recreate all tables before each test for full isolation."""
+    """Run the test inside a transaction that is rolled back when it ends.
+
+    The code under test commits freely. With join_transaction_mode
+    "create_savepoint" each of those commits only releases a SAVEPOINT inside
+    the outer transaction, and the final rollback undoes all of them.
+
+    db.session is swapped for a plain SQLAlchemy session bound to that one
+    connection: Flask-SQLAlchemy's own Session.get_bind() always hands back the
+    engine for mapped classes, so a session-level bind would be ignored and
+    queries would quietly run on a fresh, un-rolled-back connection. Scoping
+    stays per app context, as in Flask-SQLAlchemy.
+    """
     with app.app_context():
-        _db.drop_all()
-        _db.create_all()
-        yield _db.session
-        _db.session.remove()
+        connection = _db.engine.connect()
+        outer = connection.begin()
+        session = scoped_session(
+            sessionmaker(bind=connection, join_transaction_mode="create_savepoint"),
+            scopefunc=_app_ctx_id,
+        )
+        original = _db.session
+        _db.session = session
+        try:
+            yield session
+        finally:
+            session.remove()
+            _db.session = original
+            outer.rollback()
+            connection.close()
 
 
 # ---------------------------------------------------------------------------

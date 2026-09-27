@@ -61,10 +61,10 @@ class TestCreatePost:
             lambda **kwargs: captured.update(kwargs) or None,
         )
 
-        forum_service.create_post(author_id=user.id, title="Bottle", content="Tips")
+        created = forum_service.create_post(author_id=user.id, title="Bottle", content="Tips")
 
         assert captured == {
-            "post_id": 1,
+            "post_id": created["id"],
             "title": "Bottle",
             "content": "Tips",
         }
