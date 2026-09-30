@@ -1,6 +1,7 @@
 from flask import Blueprint, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
+from app.extensions.db import db
 from app.repositories.profile import user_repository
 from app.services.profile import auth_service
 from app.services.profile.auth_service import AuthError
@@ -81,7 +82,7 @@ def login():
 @jwt_required()
 def me():
     user_id = int(get_jwt_identity())
-    user = user_repository.get_by_id(user_id)
+    user = user_repository.get_by_id(db.session, user_id)
     if not user:
         return fail(40400, "User not found.", 404)
     return ok({"user": _serialize_user(user)})

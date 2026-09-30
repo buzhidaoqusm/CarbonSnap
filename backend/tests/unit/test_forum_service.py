@@ -309,14 +309,14 @@ class TestListPosts:
             for index in range(1, 11)
         ]
         candidate_posts = forum_service.forum_repository.list_published_posts_for_ranking(
-            candidate_limit=10
+            db.session, candidate_limit=10
         )
         captured = {}
 
         monkeypatch.setattr(
             forum_service.forum_repository,
             "count_all_published_posts",
-            lambda: 10,
+            lambda _session: 10,
         )
 
         def reverse_ranked_posts(*, posts, user_id):
@@ -351,18 +351,18 @@ class TestListPosts:
             forum_service.create_post(author_id=user.id, title=f"Post {index}", content="C")
 
         candidate_posts = forum_service.forum_repository.list_published_posts_for_ranking(
-            candidate_limit=5
+            db.session, candidate_limit=5
         )
 
         monkeypatch.setattr(
             forum_service.forum_repository,
             "list_published_posts_for_ranking",
-            lambda *, candidate_limit: candidate_posts,
+            lambda _session, *, candidate_limit: candidate_posts,
         )
         monkeypatch.setattr(
             forum_service.forum_repository,
             "count_all_published_posts",
-            lambda: 7,
+            lambda _session: 7,
         )
         monkeypatch.setattr(
             forum_service,

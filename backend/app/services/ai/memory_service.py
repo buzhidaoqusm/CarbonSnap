@@ -238,7 +238,7 @@ def build_current_preferences_summary(
     *,
     include_stored_fallback: bool = True,
 ) -> dict[str, Any]:
-    items = memory_repository.list_active_memory_items(user_id)
+    items = memory_repository.list_active_memory_items(db.session, user_id)
     summary = build_preferences_summary(items, user_id=user_id)
     if summary["content_interest_preferences"]["topics"] or any(
         value not in (None, [], {}) for value in summary["action_preferences"].values()
@@ -291,6 +291,7 @@ def upsert_memory_item(
         source_type=source_type,
     )
     item = memory_repository.replace_memory_item(
+        db.session,
         user_id=user_id,
         memory_type=memory_type,
         memory_key=memory_key,
@@ -327,7 +328,7 @@ def update_manual_memory_item(
     memory_key: str | None = None,
     value: dict[str, Any] | None = None,
 ) -> UserMemoryItem:
-    item = memory_repository.get_memory_item(item_id, user_id)
+    item = memory_repository.get_memory_item(db.session, item_id, user_id)
     if item is None:
         raise ValueError("Memory item not found.")
     if item.status != "active":
@@ -344,6 +345,7 @@ def update_manual_memory_item(
     )
 
     updated = memory_repository.update_memory_item(
+        db.session,
         item_id,
         user_id,
         memory_type=next_type,
@@ -358,7 +360,7 @@ def update_manual_memory_item(
 
 
 def delete_memory_item(*, item_id: int, user_id: int) -> UserMemoryItem:
-    item = memory_repository.soft_delete_memory_item(item_id, user_id)
+    item = memory_repository.soft_delete_memory_item(db.session, item_id, user_id)
     if item is None:
         raise ValueError("Memory item not found.")
     rebuild_user_preferences_summary(user_id)
@@ -366,7 +368,7 @@ def delete_memory_item(*, item_id: int, user_id: int) -> UserMemoryItem:
 
 
 def list_memory_payload(user_id: int) -> dict[str, Any]:
-    items = memory_repository.list_active_memory_items(user_id)
+    items = memory_repository.list_active_memory_items(db.session, user_id)
     summary = rebuild_user_preferences_summary(user_id)
     return {
         "summary": summary,

@@ -193,18 +193,18 @@ class TestListPosts:
             _create_post(client, headers, title=f"Post {index}", content="C")
 
         bounded_candidates = forum_service.forum_repository.list_published_posts_for_ranking(
-            candidate_limit=5
+            db.session, candidate_limit=5
         )
 
         monkeypatch.setattr(
             forum_service.forum_repository,
             "list_published_posts_for_ranking",
-            lambda *, candidate_limit: bounded_candidates,
+            lambda _session, *, candidate_limit: bounded_candidates,
         )
         monkeypatch.setattr(
             forum_service.forum_repository,
             "count_all_published_posts",
-            lambda: 7,
+            lambda _session: 7,
         )
         monkeypatch.setattr(
             forum_service,

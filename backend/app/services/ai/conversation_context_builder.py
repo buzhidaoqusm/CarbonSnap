@@ -36,7 +36,7 @@ def build_recent_history(
         history = supplied_history or []
     else:
         history = history_from_message_records(
-            conversation_repository.list_messages(conversation_id)
+            conversation_repository.list_messages(db.session, conversation_id)
         )
 
     cleaned: list[dict[str, str]] = []
@@ -55,7 +55,7 @@ def build_case_summaries(conversation_id: int | None) -> list[dict[str, Any]]:
     if conversation_id is None:
         return []
 
-    cases = recycling_case_repository.list_cases_for_conversation(conversation_id)
+    cases = recycling_case_repository.list_cases_for_conversation(db.session, conversation_id)
     summaries: list[dict[str, Any]] = []
     for case in cases:
         summaries.append(
@@ -81,7 +81,7 @@ def build_conversation_working_memory(conversation_id: int | None) -> dict[str, 
     if conversation_id is None:
         return {}
 
-    messages = conversation_repository.list_messages(conversation_id)
+    messages = conversation_repository.list_messages(db.session, conversation_id)
     conversation = db.session.get(AIConversation, conversation_id)
     latest_tool_result = ""
     latest_audit_result = ""
@@ -207,7 +207,7 @@ def _case_stage(case: Any) -> str:
 
 
 def _resolve_case_origin_request(conversation_id: int, origin_message_id: int) -> str:
-    messages = conversation_repository.list_messages(conversation_id)
+    messages = conversation_repository.list_messages(db.session, conversation_id)
     for message in messages:
         if getattr(message, "id", None) == origin_message_id:
             return _clip_text(getattr(message, "content_text", "") or "")

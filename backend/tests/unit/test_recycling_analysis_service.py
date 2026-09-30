@@ -111,6 +111,7 @@ def test_selected_audit_attempt_note_uses_first_attempt_reason(app):
         db.session.flush()
 
         origin_message = conversation_repository.append_message(
+            db.session,
             conversation_id=conversation.id,
             role="user",
             message_type="image",
@@ -118,6 +119,7 @@ def test_selected_audit_attempt_note_uses_first_attempt_reason(app):
         )
 
         recycling_case = recycling_case_repository.create_recycling_case(
+            db.session,
             user_id=user.id,
             conversation_id=conversation.id,
             origin_message_id=origin_message.id,
@@ -129,6 +131,7 @@ def test_selected_audit_attempt_note_uses_first_attempt_reason(app):
         )
 
         recycling_case_repository.create_audit_attempt(
+            db.session,
             recycling_case_id=recycling_case.id,
             user_id=user.id,
             conversation_id=conversation.id,
@@ -137,6 +140,7 @@ def test_selected_audit_attempt_note_uses_first_attempt_reason(app):
             audit_reason="The power bank is in a generic recycling bin, which is not enough evidence for e-waste disposal.",
         )
         recycling_case_repository.create_audit_attempt(
+            db.session,
             recycling_case_id=recycling_case.id,
             user_id=user.id,
             conversation_id=conversation.id,

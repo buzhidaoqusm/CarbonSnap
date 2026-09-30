@@ -37,6 +37,7 @@ def _make_item(seller_id: int, title: str) -> MarketItem:
 
 def _make_order(item: MarketItem, buyer: User, status: str = "paid") -> Order:
     order = market_repository.create_order(
+        db.session,
         item_id=item.id,
         buyer_id=buyer.id,
         seller_id=item.seller_id,
@@ -55,12 +56,14 @@ class TestMarketRecommendationService:
         non_matching_item = _make_item(seller.id, "Plastic organizer")
 
         preference_profile_repository.replace_content_topic_assignments(
+            db.session,
             domain="market",
             content_type="item",
             content_id=matching_item.id,
             topics=[{"topic_id": "battery-recycling", "confidence_score": 1.0}],
         )
         preference_profile_repository.replace_content_topic_assignments(
+            db.session,
             domain="market",
             content_type="item",
             content_id=non_matching_item.id,
@@ -78,7 +81,7 @@ class TestMarketRecommendationService:
         monkeypatch.setattr(
             market_recommendation_service.preference_profile_repository,
             "list_content_topic_assignments_for_content_ids",
-            lambda **kwargs: {
+            lambda _session, **kwargs: {
                 matching_item.id: [
                     SimpleNamespace(topic_id="battery-recycling", confidence_score=1.0)
                 ],
@@ -95,7 +98,7 @@ class TestMarketRecommendationService:
         monkeypatch.setattr(
             market_recommendation_service.market_repository,
             "list_ordered_item_ids_by_buyer",
-            lambda buyer_id: set(),
+            lambda _session, buyer_id: set(),
         )
         monkeypatch.setattr(
             market_recommendation_service.behavior_event_repository,
@@ -105,7 +108,7 @@ class TestMarketRecommendationService:
         monkeypatch.setattr(
             market_recommendation_service.market_repository,
             "list_order_counts_for_item_ids",
-            lambda item_ids, statuses=None: {},
+            lambda _session, item_ids, statuses=None: {},
         )
 
         ranked = market_recommendation_service.rank_items_for_user(
@@ -177,7 +180,7 @@ class TestMarketRecommendationService:
         monkeypatch.setattr(
             market_recommendation_service.preference_profile_repository,
             "list_content_topic_assignments_for_content_ids",
-            lambda **kwargs: {
+            lambda _session, **kwargs: {
                 upcycling_1.id: [SimpleNamespace(topic_id="upcycling", confidence_score=0.85)],
                 upcycling_2.id: [SimpleNamespace(topic_id="upcycling", confidence_score=0.75)],
                 upcycling_3.id: [SimpleNamespace(topic_id="upcycling", confidence_score=0.65)],
@@ -194,7 +197,7 @@ class TestMarketRecommendationService:
         monkeypatch.setattr(
             market_recommendation_service.market_repository,
             "list_ordered_item_ids_by_buyer",
-            lambda buyer_id: set(),
+            lambda _session, buyer_id: set(),
         )
         monkeypatch.setattr(
             market_recommendation_service.behavior_event_repository,
@@ -204,7 +207,7 @@ class TestMarketRecommendationService:
         monkeypatch.setattr(
             market_recommendation_service.market_repository,
             "list_order_counts_for_item_ids",
-            lambda item_ids, statuses=None: {},
+            lambda _session, item_ids, statuses=None: {},
         )
 
         ranked = market_recommendation_service.rank_items_for_user(

@@ -37,6 +37,7 @@ class TestForumRankingFeatureLoaders:
         db.session.commit()
 
         preference_profile_repository.replace_content_topic_assignments(
+            db.session,
             domain="forum",
             content_type="post",
             content_id=first_post.id,
@@ -46,6 +47,7 @@ class TestForumRankingFeatureLoaders:
             ],
         )
         preference_profile_repository.replace_content_topic_assignments(
+            db.session,
             domain="forum",
             content_type="post",
             content_id=second_post.id,
@@ -53,6 +55,7 @@ class TestForumRankingFeatureLoaders:
         )
 
         grouped = preference_profile_repository.list_content_topic_assignments_for_content_ids(
+            db.session,
             domain="forum",
             content_type="post",
             content_ids=[first_post.id, second_post.id, 9999],
@@ -70,6 +73,7 @@ class TestForumRankingFeatureLoaders:
         now = datetime.now(UTC)
 
         behavior_event_repository.create_behavior_event(
+            db.session,
             user_id=user.id,
             domain="forum",
             action_type="view",
@@ -79,6 +83,7 @@ class TestForumRankingFeatureLoaders:
             created_at=now - timedelta(days=10),
         )
         behavior_event_repository.create_behavior_event(
+            db.session,
             user_id=user.id,
             domain="forum",
             action_type="long_view",
@@ -91,6 +96,7 @@ class TestForumRankingFeatureLoaders:
             created_at=now - timedelta(days=1),
         )
         behavior_event_repository.create_behavior_event(
+            db.session,
             user_id=user.id,
             domain="forum",
             action_type="like",
@@ -101,6 +107,7 @@ class TestForumRankingFeatureLoaders:
         )
 
         counts = behavior_event_repository.list_recent_topic_exposure_counts_for_user(
+            db.session,
             user.id,
             domain="forum",
             limit=2,
@@ -116,9 +123,9 @@ class TestForumRankingFeatureLoaders:
         oldest = _make_post(user.id, "Oldest")
         middle = _make_post(user.id, "Middle")
         newest = _make_post(user.id, "Newest")
-        forum_repository.soft_delete_post(middle)
+        forum_repository.soft_delete_post(db.session, middle)
         db.session.commit()
 
-        posts = forum_repository.list_published_posts_for_ranking(candidate_limit=2)
+        posts = forum_repository.list_published_posts_for_ranking(db.session, candidate_limit=2)
 
         assert [post.id for post in posts] == [newest.id, oldest.id]

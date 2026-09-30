@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from math import exp
 
+from app.extensions.db import db
 from app.models.project import Project
 from app.repositories.project import project_repository
 from app.repositories.recommendation import behavior_event_repository, preference_profile_repository
@@ -339,32 +340,36 @@ def build_ranking_context(*, user_id: int, projects: list[Project]) -> dict:
     )
     topic_assignments_by_project_id = (
         preference_profile_repository.list_content_topic_assignments_for_content_ids(
+            db.session,
             domain="project",
             content_type="project",
             content_ids=project_ids,
         )
     )
     viewed_project_ids = behavior_event_repository.list_behavior_target_ids_for_user(
+        db.session,
         user_id,
         domain="project",
         target_type="project",
         action_types=["view"],
     )
     contributed_project_ids = behavior_event_repository.list_behavior_target_ids_for_user(
+        db.session,
         user_id,
         domain="project",
         target_type="project",
         action_types=["project_contribute"],
     )
     recent_topic_exposure = behavior_event_repository.list_recent_topic_exposure_counts_for_user(
+        db.session,
         user_id,
         domain="project",
     )
     contribution_counts_by_project_id = project_repository.list_contribution_counts_for_project_ids(
-        project_ids
+        db.session, project_ids
     )
     contributor_counts_by_project_id = (
-        project_repository.list_unique_contributor_counts_for_project_ids(project_ids)
+        project_repository.list_unique_contributor_counts_for_project_ids(db.session, project_ids)
     )
     return {
         "has_history": has_history,

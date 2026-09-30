@@ -8,6 +8,7 @@ Responsibilities:
 
 from datetime import UTC, datetime, timedelta
 
+from app.extensions.db import db
 from app.repositories.forum import forum_repository
 from app.repositories.profile import user_repository
 from app.repositories.recommendation import behavior_event_repository
@@ -43,7 +44,7 @@ def _ensure_aware_utc(value: datetime | None) -> datetime | None:
 
 
 def _username_for_user(user_id: int) -> str:
-    user = user_repository.get_by_id(int(user_id))
+    user = user_repository.get_by_id(db.session, int(user_id))
     return getattr(user, "username", None) or f"User {user_id}"
 
 
@@ -106,7 +107,7 @@ def _serialize_post(
     comment_count: int | None = None,
 ) -> dict:
     author = (
-        user_repository.get_by_id(int(post.author_id))
+        user_repository.get_by_id(db.session, int(post.author_id))
         if getattr(post, "author_id", None) is not None
         else None
     )
@@ -130,7 +131,7 @@ def _serialize_comment(
     comment, *, liked_by_user: bool | None = None, like_count: int | None = None
 ) -> dict:
     author = (
-        user_repository.get_by_id(int(comment.user_id))
+        user_repository.get_by_id(db.session, int(comment.user_id))
         if getattr(comment, "user_id", None) is not None
         else None
     )
@@ -158,6 +159,7 @@ def create_post(
     *, author_id: int, title: str, content: str, image_urls_json: str | None = None
 ) -> dict:
     post = forum_repository.create_post(
+        db.session,
         author_id=author_id,
         title=title,
         content=content,
@@ -172,7 +174,7 @@ def create_post(
 
 
 def get_post(post_id: int, *, viewer_user_id: int | None = None) -> dict:
-    post = forum_repository.get_post_by_id(post_id)
+    post = forum_repository.get_post_by_id(db.session, post_id)
     if post is None:
         raise ForumError("Post not found.", code=40400, http_status=404)
     if viewer_user_id is not None:
@@ -181,10 +183,10 @@ def get_post(post_id: int, *, viewer_user_id: int | None = None) -> dict:
             preference_profile_service.recompute_user_preference_profiles(viewer_user_id)
         except Exception:
             pass
-    like_count = forum_repository.count_likes("post", post_id)
-    comment_count = forum_repository.count_comments(post_id)
+    like_count = forum_repository.count_likes(db.session, "post", post_id)
+    comment_count = forum_repository.count_comments(db.session, post_id)
     liked = (
-        forum_repository.is_liked_by(viewer_user_id, "post", post_id)
+        forum_repository.is_liked_by(db.session, viewer_user_id, "post", post_id)
         if viewer_user_id is not None
         else None
     )
@@ -194,11 +196,12 @@ def get_post(post_id: int, *, viewer_user_id: int | None = None) -> dict:
 
 
 def record_post_long_view(post_id: int, *, viewer_user_id: int) -> dict:
-    post = forum_repository.get_post_by_id(post_id)
+    post = forum_repository.get_post_by_id(db.session, post_id)
     if post is None:
         raise ForumError("Post not found.", code=40400, http_status=404)
 
     latest_event = behavior_event_repository.get_latest_behavior_event_for_target(
+        db.session,
         viewer_user_id,
         domain="forum",
         target_type="post",
@@ -229,23 +232,23 @@ def list_posts(
     viewer_user_id: int | None = None,
 ) -> dict:
     if viewer_user_id is not None:
-        total = forum_repository.count_all_published_posts()
+        total = forum_repository.count_all_published_posts(db.session)
         candidate_limit = max(total, per_page)
         candidate_posts = forum_repository.list_published_posts_for_ranking(
-            candidate_limit=candidate_limit
+            db.session, candidate_limit=candidate_limit
         )
         ranked_posts = rank_posts_for_user(posts=candidate_posts, user_id=viewer_user_id)
         start = (page - 1) * per_page
         posts = ranked_posts[start : start + per_page]
     else:
-        posts, total = forum_repository.list_posts_page_by_impact(page, per_page)
+        posts, total = forum_repository.list_posts_page_by_impact(db.session, page, per_page)
 
     items = []
     for post in posts:
-        like_count = forum_repository.count_likes("post", post.id)
-        comment_count = forum_repository.count_comments(post.id)
+        like_count = forum_repository.count_likes(db.session, "post", post.id)
+        comment_count = forum_repository.count_comments(db.session, post.id)
         liked = (
-            forum_repository.is_liked_by(viewer_user_id, "post", post.id)
+            forum_repository.is_liked_by(db.session, viewer_user_id, "post", post.id)
             if viewer_user_id is not None
             else None
         )
@@ -265,13 +268,14 @@ def update_post(
     content: str | None = None,
     image_urls_json: str | None = None,
 ) -> dict:
-    post = forum_repository.get_post_by_id(post_id)
+    post = forum_repository.get_post_by_id(db.session, post_id)
     if post is None:
         raise ForumError("Post not found.", code=40400, http_status=404)
     if post.author_id != operator_user_id:
         raise ForumError("You are not the author of this post.", code=40300, http_status=403)
 
     post = forum_repository.update_post(
+        db.session,
         post,
         title=title,
         content=content,
@@ -286,13 +290,13 @@ def update_post(
 
 
 def delete_post(post_id: int, *, operator_user_id: int) -> None:
-    post = forum_repository.get_post_by_id(post_id)
+    post = forum_repository.get_post_by_id(db.session, post_id)
     if post is None:
         raise ForumError("Post not found.", code=40400, http_status=404)
     if post.author_id != operator_user_id:
         raise ForumError("You are not the author of this post.", code=40300, http_status=403)
 
-    forum_repository.soft_delete_post(post)
+    forum_repository.soft_delete_post(db.session, post)
     forum_background_job_service.enqueue_post_removal(post_id=post_id)
 
 
@@ -309,17 +313,18 @@ def create_comment(
     parent_comment_id: int | None = None,
 ) -> dict:
     # Validate parent post exists.
-    post = forum_repository.get_post_by_id(post_id)
+    post = forum_repository.get_post_by_id(db.session, post_id)
     if post is None:
         raise ForumError("Post not found.", code=40400, http_status=404)
 
     # Validate parent comment exists (if replying).
     if parent_comment_id is not None:
-        parent = forum_repository.get_comment_by_id(parent_comment_id)
+        parent = forum_repository.get_comment_by_id(db.session, parent_comment_id)
         if parent is None or parent.post_id != post_id:
             raise ForumError("Parent comment not found.", code=40400, http_status=404)
 
     comment = forum_repository.create_comment(
+        db.session,
         post_id=post_id,
         user_id=user_id,
         content=content,
@@ -328,11 +333,13 @@ def create_comment(
     if parent_comment_id is None:
         _notify_post_commented(
             post_id=post.id,
-            recipient_user_id=forum_repository.get_post_author_id(post.id),
+            recipient_user_id=forum_repository.get_post_author_id(db.session, post.id),
             commenter_user_id=user_id,
         )
     else:
-        parent_context = forum_repository.get_comment_notification_context(parent_comment_id)
+        parent_context = forum_repository.get_comment_notification_context(
+            db.session, parent_comment_id
+        )
         _notify_comment_replied(
             comment_id=parent_comment_id,
             recipient_user_id=parent_context["author_id"] if parent_context is not None else None,
@@ -347,16 +354,16 @@ def create_comment(
 
 
 def list_comments(post_id: int, *, viewer_user_id: int | None = None) -> dict:
-    post = forum_repository.get_post_by_id(post_id)
+    post = forum_repository.get_post_by_id(db.session, post_id)
     if post is None:
         raise ForumError("Post not found.", code=40400, http_status=404)
 
-    comments = forum_repository.list_comments_by_post(post_id)
+    comments = forum_repository.list_comments_by_post(db.session, post_id)
     items = []
     for c in comments:
-        like_count = forum_repository.count_likes("comment", c.id)
+        like_count = forum_repository.count_likes(db.session, "comment", c.id)
         liked = (
-            forum_repository.is_liked_by(viewer_user_id, "comment", c.id)
+            forum_repository.is_liked_by(db.session, viewer_user_id, "comment", c.id)
             if viewer_user_id is not None
             else None
         )
@@ -365,12 +372,12 @@ def list_comments(post_id: int, *, viewer_user_id: int | None = None) -> dict:
 
 
 def delete_comment(comment_id: int, *, operator_user_id: int) -> None:
-    comment = forum_repository.get_comment_by_id(comment_id)
+    comment = forum_repository.get_comment_by_id(db.session, comment_id)
     if comment is None:
         raise ForumError("Comment not found.", code=40400, http_status=404)
     if comment.user_id != operator_user_id:
         raise ForumError("You are not the author of this comment.", code=40300, http_status=403)
-    forum_repository.soft_delete_comment(comment)
+    forum_repository.soft_delete_comment(db.session, comment)
 
 
 # ---------------------------------------------------------------------------
@@ -384,16 +391,16 @@ def toggle_like(*, user_id: int, target_type: str, target_id: int) -> dict:
 
     # Validate target exists.
     if target_type == "post":
-        post_author_id = forum_repository.get_post_author_id(target_id)
+        post_author_id = forum_repository.get_post_author_id(db.session, target_id)
         if post_author_id is None:
             raise ForumError("Post not found.", code=40400, http_status=404)
     else:
-        comment_context = forum_repository.get_comment_notification_context(target_id)
+        comment_context = forum_repository.get_comment_notification_context(db.session, target_id)
         if comment_context is None:
             raise ForumError("Comment not found.", code=40400, http_status=404)
 
     liked = forum_repository.toggle_like(
-        user_id=user_id, target_type=target_type, target_id=target_id
+        db.session, user_id=user_id, target_type=target_type, target_id=target_id
     )
     try:
         if liked:
@@ -423,5 +430,5 @@ def toggle_like(*, user_id: int, target_type: str, target_id: int) -> dict:
             recipient_user_id=comment_context["author_id"] if comment_context is not None else None,
             liker_user_id=user_id,
         )
-    like_count = forum_repository.count_likes(target_type, target_id)
+    like_count = forum_repository.count_likes(db.session, target_type, target_id)
     return {"liked": liked, "like_count": like_count}

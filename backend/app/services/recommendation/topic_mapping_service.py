@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from app.extensions.db import db
 from app.repositories.recommendation import preference_profile_repository
 from app.services.ai.openrouter_service import complete_json_diagnostic
 from app.services.recommendation.topic_taxonomy import (
@@ -252,6 +253,7 @@ def assign_project_topics(*, title: str, description: str | None = None) -> list
 def refresh_forum_post_topics(*, post_id: int, title: str, content: str) -> list[dict[str, Any]]:
     topics = assign_forum_post_topics(title=title, content=content)
     preference_profile_repository.replace_content_topic_assignments(
+        db.session,
         domain="forum",
         content_type="post",
         content_id=post_id,
@@ -265,6 +267,7 @@ def refresh_market_item_topics(
 ) -> list[dict[str, Any]]:
     topics = assign_market_item_topics(title=title, description=description)
     preference_profile_repository.replace_content_topic_assignments(
+        db.session,
         domain="market",
         content_type="item",
         content_id=item_id,
@@ -278,6 +281,7 @@ def refresh_project_topics(
 ) -> list[dict[str, Any]]:
     topics = assign_project_topics(title=title, description=description)
     preference_profile_repository.replace_content_topic_assignments(
+        db.session,
         domain="project",
         content_type="project",
         content_id=project_id,

@@ -57,7 +57,7 @@ def test_reindex_post_persists_chunks_and_updates_rag_index(monkeypatch, app):
             content=post.content,
         )
 
-        saved_chunks = forum_repository.get_chunks_by_post(post.id)
+        saved_chunks = forum_repository.get_chunks_by_post(db.session, post.id)
 
         assert rows
         assert fake_index.upserts
@@ -76,6 +76,7 @@ def test_remove_post_index_deletes_chunk_rows_and_vector_entries(monkeypatch, ap
         db.session.add(post)
         db.session.commit()
         forum_repository.save_post_chunks(
+            db.session,
             post.id,
             [
                 {
@@ -99,6 +100,6 @@ def test_remove_post_index_deletes_chunk_rows_and_vector_entries(monkeypatch, ap
 
         forum_indexing_service.remove_post_index(post.id)
 
-        assert forum_repository.get_chunks_by_post(post.id) == []
+        assert forum_repository.get_chunks_by_post(db.session, post.id) == []
         assert fake_index.deletes == [[f"post-{post.id}-v1-c0"]]
         assert graph_calls == [{"post_id": post.id}]

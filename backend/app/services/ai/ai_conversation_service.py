@@ -146,9 +146,9 @@ def _resolve_conversation_for_user(
     title: str | None = None,
 ) -> AIConversation:
     if conversation_id is None:
-        return conversation_repository.create_conversation(user_id=user_id, title=title)
+        return conversation_repository.create_conversation(db.session, user_id=user_id, title=title)
 
-    conversation = conversation_repository.get_conversation(conversation_id, user_id)
+    conversation = conversation_repository.get_conversation(db.session, conversation_id, user_id)
     if conversation is None:
         raise ValueError(f"Conversation {conversation_id} not found.")
     return conversation
@@ -164,7 +164,7 @@ def _resolve_history_for_request(
     if conversation is None:
         return _trim_history_to_recent_turns(supplied_history or [], max_turns=max_turns), None
 
-    persisted_messages = conversation_repository.list_messages(conversation.id)
+    persisted_messages = conversation_repository.list_messages(db.session, conversation.id)
     if persisted_messages:
         return _trim_history_to_recent_turns(
             history_from_message_records(persisted_messages),
@@ -328,6 +328,7 @@ def _persist_user_message(
         content_payload["image_url"] = store_data_url_image(image_data_url, namespace="chat")
 
     return conversation_repository.append_message(
+        db.session,
         conversation_id=conversation_id,
         role="user",
         message_type="image" if image_data_url else "text",
@@ -362,6 +363,7 @@ def _persist_assistant_message(
     content_json = json.dumps(payload, ensure_ascii=False) if payload else None
 
     return conversation_repository.append_message(
+        db.session,
         conversation_id=conversation_id,
         role="assistant",
         message_type="text",
@@ -388,6 +390,7 @@ def _persist_clarification_assistant_message(
     if normalized_trace:
         payload["trace"] = normalized_trace
     return conversation_repository.append_message(
+        db.session,
         conversation_id=conversation_id,
         role="assistant",
         message_type="tool_result",
@@ -1498,6 +1501,7 @@ def list_user_conversations(
 ) -> dict[str, Any]:
     offset = (page - 1) * per_page
     conversations = conversation_repository.list_conversations(
+        db.session,
         user_id=user_id,
         limit=per_page,
         offset=offset,
@@ -1516,11 +1520,11 @@ def get_conversation_messages(
     user_id: int,
     conversation_id: int,
 ) -> dict[str, Any]:
-    conversation = conversation_repository.get_conversation(conversation_id, user_id)
+    conversation = conversation_repository.get_conversation(db.session, conversation_id, user_id)
     if conversation is None:
         raise ValueError(f"Conversation {conversation_id} not found.")
 
-    messages = conversation_repository.list_messages(conversation_id)
+    messages = conversation_repository.list_messages(db.session, conversation_id)
     recycling_cases = list(
         db.session.scalars(
             select(RecyclingCase)
@@ -1529,7 +1533,8 @@ def get_conversation_messages(
         )
     )
     audit_attempts_by_case_id = {
-        case.id: recycling_case_repository.list_audit_attempts(case.id) for case in recycling_cases
+        case.id: recycling_case_repository.list_audit_attempts(db.session, case.id)
+        for case in recycling_cases
     }
     case_by_id = {case.id: case for case in recycling_cases}
     case_by_origin_message_id = {case.origin_message_id: case for case in recycling_cases}
@@ -1571,7 +1576,7 @@ def delete_user_conversation(
     user_id: int,
     conversation_id: int,
 ) -> dict[str, Any]:
-    deleted = conversation_repository.delete_conversation(conversation_id, user_id)
+    deleted = conversation_repository.delete_conversation(db.session, conversation_id, user_id)
     if not deleted:
         raise ValueError(f"Conversation {conversation_id} not found.")
 

@@ -38,6 +38,7 @@ def test_retrieve_forum_references_fuses_keyword_and_vector_hits(monkeypatch, ap
         db.session.commit()
 
         forum_repository.save_post_chunks(
+            db.session,
             bottle_post.id,
             [
                 {
@@ -50,6 +51,7 @@ def test_retrieve_forum_references_fuses_keyword_and_vector_hits(monkeypatch, ap
             ],
         )
         forum_repository.save_post_chunks(
+            db.session,
             glass_post.id,
             [
                 {
@@ -167,6 +169,7 @@ def test_retrieve_forum_references_filters_prompt_injection_chunks(app):
         db.session.commit()
 
         forum_repository.save_post_chunks(
+            db.session,
             malicious_post.id,
             [
                 {

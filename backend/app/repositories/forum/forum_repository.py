@@ -2,8 +2,8 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import case, func, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
-from app.extensions.db import db
 from app.models.forum import ForumComment, ForumPost, ForumPostChunk, Like
 
 # ---------------------------------------------------------------------------
@@ -12,6 +12,7 @@ from app.models.forum import ForumComment, ForumPost, ForumPostChunk, Like
 
 
 def create_post(
+    session: Session,
     *,
     author_id: int,
     title: str,
@@ -24,14 +25,14 @@ def create_post(
         content=content,
         image_urls_json=image_urls_json,
     )
-    db.session.add(post)
-    db.session.commit()
+    session.add(post)
+    session.commit()
     return post
 
 
-def get_post_by_id(post_id: int) -> ForumPost | None:
+def get_post_by_id(session: Session, post_id: int) -> ForumPost | None:
     """Return a published post, or None if not found / soft-deleted."""
-    return db.session.scalar(
+    return session.scalar(
         select(ForumPost).where(
             ForumPost.id == post_id,
             ForumPost.status == "published",
@@ -39,14 +40,15 @@ def get_post_by_id(post_id: int) -> ForumPost | None:
     )
 
 
-def get_post_author_id(post_id: int) -> int | None:
-    post = get_post_by_id(post_id)
+def get_post_author_id(session: Session, post_id: int) -> int | None:
+    post = get_post_by_id(session, post_id)
     if post is None:
         return None
     return int(post.author_id)
 
 
 def update_post(
+    session: Session,
     post: ForumPost,
     *,
     title: str | None = None,
@@ -59,30 +61,31 @@ def update_post(
         post.content = content
     if image_urls_json is not None:
         post.image_urls_json = image_urls_json
-    db.session.commit()
+    session.commit()
     return post
 
 
-def soft_delete_post(post: ForumPost) -> None:
+def soft_delete_post(session: Session, post: ForumPost) -> None:
     post.status = "deleted"
-    db.session.commit()
+    session.commit()
 
 
-def list_posts_page(page: int, per_page: int) -> tuple[list[ForumPost], int]:
+def list_posts_page(session: Session, page: int, per_page: int) -> tuple[list[ForumPost], int]:
     """Return (posts, total) for all published posts, newest first."""
     base = select(ForumPost).where(ForumPost.status == "published")
-    total = db.session.scalar(select(func.count()).select_from(base.subquery())) or 0
-    posts = db.session.scalars(
+    total = session.scalar(select(func.count()).select_from(base.subquery())) or 0
+    posts = session.scalars(
         base.order_by(ForumPost.created_at.desc()).limit(per_page).offset((page - 1) * per_page)
     ).all()
     return list(posts), total
 
 
-def list_posts_page_by_impact(page: int, per_page: int) -> tuple[list[ForumPost], int]:
+def list_posts_page_by_impact(
+    session: Session, page: int, per_page: int
+) -> tuple[list[ForumPost], int]:
     """Return (posts, total) for all published posts, ordered by impact."""
     total = (
-        db.session.scalar(select(func.count(ForumPost.id)).where(ForumPost.status == "published"))
-        or 0
+        session.scalar(select(func.count(ForumPost.id)).where(ForumPost.status == "published")) or 0
     )
 
     like_counts = (
@@ -117,7 +120,7 @@ def list_posts_page_by_impact(page: int, per_page: int) -> tuple[list[ForumPost]
     )
     impact_score = like_score + comment_score + recency_bonus
 
-    posts = db.session.scalars(
+    posts = session.scalars(
         select(ForumPost)
         .outerjoin(like_counts, like_counts.c.post_id == ForumPost.id)
         .outerjoin(comment_counts, comment_counts.c.post_id == ForumPost.id)
@@ -133,9 +136,9 @@ def list_posts_page_by_impact(page: int, per_page: int) -> tuple[list[ForumPost]
     return list(posts), total
 
 
-def list_all_published_posts() -> list[ForumPost]:
+def list_all_published_posts(session: Session) -> list[ForumPost]:
     return list(
-        db.session.scalars(
+        session.scalars(
             select(ForumPost)
             .where(ForumPost.status == "published")
             .order_by(ForumPost.created_at.desc(), ForumPost.id.desc())
@@ -143,18 +146,17 @@ def list_all_published_posts() -> list[ForumPost]:
     )
 
 
-def count_all_published_posts() -> int:
+def count_all_published_posts(session: Session) -> int:
     return (
-        db.session.scalar(select(func.count(ForumPost.id)).where(ForumPost.status == "published"))
-        or 0
+        session.scalar(select(func.count(ForumPost.id)).where(ForumPost.status == "published")) or 0
     )
 
 
-def list_published_posts_for_ranking(*, candidate_limit: int) -> list[ForumPost]:
+def list_published_posts_for_ranking(session: Session, *, candidate_limit: int) -> list[ForumPost]:
     if candidate_limit <= 0:
         return []
     return list(
-        db.session.scalars(
+        session.scalars(
             select(ForumPost)
             .where(ForumPost.status == "published")
             .order_by(ForumPost.created_at.desc(), ForumPost.id.desc())
@@ -163,12 +165,12 @@ def list_published_posts_for_ranking(*, candidate_limit: int) -> list[ForumPost]
     )
 
 
-def list_posts_by_ids(post_ids: list[int]) -> list[ForumPost]:
+def list_posts_by_ids(session: Session, post_ids: list[int]) -> list[ForumPost]:
     if not post_ids:
         return []
 
     return list(
-        db.session.scalars(
+        session.scalars(
             select(ForumPost)
             .where(
                 ForumPost.id.in_(post_ids),
@@ -185,6 +187,7 @@ def list_posts_by_ids(post_ids: list[int]) -> list[ForumPost]:
 
 
 def create_comment(
+    session: Session,
     *,
     post_id: int,
     user_id: int,
@@ -197,13 +200,13 @@ def create_comment(
         content=content,
         parent_comment_id=parent_comment_id,
     )
-    db.session.add(comment)
-    db.session.commit()
+    session.add(comment)
+    session.commit()
     return comment
 
 
-def get_comment_by_id(comment_id: int) -> ForumComment | None:
-    return db.session.scalar(
+def get_comment_by_id(session: Session, comment_id: int) -> ForumComment | None:
+    return session.scalar(
         select(ForumComment).where(
             ForumComment.id == comment_id,
             ForumComment.status == "published",
@@ -211,8 +214,8 @@ def get_comment_by_id(comment_id: int) -> ForumComment | None:
     )
 
 
-def get_comment_notification_context(comment_id: int) -> dict | None:
-    comment = get_comment_by_id(comment_id)
+def get_comment_notification_context(session: Session, comment_id: int) -> dict | None:
+    comment = get_comment_by_id(session, comment_id)
     if comment is None:
         return None
 
@@ -226,15 +229,15 @@ def get_comment_notification_context(comment_id: int) -> dict | None:
     }
 
 
-def soft_delete_comment(comment: ForumComment) -> None:
+def soft_delete_comment(session: Session, comment: ForumComment) -> None:
     comment.status = "deleted"
-    db.session.commit()
+    session.commit()
 
 
-def list_comments_by_post(post_id: int) -> list[ForumComment]:
+def list_comments_by_post(session: Session, post_id: int) -> list[ForumComment]:
     """Return all published comments for a post, ordered oldest first."""
     return list(
-        db.session.scalars(
+        session.scalars(
             select(ForumComment)
             .where(
                 ForumComment.post_id == post_id,
@@ -250,9 +253,9 @@ def list_comments_by_post(post_id: int) -> list[ForumComment]:
 # ---------------------------------------------------------------------------
 
 
-def toggle_like(*, user_id: int, target_type: str, target_id: int) -> bool:
+def toggle_like(session: Session, *, user_id: int, target_type: str, target_id: int) -> bool:
     """Toggle like state. Returns True if liked, False if unliked."""
-    existing = db.session.scalar(
+    existing = session.scalar(
         select(Like).where(
             Like.user_id == user_id,
             Like.target_type == target_type,
@@ -260,23 +263,23 @@ def toggle_like(*, user_id: int, target_type: str, target_id: int) -> bool:
         )
     )
     if existing:
-        db.session.delete(existing)
-        db.session.commit()
+        session.delete(existing)
+        session.commit()
         return False
     else:
         like = Like(user_id=user_id, target_type=target_type, target_id=target_id)
-        db.session.add(like)
+        session.add(like)
         try:
-            db.session.commit()
+            session.commit()
         except IntegrityError:
             # Race condition: another request inserted simultaneously — treat as liked.
-            db.session.rollback()
+            session.rollback()
         return True
 
 
-def count_likes(target_type: str, target_id: int) -> int:
+def count_likes(session: Session, target_type: str, target_id: int) -> int:
     return (
-        db.session.scalar(
+        session.scalar(
             select(func.count(Like.id)).where(
                 Like.target_type == target_type,
                 Like.target_id == target_id,
@@ -286,9 +289,9 @@ def count_likes(target_type: str, target_id: int) -> int:
     )
 
 
-def count_comments(post_id: int) -> int:
+def count_comments(session: Session, post_id: int) -> int:
     return (
-        db.session.scalar(
+        session.scalar(
             select(func.count(ForumComment.id)).where(
                 ForumComment.post_id == post_id,
                 ForumComment.status == "published",
@@ -298,9 +301,9 @@ def count_comments(post_id: int) -> int:
     )
 
 
-def is_liked_by(user_id: int, target_type: str, target_id: int) -> bool:
+def is_liked_by(session: Session, user_id: int, target_type: str, target_id: int) -> bool:
     return (
-        db.session.scalar(
+        session.scalar(
             select(Like).where(
                 Like.user_id == user_id,
                 Like.target_type == target_type,
@@ -316,12 +319,14 @@ def is_liked_by(user_id: int, target_type: str, target_id: int) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def save_post_chunks(post_id: int, chunks: list[str | dict]) -> list[ForumPostChunk]:
+def save_post_chunks(
+    session: Session, post_id: int, chunks: list[str | dict]
+) -> list[ForumPostChunk]:
     """Persist a list of chunks for a post (replaces old chunks)."""
     # Remove stale chunks first.
-    old = db.session.scalars(select(ForumPostChunk).where(ForumPostChunk.post_id == post_id)).all()
+    old = session.scalars(select(ForumPostChunk).where(ForumPostChunk.post_id == post_id)).all()
     for c in old:
-        db.session.delete(c)
+        session.delete(c)
 
     new_chunks = []
     for index, item in enumerate(chunks):
@@ -346,14 +351,14 @@ def save_post_chunks(post_id: int, chunks: list[str | dict]) -> list[ForumPostCh
                     chunk_version=1,
                 )
             )
-    db.session.add_all(new_chunks)
-    db.session.commit()
+    session.add_all(new_chunks)
+    session.commit()
     return new_chunks
 
 
-def get_chunks_by_post(post_id: int) -> list[ForumPostChunk]:
+def get_chunks_by_post(session: Session, post_id: int) -> list[ForumPostChunk]:
     return list(
-        db.session.scalars(
+        session.scalars(
             select(ForumPostChunk)
             .where(ForumPostChunk.post_id == post_id)
             .order_by(ForumPostChunk.chunk_version.desc(), ForumPostChunk.chunk_index.asc())
@@ -361,17 +366,17 @@ def get_chunks_by_post(post_id: int) -> list[ForumPostChunk]:
     )
 
 
-def get_latest_chunk_version(post_id: int) -> int:
+def get_latest_chunk_version(session: Session, post_id: int) -> int:
     return (
-        db.session.scalar(
+        session.scalar(
             select(func.max(ForumPostChunk.chunk_version)).where(ForumPostChunk.post_id == post_id)
         )
         or 0
     )
 
 
-def list_active_chunks() -> list[tuple[ForumPostChunk, ForumPost]]:
-    rows = db.session.execute(
+def list_active_chunks(session: Session) -> list[tuple[ForumPostChunk, ForumPost]]:
+    rows = session.execute(
         select(ForumPostChunk, ForumPost)
         .join(ForumPost, ForumPost.id == ForumPostChunk.post_id)
         .where(ForumPost.status == "published")
@@ -386,12 +391,13 @@ def list_active_chunks() -> list[tuple[ForumPostChunk, ForumPost]]:
 
 
 def list_active_chunks_by_embedding_ids(
+    session: Session,
     embedding_ids: list[str],
 ) -> list[tuple[ForumPostChunk, ForumPost]]:
     if not embedding_ids:
         return []
 
-    rows = db.session.execute(
+    rows = session.execute(
         select(ForumPostChunk, ForumPost)
         .join(ForumPost, ForumPost.id == ForumPostChunk.post_id)
         .where(

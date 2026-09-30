@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from app.extensions.db import db
 from app.repositories.ai import recycling_case_repository
 from app.repositories.forum import forum_repository
 from app.repositories.market import market_repository
@@ -22,6 +23,7 @@ def record_behavior_event(
     created_at: datetime | None = None,
 ):
     return behavior_event_repository.create_behavior_event(
+        db.session,
         user_id=user_id,
         domain=domain,
         action_type=action_type,
@@ -34,17 +36,18 @@ def record_behavior_event(
 
 
 def _require_post_exists(post_id: int) -> None:
-    if forum_repository.get_post_by_id(post_id) is None:
+    if forum_repository.get_post_by_id(db.session, post_id) is None:
         raise ValueError(f"Forum post {post_id} not found.")
 
 
 def _require_case_exists(case_id: int, user_id: int) -> None:
-    if recycling_case_repository.get_case(case_id, user_id) is None:
+    if recycling_case_repository.get_case(db.session, case_id, user_id) is None:
         raise ValueError(f"Recycling case {case_id} not found for user {user_id}.")
 
 
 def _forum_post_topics(post_id: int) -> list[dict]:
     assignments = preference_profile_repository.list_content_topic_assignments(
+        db.session,
         domain="forum",
         content_type="post",
         content_id=post_id,
@@ -61,22 +64,23 @@ def _forum_post_topics(post_id: int) -> list[dict]:
 
 
 def _require_item_exists(item_id: int) -> None:
-    if market_repository.get_item_by_id(item_id) is None:
+    if market_repository.get_item_by_id(db.session, item_id) is None:
         raise ValueError(f"Market item {item_id} not found.")
 
 
 def _require_order_exists(order_id: int) -> None:
-    if market_repository.get_order_by_id(order_id) is None:
+    if market_repository.get_order_by_id(db.session, order_id) is None:
         raise ValueError(f"Market order {order_id} not found.")
 
 
 def _require_project_exists(project_id: int) -> None:
-    if project_repository.get_project_by_id(project_id) is None:
+    if project_repository.get_project_by_id(db.session, project_id) is None:
         raise ValueError(f"Project {project_id} not found.")
 
 
 def _market_item_topics(item_id: int) -> list[dict]:
     assignments = preference_profile_repository.list_content_topic_assignments(
+        db.session,
         domain="market",
         content_type="item",
         content_id=item_id,
@@ -94,6 +98,7 @@ def _market_item_topics(item_id: int) -> list[dict]:
 
 def _project_topics(project_id: int) -> list[dict]:
     assignments = preference_profile_repository.list_content_topic_assignments(
+        db.session,
         domain="project",
         content_type="project",
         content_id=project_id,
@@ -115,7 +120,7 @@ def _resolve_post_id_for_forum_target(*, target_type: str, target_id: int) -> in
         _require_post_exists(target_id)
         return target_id
     if normalized_target_type == "comment":
-        comment = forum_repository.get_comment_by_id(target_id)
+        comment = forum_repository.get_comment_by_id(db.session, target_id)
         if comment is None:
             raise ValueError(f"Forum comment {target_id} not found.")
         return int(comment.post_id)
@@ -210,7 +215,7 @@ def record_forum_comment_or_reply(
 
 
 def _recycling_case_topics(*, user_id: int, recycling_case_id: int) -> list[dict]:
-    case = recycling_case_repository.get_case(recycling_case_id, user_id)
+    case = recycling_case_repository.get_case(db.session, recycling_case_id, user_id)
     if case is None:
         raise ValueError(f"Recycling case {recycling_case_id} not found for user {user_id}.")
     return map_recycling_item_to_topics(case.waste_type_predicted)
@@ -293,7 +298,7 @@ def record_ai_accept(
 
 def record_market_view(*, user_id: int, item_id: int, created_at: datetime | None = None):
     _require_item_exists(item_id)
-    item = market_repository.get_item_by_id(item_id)
+    item = market_repository.get_item_by_id(db.session, item_id)
     return record_behavior_event(
         user_id=user_id,
         domain="market",
@@ -308,7 +313,7 @@ def record_market_view(*, user_id: int, item_id: int, created_at: datetime | Non
 
 def record_market_long_view(*, user_id: int, item_id: int, created_at: datetime | None = None):
     _require_item_exists(item_id)
-    item = market_repository.get_item_by_id(item_id)
+    item = market_repository.get_item_by_id(db.session, item_id)
     return record_behavior_event(
         user_id=user_id,
         domain="market",
@@ -330,8 +335,8 @@ def record_market_order(
 ):
     _require_order_exists(order_id)
     _require_item_exists(item_id)
-    item = market_repository.get_item_by_id(item_id)
-    order = market_repository.get_order_by_id(order_id)
+    item = market_repository.get_item_by_id(db.session, item_id)
+    order = market_repository.get_order_by_id(db.session, order_id)
     if order.item_id != item_id:
         raise ValueError(f"Market order {order_id} does not belong to item {item_id}.")
     return record_behavior_event(
@@ -348,7 +353,7 @@ def record_market_order(
 
 def record_market_item_create(*, user_id: int, item_id: int, created_at: datetime | None = None):
     _require_item_exists(item_id)
-    item = market_repository.get_item_by_id(item_id)
+    item = market_repository.get_item_by_id(db.session, item_id)
     return record_behavior_event(
         user_id=user_id,
         domain="market",
@@ -370,7 +375,7 @@ def record_market_order_completed_as_seller(
 ):
     _require_order_exists(order_id)
     _require_item_exists(item_id)
-    order = market_repository.get_order_by_id(order_id)
+    order = market_repository.get_order_by_id(db.session, order_id)
     if order.item_id != item_id:
         raise ValueError(f"Market order {order_id} does not belong to item {item_id}.")
     return record_behavior_event(
@@ -387,7 +392,7 @@ def record_market_order_completed_as_seller(
 
 def record_project_view(*, user_id: int, project_id: int, created_at: datetime | None = None):
     _require_project_exists(project_id)
-    project = project_repository.get_project_by_id(project_id)
+    project = project_repository.get_project_by_id(db.session, project_id)
     return record_behavior_event(
         user_id=user_id,
         domain="project",
@@ -402,7 +407,7 @@ def record_project_view(*, user_id: int, project_id: int, created_at: datetime |
 
 def record_project_create(*, user_id: int, project_id: int, created_at: datetime | None = None):
     _require_project_exists(project_id)
-    project = project_repository.get_project_by_id(project_id)
+    project = project_repository.get_project_by_id(db.session, project_id)
     return record_behavior_event(
         user_id=user_id,
         domain="project",
@@ -423,7 +428,7 @@ def record_project_contribute(
     created_at: datetime | None = None,
 ):
     _require_project_exists(project_id)
-    project = project_repository.get_project_by_id(project_id)
+    project = project_repository.get_project_by_id(db.session, project_id)
     return record_behavior_event(
         user_id=user_id,
         domain="project",

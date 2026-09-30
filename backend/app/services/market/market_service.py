@@ -110,6 +110,7 @@ def create_item(
     if price_points <= 0:
         raise MarketError("'price_points' must be a positive integer.")
     item = market_repository.create_item(
+        db.session,
         seller_id=seller_id,
         title=title,
         description=description,
@@ -130,7 +131,7 @@ def create_item(
 
 
 def get_item(item_id: int, *, viewer_user_id: int | None = None) -> dict:
-    item = market_repository.get_item_by_id(item_id)
+    item = market_repository.get_item_by_id(db.session, item_id)
     if item is None:
         raise MarketError("Item not found.", code=40400, http_status=404)
     if viewer_user_id is not None and viewer_user_id != item.seller_id:
@@ -143,11 +144,12 @@ def get_item(item_id: int, *, viewer_user_id: int | None = None) -> dict:
 
 
 def record_item_long_view(item_id: int, *, viewer_user_id: int) -> dict:
-    item = market_repository.get_item_by_id(item_id)
+    item = market_repository.get_item_by_id(db.session, item_id)
     if item is None:
         raise MarketError("Item not found.", code=40400, http_status=404)
 
     latest_event = behavior_event_repository.get_latest_behavior_event_for_target(
+        db.session,
         viewer_user_id,
         domain="market",
         target_type="item",
@@ -173,9 +175,11 @@ def record_item_long_view(item_id: int, *, viewer_user_id: int) -> dict:
 def list_active_items(page: int, per_page: int, *, viewer_user_id: int | None = None) -> dict:
     if viewer_user_id is not None:
         all_items = market_repository.list_all_active_items_excluding_seller(
-            seller_id=viewer_user_id
+            db.session, seller_id=viewer_user_id
         )
-        ordered_item_ids = market_repository.list_ordered_item_ids_by_buyer(viewer_user_id)
+        ordered_item_ids = market_repository.list_ordered_item_ids_by_buyer(
+            db.session, viewer_user_id
+        )
         candidate_items = [item for item in all_items if int(item.id) not in ordered_item_ids]
         total = len(candidate_items)
         try:
@@ -185,7 +189,7 @@ def list_active_items(page: int, per_page: int, *, viewer_user_id: int | None = 
         start = max((page - 1) * per_page, 0)
         items = ordered_items[start : start + per_page]
     else:
-        items, total = market_repository.list_active_items_page(page, per_page)
+        items, total = market_repository.list_active_items_page(db.session, page, per_page)
     return {
         "items": [_serialize_item(i) for i in items],
         "total": total,
@@ -195,7 +199,7 @@ def list_active_items(page: int, per_page: int, *, viewer_user_id: int | None = 
 
 
 def list_my_items(seller_id: int, page: int, per_page: int) -> dict:
-    items, total = market_repository.list_items_by_seller(seller_id, page, per_page)
+    items, total = market_repository.list_items_by_seller(db.session, seller_id, page, per_page)
     return {
         "items": [_serialize_item(i) for i in items],
         "total": total,
@@ -206,7 +210,7 @@ def list_my_items(seller_id: int, page: int, per_page: int) -> dict:
 
 def remove_item(item_id: int, *, operator_user_id: int) -> None:
     """Seller takes down their own item (only allowed when still active)."""
-    item = market_repository.get_item_by_id(item_id)
+    item = market_repository.get_item_by_id(db.session, item_id)
     if item is None:
         raise MarketError("Item not found.", code=40400, http_status=404)
     if item.seller_id != operator_user_id:
@@ -236,7 +240,7 @@ def place_order(*, buyer_id: int, item_id: int) -> dict:
     4. Create order with status='paid'.
     5. Commit.
     """
-    item = market_repository.get_item_by_id(item_id)
+    item = market_repository.get_item_by_id(db.session, item_id)
     if item is None:
         raise MarketError("Item not found.", code=40400, http_status=404)
     if item.status != "active":
@@ -246,6 +250,7 @@ def place_order(*, buyer_id: int, item_id: int) -> dict:
 
     try:
         spend_txn = spend_points(
+            db.session,
             user_id=buyer_id,
             points=item.price_points,
             source_type="market_order",
@@ -261,6 +266,7 @@ def place_order(*, buyer_id: int, item_id: int) -> dict:
     market_repository.update_item_status(item, "sold_out")
 
     order = market_repository.create_order(
+        db.session,
         item_id=item_id,
         buyer_id=buyer_id,
         seller_id=item.seller_id,
@@ -291,7 +297,7 @@ def place_order(*, buyer_id: int, item_id: int) -> dict:
 
 def ship_order(order_id: int, *, operator_user_id: int) -> dict:
     """Seller marks the order as shipped."""
-    order = market_repository.get_order_by_id(order_id)
+    order = market_repository.get_order_by_id(db.session, order_id)
     if order is None:
         raise MarketError("Order not found.", code=40400, http_status=404)
     if order.seller_id != operator_user_id:
@@ -320,7 +326,7 @@ def confirm_receipt(order_id: int, *, operator_user_id: int) -> dict:
     3. Mark order 'completed'.
     4. Commit.
     """
-    order = market_repository.get_order_by_id(order_id)
+    order = market_repository.get_order_by_id(db.session, order_id)
     if order is None:
         raise MarketError("Order not found.", code=40400, http_status=404)
     if order.buyer_id != operator_user_id:
@@ -333,6 +339,7 @@ def confirm_receipt(order_id: int, *, operator_user_id: int) -> dict:
         )
 
     earn_points(
+        db.session,
         user_id=order.seller_id,
         points=order.price_points,
         source_type="market_order",
@@ -361,7 +368,7 @@ def cancel_order(order_id: int, *, operator_user_id: int) -> dict:
 
     Only the buyer may cancel, and only before shipment.
     """
-    order = market_repository.get_order_by_id(order_id)
+    order = market_repository.get_order_by_id(db.session, order_id)
     if order is None:
         raise MarketError("Order not found.", code=40400, http_status=404)
     if order.buyer_id != operator_user_id:
@@ -375,13 +382,14 @@ def cancel_order(order_id: int, *, operator_user_id: int) -> dict:
 
     # Refund buyer.
     earn_points(
+        db.session,
         user_id=order.buyer_id,
         points=order.price_points,
         source_type="market_order",
         source_id=order.id,
     )
     # Reinstate item as active so it can be purchased again.
-    item = market_repository.get_item_by_id(order.item_id)
+    item = market_repository.get_item_by_id(db.session, order.item_id)
     if item is not None and item.status == "sold_out":
         market_repository.update_item_status(item, "active")
 
@@ -393,11 +401,11 @@ def cancel_order(order_id: int, *, operator_user_id: int) -> dict:
 def list_my_orders(user_id: int, page: int, per_page: int, *, role: str = "all") -> dict:
     """role: 'buyer' | 'seller' | 'all'"""
     if role == "buyer":
-        orders, total = market_repository.list_orders_as_buyer(user_id, page, per_page)
+        orders, total = market_repository.list_orders_as_buyer(db.session, user_id, page, per_page)
     elif role == "seller":
-        orders, total = market_repository.list_orders_as_seller(user_id, page, per_page)
+        orders, total = market_repository.list_orders_as_seller(db.session, user_id, page, per_page)
     else:
-        orders, total = market_repository.list_orders_by_user(user_id, page, per_page)
+        orders, total = market_repository.list_orders_by_user(db.session, user_id, page, per_page)
     return {
         "items": [_serialize_order(o) for o in orders],
         "total": total,

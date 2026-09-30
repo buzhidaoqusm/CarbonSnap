@@ -4,12 +4,13 @@ import json
 from typing import Any
 
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
-from app.extensions.db import db
 from app.models.ai import AIMessageDecision
 
 
 def create_message_decision(
+    session: Session,
     *,
     conversation_id: int,
     user_message_id: int,
@@ -32,13 +33,15 @@ def create_message_decision(
         decision_json=json.dumps(decision_payload, ensure_ascii=False),
         engine_version=engine_version,
     )
-    db.session.add(decision)
-    db.session.commit()
+    session.add(decision)
+    session.commit()
     return decision
 
 
-def list_message_decisions_for_conversation(conversation_id: int) -> list[AIMessageDecision]:
-    decisions = db.session.scalars(
+def list_message_decisions_for_conversation(
+    session: Session, conversation_id: int
+) -> list[AIMessageDecision]:
+    decisions = session.scalars(
         select(AIMessageDecision)
         .where(AIMessageDecision.conversation_id == conversation_id)
         .order_by(AIMessageDecision.id.asc())
@@ -46,8 +49,10 @@ def list_message_decisions_for_conversation(conversation_id: int) -> list[AIMess
     return list(decisions)
 
 
-def get_latest_message_decision_for_message(message_id: int) -> AIMessageDecision | None:
-    return db.session.scalar(
+def get_latest_message_decision_for_message(
+    session: Session, message_id: int
+) -> AIMessageDecision | None:
+    return session.scalar(
         select(AIMessageDecision)
         .where(AIMessageDecision.user_message_id == message_id)
         .order_by(AIMessageDecision.id.desc())

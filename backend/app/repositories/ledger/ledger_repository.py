@@ -1,14 +1,15 @@
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 
-from app.extensions.db import db
 from app.models.ai import RecyclingAuditAttempt, RecyclingCase, WasteAnalysisRecord
 from app.models.ledger import Transaction
 from app.models.user import User
 
 
 def record_analysis_and_earn(
+    session: Session,
     *,
     user_id: int,
     waste_type: str,
@@ -26,8 +27,8 @@ def record_analysis_and_earn(
         carbon_points=carbon_points,
         raw_ai_response_json=raw_ai_response_json,
     )
-    db.session.add(record)
-    db.session.flush()  # populate record.id before creating transaction
+    session.add(record)
+    session.flush()  # populate record.id before creating transaction
 
     txn = Transaction(
         user_id=user_id,
@@ -37,17 +38,19 @@ def record_analysis_and_earn(
         source_type="waste_analysis",
         source_id=record.id,
     )
-    db.session.add(txn)
+    session.add(txn)
 
-    user = db.session.get(User, user_id)
+    # The record's foreign key already guarantees the user exists.
+    user = session.get_one(User, user_id)
     user.current_points += carbon_points
     user.total_carbon_amount = round(user.total_carbon_amount + co2_saved_kg, 4)
 
-    db.session.commit()
+    session.commit()
     return record, txn, user
 
 
 def finalize_approved_recycling_case_and_earn(
+    session: Session,
     *,
     user_id: int,
     conversation_id: int,
@@ -63,11 +66,11 @@ def finalize_approved_recycling_case_and_earn(
 ) -> tuple[WasteAnalysisRecord, Transaction, User]:
     """Finalize a recycling case after audit approval and earn points atomically."""
     try:
-        user = db.session.get(User, user_id)
+        user = session.get(User, user_id)
         if user is None:
             raise ValueError(f"User {user_id} not found.")
 
-        recycling_case = db.session.get(RecyclingCase, recycling_case_id)
+        recycling_case = session.get(RecyclingCase, recycling_case_id)
         if recycling_case is None:
             raise ValueError(f"Recycling case {recycling_case_id} not found.")
         if recycling_case.user_id != user_id:
@@ -81,7 +84,7 @@ def finalize_approved_recycling_case_and_earn(
         if recycling_case.approved_analysis_id is not None:
             raise ValueError(f"Recycling case {recycling_case_id} has already been finalized.")
 
-        approved_attempt = db.session.get(RecyclingAuditAttempt, approved_audit_attempt_id)
+        approved_attempt = session.get(RecyclingAuditAttempt, approved_audit_attempt_id)
         if approved_attempt is None:
             raise ValueError(f"Audit attempt {approved_audit_attempt_id} not found.")
         if approved_attempt.recycling_case_id != recycling_case_id:
@@ -112,8 +115,8 @@ def finalize_approved_recycling_case_and_earn(
             carbon_points=carbon_points,
             raw_ai_response_json=raw_ai_response_json,
         )
-        db.session.add(record)
-        db.session.flush()
+        session.add(record)
+        session.flush()
 
         txn = Transaction(
             user_id=user_id,
@@ -123,7 +126,7 @@ def finalize_approved_recycling_case_and_earn(
             source_type="waste_analysis",
             source_id=record.id,
         )
-        db.session.add(txn)
+        session.add(txn)
 
         user.current_points += carbon_points
         user.total_carbon_amount = round(user.total_carbon_amount + co2_saved_kg, 4)
@@ -131,24 +134,24 @@ def finalize_approved_recycling_case_and_earn(
         recycling_case.approved_analysis_id = record.id
         recycling_case.status = "audit_passed"
 
-        db.session.commit()
+        session.commit()
         return record, txn, user
     except Exception:
-        db.session.rollback()
+        session.rollback()
         raise
 
 
 def get_waste_records_page(
-    user_id: int, page: int, per_page: int
+    session: Session, user_id: int, page: int, per_page: int
 ) -> tuple[list[WasteAnalysisRecord], int]:
     """Return (records, total_count) ordered by newest first."""
     total = (
-        db.session.scalar(
+        session.scalar(
             select(func.count(WasteAnalysisRecord.id)).where(WasteAnalysisRecord.user_id == user_id)
         )
         or 0
     )
-    records = db.session.scalars(
+    records = session.scalars(
         select(WasteAnalysisRecord)
         .where(WasteAnalysisRecord.user_id == user_id)
         .order_by(WasteAnalysisRecord.created_at.desc())
@@ -158,13 +161,15 @@ def get_waste_records_page(
     return list(records), total
 
 
-def get_transactions_page(user_id: int, page: int, per_page: int) -> tuple[list[Transaction], int]:
+def get_transactions_page(
+    session: Session, user_id: int, page: int, per_page: int
+) -> tuple[list[Transaction], int]:
     """Return (transactions, total_count) ordered by newest first."""
     total = (
-        db.session.scalar(select(func.count(Transaction.id)).where(Transaction.user_id == user_id))
+        session.scalar(select(func.count(Transaction.id)).where(Transaction.user_id == user_id))
         or 0
     )
-    txns = db.session.scalars(
+    txns = session.scalars(
         select(Transaction)
         .where(Transaction.user_id == user_id)
         .order_by(Transaction.created_at.desc())
@@ -174,9 +179,9 @@ def get_transactions_page(user_id: int, page: int, per_page: int) -> tuple[list[
     return list(txns), total
 
 
-def sum_earned_points(user_id: int) -> int:
+def sum_earned_points(session: Session, user_id: int) -> int:
     """Return lifetime earned points, ignoring spend transactions."""
-    value = db.session.scalar(
+    value = session.scalar(
         select(func.sum(Transaction.points_delta)).where(
             Transaction.user_id == user_id,
             Transaction.type == "earn",
@@ -186,13 +191,13 @@ def sum_earned_points(user_id: int) -> int:
     return int(value or 0)
 
 
-def get_weekly_points_gains(window_days: int = 7) -> list[dict]:
+def get_weekly_points_gains(session: Session, window_days: int = 7) -> list[dict]:
     """Return ranked weekly points gains derived from earn transactions."""
     window_start = datetime.now(UTC) - timedelta(days=window_days)
     weekly_gain = func.sum(Transaction.points_delta)
     last_activity_at = func.max(Transaction.created_at)
 
-    rows = db.session.execute(
+    rows = session.execute(
         select(
             Transaction.user_id.label("user_id"),
             User.avatar_url.label("avatar_url"),
@@ -226,7 +231,7 @@ def get_weekly_points_gains(window_days: int = 7) -> list[dict]:
 
 # ---------------------------------------------------------------------------
 # Generic point mutation helpers (used by market / project services)
-# Both helpers assume they are called WITHIN an existing db.session context;
+# Both helpers assume they are called WITHIN an existing session context;
 # the caller is responsible for commit() so multi-step operations stay atomic.
 # ---------------------------------------------------------------------------
 
@@ -236,6 +241,7 @@ class InsufficientPointsError(Exception):
 
 
 def spend_points(
+    session: Session,
     *,
     user_id: int,
     points: int,
@@ -247,7 +253,7 @@ def spend_points(
     Raises InsufficientPointsError if the user's current_points < points.
     Does NOT commit; caller must commit after all related writes.
     """
-    user = db.session.get(User, user_id)
+    user = session.get(User, user_id)
     if user is None:
         raise ValueError(f"User {user_id} not found.")
     if user.current_points < points:
@@ -264,11 +270,12 @@ def spend_points(
         source_type=source_type,
         source_id=source_id,
     )
-    db.session.add(txn)
+    session.add(txn)
     return txn
 
 
 def earn_points(
+    session: Session,
     *,
     user_id: int,
     points: int,
@@ -279,7 +286,7 @@ def earn_points(
 
     Does NOT commit; caller must commit after all related writes.
     """
-    user = db.session.get(User, user_id)
+    user = session.get(User, user_id)
     if user is None:
         raise ValueError(f"User {user_id} not found.")
     user.current_points += points
@@ -292,5 +299,5 @@ def earn_points(
         source_type=source_type,
         source_id=source_id,
     )
-    db.session.add(txn)
+    session.add(txn)
     return txn

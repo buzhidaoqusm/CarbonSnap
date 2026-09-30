@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from flask_jwt_extended import get_jwt_identity
 
+from app.extensions.db import db
 from app.repositories.profile import user_repository
 
 
@@ -29,9 +30,9 @@ def resolve_identity_to_user_id(identity) -> int:
     if not identity_str:
         raise UnresolvableJwtIdentityError("JWT identity is empty.")
 
-    user = user_repository.get_by_username(identity_str)
+    user = user_repository.get_by_username(db.session, identity_str)
     if user is None and "@" in identity_str:
-        user = user_repository.get_by_email(identity_str)
+        user = user_repository.get_by_email(db.session, identity_str)
     if user is None:
         raise UnresolvableJwtIdentityError(f"JWT identity '{identity_str}' could not be resolved.")
     return int(user.id)

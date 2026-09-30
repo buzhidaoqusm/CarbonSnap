@@ -5,8 +5,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import delete, select
+from sqlalchemy.orm import Session
 
-from app.extensions.db import db
 from app.models.recommendation import ContentTopicAssignment, UserPreferenceProfile
 
 
@@ -38,6 +38,7 @@ def _serialize_source_domains(values: list[str] | set[str] | None) -> str:
 
 
 def replace_content_topic_assignments(
+    session: Session,
     *,
     domain: str,
     content_type: str,
@@ -48,7 +49,7 @@ def replace_content_topic_assignments(
     normalized_domain = str(domain).strip().lower()
     normalized_content_type = str(content_type).strip().lower()
 
-    db.session.execute(
+    session.execute(
         delete(ContentTopicAssignment).where(
             ContentTopicAssignment.domain == normalized_domain,
             ContentTopicAssignment.content_type == normalized_content_type,
@@ -72,18 +73,19 @@ def replace_content_topic_assignments(
         rows.append(row)
 
     if rows:
-        db.session.add_all(rows)
-    db.session.commit()
+        session.add_all(rows)
+    session.commit()
     return rows
 
 
 def list_content_topic_assignments(
+    session: Session,
     *,
     domain: str,
     content_type: str,
     content_id: int,
 ) -> list[ContentTopicAssignment]:
-    rows = db.session.scalars(
+    rows = session.scalars(
         select(ContentTopicAssignment)
         .where(
             ContentTopicAssignment.domain == str(domain).strip().lower(),
@@ -96,6 +98,7 @@ def list_content_topic_assignments(
 
 
 def list_content_topic_assignments_for_content_ids(
+    session: Session,
     *,
     domain: str,
     content_type: str,
@@ -109,7 +112,7 @@ def list_content_topic_assignments_for_content_ids(
     if not normalized_content_ids:
         return {}
 
-    rows = db.session.scalars(
+    rows = session.scalars(
         select(ContentTopicAssignment)
         .where(
             ContentTopicAssignment.domain == normalized_domain,
@@ -130,12 +133,13 @@ def list_content_topic_assignments_for_content_ids(
 
 
 def get_primary_content_topic_assignment(
+    session: Session,
     *,
     domain: str,
     content_type: str,
     content_id: int,
 ) -> ContentTopicAssignment | None:
-    return db.session.scalar(
+    return session.scalar(
         select(ContentTopicAssignment)
         .where(
             ContentTopicAssignment.domain == str(domain).strip().lower(),
@@ -147,13 +151,12 @@ def get_primary_content_topic_assignment(
 
 
 def replace_user_preference_profiles(
+    session: Session,
     *,
     user_id: int,
     profiles: list[dict[str, Any]],
 ) -> list[UserPreferenceProfile]:
-    db.session.execute(
-        delete(UserPreferenceProfile).where(UserPreferenceProfile.user_id == user_id)
-    )
+    session.execute(delete(UserPreferenceProfile).where(UserPreferenceProfile.user_id == user_id))
 
     rows: list[UserPreferenceProfile] = []
     for item in profiles:
@@ -175,12 +178,13 @@ def replace_user_preference_profiles(
         rows.append(row)
 
     if rows:
-        db.session.add_all(rows)
-    db.session.commit()
+        session.add_all(rows)
+    session.commit()
     return rows
 
 
 def list_user_preference_profiles(
+    session: Session,
     user_id: int,
     *,
     profile_type: str | None = None,
@@ -189,7 +193,7 @@ def list_user_preference_profiles(
     if profile_type:
         stmt = stmt.where(UserPreferenceProfile.profile_type == str(profile_type).strip().lower())
 
-    rows = db.session.scalars(
+    rows = session.scalars(
         stmt.order_by(
             UserPreferenceProfile.normalized_score.desc(),
             UserPreferenceProfile.event_count.desc(),

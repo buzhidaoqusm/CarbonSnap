@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from math import exp
 from typing import Any
 
+from app.extensions.db import db
 from app.repositories.recommendation import behavior_event_repository, preference_profile_repository
 from app.services.recommendation.topic_taxonomy import PHASE1_TOPIC_IDS, normalize_topic_id
 
@@ -160,7 +161,7 @@ def _update_bucket(
 
 def _aggregate_topic_rows(user_id: int) -> list[dict[str, Any]]:
     topic_buckets: dict[str, dict[str, Any]] = defaultdict(_topic_bucket)
-    for event in behavior_event_repository.list_behavior_events_for_user(user_id):
+    for event in behavior_event_repository.list_behavior_events_for_user(db.session, user_id):
         if str(getattr(event, "domain", "") or "").strip().lower() == "forum" and str(
             getattr(event, "action_type", "") or ""
         ).strip().lower() in {"like", "unlike"}:
@@ -236,6 +237,7 @@ def _aggregate_topic_rows(user_id: int) -> list[dict[str, Any]]:
 def _list_active_forum_like_events(user_id: int) -> list[Any]:
     latest_by_target: dict[tuple[str, int], Any] = {}
     for event in behavior_event_repository.list_behavior_events_for_user(
+        db.session,
         user_id,
         domain="forum",
         action_types=["like", "unlike"],
@@ -255,6 +257,7 @@ def _list_active_forum_like_events(user_id: int) -> list[Any]:
 def recompute_user_preference_profiles(user_id: int):
     rows = _aggregate_topic_rows(user_id)
     return preference_profile_repository.replace_user_preference_profiles(
+        db.session,
         user_id=user_id,
         profiles=rows,
     )
@@ -262,6 +265,7 @@ def recompute_user_preference_profiles(user_id: int):
 
 def list_content_interest_profiles(user_id: int):
     return preference_profile_repository.list_user_preference_profiles(
+        db.session,
         user_id,
         profile_type="content_interest",
     )

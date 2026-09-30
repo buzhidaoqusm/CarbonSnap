@@ -144,6 +144,7 @@ def test_finalize_approved_case_creates_analysis_and_transaction():
     approved_attempt = _make_attempt(case, user, conversation, audit_result="passed")
 
     record, txn, returned_user = ledger_repository.finalize_approved_recycling_case_and_earn(
+        db.session,
         user_id=user.id,
         conversation_id=conversation.id,
         recycling_case_id=case.id,
@@ -198,6 +199,7 @@ def test_finalize_approved_case_rejects_duplicate_finalization():
     approved_attempt = _make_attempt(case, user, conversation, audit_result="passed")
 
     first_record, _, _ = ledger_repository.finalize_approved_recycling_case_and_earn(
+        db.session,
         user_id=user.id,
         conversation_id=conversation.id,
         recycling_case_id=case.id,
@@ -213,6 +215,7 @@ def test_finalize_approved_case_rejects_duplicate_finalization():
 
     with pytest.raises(ValueError, match="already been finalized"):
         ledger_repository.finalize_approved_recycling_case_and_earn(
+            db.session,
             user_id=user.id,
             conversation_id=conversation.id,
             recycling_case_id=case.id,
@@ -239,6 +242,7 @@ def test_finalize_approved_case_rejects_missing_user():
 
     with pytest.raises(ValueError, match="User 999999 not found"):
         ledger_repository.finalize_approved_recycling_case_and_earn(
+            db.session,
             user_id=999999,
             conversation_id=conversation.id,
             recycling_case_id=case.id,
@@ -263,6 +267,7 @@ def test_finalize_approved_case_rejects_conversation_mismatch():
 
     with pytest.raises(ValueError, match="does not belong to conversation"):
         ledger_repository.finalize_approved_recycling_case_and_earn(
+            db.session,
             user_id=owner.id,
             conversation_id=other_conversation.id,
             recycling_case_id=case.id,

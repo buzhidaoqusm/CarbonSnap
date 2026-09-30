@@ -46,6 +46,7 @@ class TestMemoryRepository:
         user = _make_user("replace", "replace@example.com")
 
         first = memory_repository.create_memory_item(
+            db.session,
             user_id=user.id,
             memory_type="response_style",
             memory_key="response_style",
@@ -53,6 +54,7 @@ class TestMemoryRepository:
             source_type="explicit_chat",
         )
         second = memory_repository.replace_memory_item(
+            db.session,
             user_id=user.id,
             memory_type="response_style",
             memory_key="response_style",
@@ -67,6 +69,7 @@ class TestMemoryRepository:
     def test_list_active_memory_items_ignores_deleted_rows(self):
         user = _make_user("active", "active@example.com")
         item = memory_repository.create_memory_item(
+            db.session,
             user_id=user.id,
             memory_type="topic_interest",
             memory_key="battery",
@@ -74,7 +77,7 @@ class TestMemoryRepository:
             source_type="explicit_chat",
         )
 
-        memory_repository.soft_delete_memory_item(item.id, user.id)
-        active_items = memory_repository.list_active_memory_items(user.id)
+        memory_repository.soft_delete_memory_item(db.session, item.id, user.id)
+        active_items = memory_repository.list_active_memory_items(db.session, user.id)
 
         assert active_items == []

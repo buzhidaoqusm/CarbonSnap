@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from math import exp
 
+from app.extensions.db import db
 from app.models.market import MarketItem
 from app.repositories.market import market_repository
 from app.repositories.recommendation import behavior_event_repository, preference_profile_repository
@@ -318,30 +319,37 @@ def build_ranking_context(*, user_id: int, items: list[MarketItem]) -> dict:
     )
     topic_assignments_by_item_id = (
         preference_profile_repository.list_content_topic_assignments_for_content_ids(
+            db.session,
             domain="market",
             content_type="item",
             content_ids=item_ids,
         )
     )
     viewed_item_ids = behavior_event_repository.list_behavior_target_ids_for_user(
+        db.session,
         user_id,
         domain="market",
         target_type="item",
         action_types=["view", "long_view"],
     )
     long_viewed_item_ids = behavior_event_repository.list_behavior_target_ids_for_user(
+        db.session,
         user_id,
         domain="market",
         target_type="item",
         action_types=["long_view"],
     )
-    ordered_item_ids = market_repository.list_ordered_item_ids_by_buyer(user_id)
+    ordered_item_ids = market_repository.list_ordered_item_ids_by_buyer(db.session, user_id)
     recent_topic_exposure = behavior_event_repository.list_recent_topic_exposure_counts_for_user(
+        db.session,
         user_id,
         domain="market",
     )
-    total_order_counts_by_item_id = market_repository.list_order_counts_for_item_ids(item_ids)
+    total_order_counts_by_item_id = market_repository.list_order_counts_for_item_ids(
+        db.session, item_ids
+    )
     completed_order_counts_by_item_id = market_repository.list_order_counts_for_item_ids(
+        db.session,
         item_ids,
         statuses=["completed"],
     )

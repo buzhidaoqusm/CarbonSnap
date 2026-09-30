@@ -55,6 +55,7 @@ def _make_recycling_case(user: User, *, waste_type_predicted: str = "battery") -
 
 def _make_market_item(user: User, *, title: str = "Bottle lamp") -> MarketItem:
     item = market_repository.create_item(
+        db.session,
         seller_id=user.id,
         title=title,
         description="A creative upcycling project.",
@@ -67,6 +68,7 @@ def _make_market_item(user: User, *, title: str = "Bottle lamp") -> MarketItem:
 
 def _make_market_order(item: MarketItem, buyer: User) -> Order:
     order = market_repository.create_order(
+        db.session,
         item_id=item.id,
         buyer_id=buyer.id,
         seller_id=item.seller_id,
@@ -131,6 +133,7 @@ class TestMemoryService:
         order = _make_market_order(item, buyer)
 
         preference_profile_repository.replace_content_topic_assignments(
+            db.session,
             domain="market",
             content_type="item",
             content_id=item.id,

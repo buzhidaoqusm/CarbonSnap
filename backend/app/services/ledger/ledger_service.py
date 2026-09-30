@@ -1,3 +1,4 @@
+from app.extensions.db import db
 from app.repositories.ledger import ledger_repository
 from app.repositories.profile import user_repository
 
@@ -18,6 +19,7 @@ def record_waste_analysis(
     """Persist an AI analysis result, earn points, and return summary dict."""
     pts = int(round(carbon_points))
     record, _txn, user = ledger_repository.record_analysis_and_earn(
+        db.session,
         user_id=user_id,
         waste_type=waste_type,
         co2_saved_kg=co2_saved_kg,
@@ -36,7 +38,7 @@ def record_waste_analysis(
 
 
 def get_waste_records(user_id: int, page: int, per_page: int) -> dict:
-    records, total = ledger_repository.get_waste_records_page(user_id, page, per_page)
+    records, total = ledger_repository.get_waste_records_page(db.session, user_id, page, per_page)
     return {
         "items": [
             {
@@ -56,7 +58,7 @@ def get_waste_records(user_id: int, page: int, per_page: int) -> dict:
 
 
 def get_transactions(user_id: int, page: int, per_page: int) -> dict:
-    txns, total = ledger_repository.get_transactions_page(user_id, page, per_page)
+    txns, total = ledger_repository.get_transactions_page(db.session, user_id, page, per_page)
     return {
         "items": [
             {
@@ -77,10 +79,10 @@ def get_transactions(user_id: int, page: int, per_page: int) -> dict:
 
 
 def get_summary(user_id: int) -> dict | None:
-    user = user_repository.get_by_id(user_id)
+    user = user_repository.get_by_id(db.session, user_id)
     if not user:
         return None
-    total_points_earned = ledger_repository.sum_earned_points(user_id)
+    total_points_earned = ledger_repository.sum_earned_points(db.session, user_id)
     return {
         "total_carbon_amount": user.total_carbon_amount,
         "current_points": user.current_points,
@@ -90,13 +92,13 @@ def get_summary(user_id: int) -> dict | None:
 
 def get_gamification(user_id: int) -> dict | None:
     """Derive level, XP bar, and unlocked badges from ledger totals (no extra tables)."""
-    user = user_repository.get_by_id(user_id)
+    user = user_repository.get_by_id(db.session, user_id)
     if not user:
         return None
 
     total_carbon = float(user.total_carbon_amount or 0.0)
     current_points = int(user.current_points or 0)
-    total_points_earned = ledger_repository.sum_earned_points(user_id)
+    total_points_earned = ledger_repository.sum_earned_points(db.session, user_id)
     contribution_points = max(total_points_earned, current_points)
     score = contribution_points + int(round(total_carbon * 10.0))
 
@@ -128,7 +130,7 @@ def get_weekly_leaderboard(
     window_days: int = 7,
     limit: int = 5,
 ) -> dict:
-    rows = ledger_repository.get_weekly_points_gains(window_days)
+    rows = ledger_repository.get_weekly_points_gains(db.session, window_days)
     ranked_rows = []
     current_user_rank = None
 

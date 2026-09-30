@@ -54,7 +54,7 @@ class TestProjectRecommendationService:
         monkeypatch.setattr(
             project_recommendation_service.preference_profile_repository,
             "list_content_topic_assignments_for_content_ids",
-            lambda **kwargs: {
+            lambda _session, **kwargs: {
                 matching.id: [SimpleNamespace(topic_id="community-cleanup", confidence_score=1.0)],
                 non_matching.id: [
                     SimpleNamespace(topic_id="battery-recycling", confidence_score=1.0)
@@ -74,12 +74,12 @@ class TestProjectRecommendationService:
         monkeypatch.setattr(
             project_recommendation_service.project_repository,
             "list_contribution_counts_for_project_ids",
-            lambda project_ids: {},
+            lambda _session, project_ids: {},
         )
         monkeypatch.setattr(
             project_recommendation_service.project_repository,
             "list_unique_contributor_counts_for_project_ids",
-            lambda project_ids: {},
+            lambda _session, project_ids: {},
         )
 
         ranked = project_recommendation_service.rank_projects_for_user(
@@ -110,7 +110,7 @@ class TestProjectRecommendationService:
         monkeypatch.setattr(
             project_recommendation_service.preference_profile_repository,
             "list_content_topic_assignments_for_content_ids",
-            lambda **kwargs: {
+            lambda _session, **kwargs: {
                 cleanup_1.id: [SimpleNamespace(topic_id="community-cleanup", confidence_score=0.9)],
                 cleanup_2.id: [SimpleNamespace(topic_id="community-cleanup", confidence_score=0.8)],
                 cleanup_3.id: [SimpleNamespace(topic_id="community-cleanup", confidence_score=0.7)],
@@ -132,12 +132,12 @@ class TestProjectRecommendationService:
         monkeypatch.setattr(
             project_recommendation_service.project_repository,
             "list_contribution_counts_for_project_ids",
-            lambda project_ids: {},
+            lambda _session, project_ids: {},
         )
         monkeypatch.setattr(
             project_recommendation_service.project_repository,
             "list_unique_contributor_counts_for_project_ids",
-            lambda project_ids: {},
+            lambda _session, project_ids: {},
         )
 
         ranked = project_recommendation_service.rank_projects_for_user(

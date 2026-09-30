@@ -6,6 +6,7 @@ from typing import Any
 
 from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
 
+from app.extensions.db import db
 from app.repositories.ai import conversation_repository, recycling_case_repository
 from app.repositories.ledger import ledger_repository
 from app.services.ai.image_storage_service import store_data_url_image
@@ -107,16 +108,18 @@ def _resolve_case_for_audit(
     conversation_id: int,
     recycling_case_id: int | None,
 ) -> Any:
-    conversation = conversation_repository.get_conversation(conversation_id, user_id)
+    conversation = conversation_repository.get_conversation(db.session, conversation_id, user_id)
     if conversation is None:
         raise ValueError(f"Conversation {conversation_id} not found.")
 
     if recycling_case_id is not None:
-        case = recycling_case_repository.get_case(recycling_case_id, user_id)
+        case = recycling_case_repository.get_case(db.session, recycling_case_id, user_id)
         if case is None:
             raise ValueError(f"Recycling case {recycling_case_id} not found.")
     else:
-        case = recycling_case_repository.get_pending_case_for_conversation(conversation_id)
+        case = recycling_case_repository.get_pending_case_for_conversation(
+            db.session, conversation_id
+        )
         if case is None or case.user_id != user_id:
             raise ValueError(
                 f"No pending recycling case was found for conversation {conversation_id}."
@@ -142,6 +145,7 @@ def _update_conversation_after_audit(
     completed: bool,
 ) -> None:
     conversation_repository.update_conversation_state(
+        db.session,
         conversation_id,
         status="completed" if completed else "active",
         current_pending_action="none",
@@ -180,6 +184,7 @@ def stream_recycling_audit(
     stored_image_url = store_data_url_image(image_data_url, namespace="recycling-audit")
 
     user_message = conversation_repository.append_message(
+        db.session,
         conversation_id=conversation_id,
         role="user",
         message_type="image",
@@ -229,6 +234,7 @@ def stream_recycling_audit(
 
     audit_payload = _normalize_audit_payload(raw_audit)
     audit_attempt = recycling_case_repository.create_audit_attempt(
+        db.session,
         recycling_case_id=case.id,
         user_id=user_id,
         conversation_id=conversation_id,
@@ -258,6 +264,7 @@ def stream_recycling_audit(
     finalized_record_id: int | None = None
     if audit_payload["audit_result"] == "passed":
         record, transaction, user = ledger_repository.finalize_approved_recycling_case_and_earn(
+            db.session,
             user_id=user_id,
             conversation_id=conversation_id,
             recycling_case_id=case.id,
@@ -323,6 +330,7 @@ def stream_recycling_audit(
         stream_stage = "audit"
 
     assistant_message = conversation_repository.append_message(
+        db.session,
         conversation_id=conversation_id,
         role="assistant",
         message_type="audit_result",

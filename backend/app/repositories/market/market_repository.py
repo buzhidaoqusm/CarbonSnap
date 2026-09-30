@@ -1,6 +1,6 @@
 from sqlalchemy import func, or_, select
+from sqlalchemy.orm import Session
 
-from app.extensions.db import db
 from app.models.market import MarketItem, Order
 
 # ---------------------------------------------------------------------------
@@ -9,6 +9,7 @@ from app.models.market import MarketItem, Order
 
 
 def create_item(
+    session: Session,
     *,
     seller_id: int,
     title: str,
@@ -23,28 +24,30 @@ def create_item(
         image_urls_json=image_urls_json,
         price_points=price_points,
     )
-    db.session.add(item)
-    db.session.commit()
+    session.add(item)
+    session.commit()
     return item
 
 
-def get_item_by_id(item_id: int) -> MarketItem | None:
-    return db.session.get(MarketItem, item_id)
+def get_item_by_id(session: Session, item_id: int) -> MarketItem | None:
+    return session.get(MarketItem, item_id)
 
 
-def list_active_items_page(page: int, per_page: int) -> tuple[list[MarketItem], int]:
+def list_active_items_page(
+    session: Session, page: int, per_page: int
+) -> tuple[list[MarketItem], int]:
     """Return paginated active (on-sale) items, newest first."""
     base = select(MarketItem).where(MarketItem.status == "active")
-    total = db.session.scalar(select(func.count()).select_from(base.subquery())) or 0
-    items = db.session.scalars(
+    total = session.scalar(select(func.count()).select_from(base.subquery())) or 0
+    items = session.scalars(
         base.order_by(MarketItem.created_at.desc()).limit(per_page).offset((page - 1) * per_page)
     ).all()
     return list(items), total
 
 
-def list_all_active_items() -> list[MarketItem]:
+def list_all_active_items(session: Session) -> list[MarketItem]:
     return list(
-        db.session.scalars(
+        session.scalars(
             select(MarketItem)
             .where(MarketItem.status == "active")
             .order_by(MarketItem.created_at.desc(), MarketItem.id.desc())
@@ -52,9 +55,9 @@ def list_all_active_items() -> list[MarketItem]:
     )
 
 
-def list_all_active_items_excluding_seller(*, seller_id: int) -> list[MarketItem]:
+def list_all_active_items_excluding_seller(session: Session, *, seller_id: int) -> list[MarketItem]:
     return list(
-        db.session.scalars(
+        session.scalars(
             select(MarketItem)
             .where(
                 MarketItem.status == "active",
@@ -65,11 +68,13 @@ def list_all_active_items_excluding_seller(*, seller_id: int) -> list[MarketItem
     )
 
 
-def list_items_by_seller(seller_id: int, page: int, per_page: int) -> tuple[list[MarketItem], int]:
+def list_items_by_seller(
+    session: Session, seller_id: int, page: int, per_page: int
+) -> tuple[list[MarketItem], int]:
     """Return all items (any status) listed by a seller, newest first."""
     base = select(MarketItem).where(MarketItem.seller_id == seller_id)
-    total = db.session.scalar(select(func.count()).select_from(base.subquery())) or 0
-    items = db.session.scalars(
+    total = session.scalar(select(func.count()).select_from(base.subquery())) or 0
+    items = session.scalars(
         base.order_by(MarketItem.created_at.desc()).limit(per_page).offset((page - 1) * per_page)
     ).all()
     return list(items), total
@@ -89,6 +94,7 @@ def update_item_status(item: MarketItem, status: str) -> MarketItem:
 
 
 def create_order(
+    session: Session,
     *,
     item_id: int,
     buyer_id: int,
@@ -101,12 +107,12 @@ def create_order(
         seller_id=seller_id,
         price_points=price_points,
     )
-    db.session.add(order)
+    session.add(order)
     return order
 
 
-def get_order_by_id(order_id: int) -> Order | None:
-    return db.session.get(Order, order_id)
+def get_order_by_id(session: Session, order_id: int) -> Order | None:
+    return session.get(Order, order_id)
 
 
 def update_order_status(order: Order, status: str) -> Order:
@@ -117,35 +123,43 @@ def update_order_status(order: Order, status: str) -> Order:
     return order
 
 
-def list_orders_by_user(user_id: int, page: int, per_page: int) -> tuple[list[Order], int]:
+def list_orders_by_user(
+    session: Session, user_id: int, page: int, per_page: int
+) -> tuple[list[Order], int]:
     """Return orders where the user is the buyer OR seller, newest first."""
     base = select(Order).where(or_(Order.buyer_id == user_id, Order.seller_id == user_id))
-    total = db.session.scalar(select(func.count()).select_from(base.subquery())) or 0
-    orders = db.session.scalars(
+    total = session.scalar(select(func.count()).select_from(base.subquery())) or 0
+    orders = session.scalars(
         base.order_by(Order.created_at.desc()).limit(per_page).offset((page - 1) * per_page)
     ).all()
     return list(orders), total
 
 
-def list_orders_as_buyer(buyer_id: int, page: int, per_page: int) -> tuple[list[Order], int]:
+def list_orders_as_buyer(
+    session: Session, buyer_id: int, page: int, per_page: int
+) -> tuple[list[Order], int]:
     base = select(Order).where(Order.buyer_id == buyer_id)
-    total = db.session.scalar(select(func.count()).select_from(base.subquery())) or 0
-    orders = db.session.scalars(
+    total = session.scalar(select(func.count()).select_from(base.subquery())) or 0
+    orders = session.scalars(
         base.order_by(Order.created_at.desc()).limit(per_page).offset((page - 1) * per_page)
     ).all()
     return list(orders), total
 
 
-def list_orders_as_seller(seller_id: int, page: int, per_page: int) -> tuple[list[Order], int]:
+def list_orders_as_seller(
+    session: Session, seller_id: int, page: int, per_page: int
+) -> tuple[list[Order], int]:
     base = select(Order).where(Order.seller_id == seller_id)
-    total = db.session.scalar(select(func.count()).select_from(base.subquery())) or 0
-    orders = db.session.scalars(
+    total = session.scalar(select(func.count()).select_from(base.subquery())) or 0
+    orders = session.scalars(
         base.order_by(Order.created_at.desc()).limit(per_page).offset((page - 1) * per_page)
     ).all()
     return list(orders), total
 
 
-def count_orders_for_item(item_id: int, *, statuses: list[str] | None = None) -> int:
+def count_orders_for_item(
+    session: Session, item_id: int, *, statuses: list[str] | None = None
+) -> int:
     stmt = select(func.count(Order.id)).where(Order.item_id == item_id)
     if statuses:
         normalized_statuses = [
@@ -153,13 +167,13 @@ def count_orders_for_item(item_id: int, *, statuses: list[str] | None = None) ->
         ]
         if normalized_statuses:
             stmt = stmt.where(Order.status.in_(normalized_statuses))
-    return db.session.scalar(stmt) or 0
+    return session.scalar(stmt) or 0
 
 
-def list_ordered_item_ids_by_buyer(buyer_id: int) -> set[int]:
+def list_ordered_item_ids_by_buyer(session: Session, buyer_id: int) -> set[int]:
     return {
         int(item_id)
-        for item_id in db.session.scalars(
+        for item_id in session.scalars(
             select(Order.item_id)
             .where(Order.buyer_id == buyer_id)
             .order_by(Order.created_at.desc(), Order.id.desc())
@@ -169,6 +183,7 @@ def list_ordered_item_ids_by_buyer(buyer_id: int) -> set[int]:
 
 
 def list_order_counts_for_item_ids(
+    session: Session,
     item_ids: list[int],
     *,
     statuses: list[str] | None = None,
@@ -189,5 +204,5 @@ def list_order_counts_for_item_ids(
         if normalized_statuses:
             stmt = stmt.where(Order.status.in_(normalized_statuses))
 
-    rows = db.session.execute(stmt).all()
+    rows = session.execute(stmt).all()
     return {int(item_id): int(count) for item_id, count in rows if item_id is not None}

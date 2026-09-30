@@ -6,6 +6,7 @@ from typing import Any
 
 from app.ai.rag.indexing import build_forum_rag_index
 from app.core.config import get_settings
+from app.extensions.db import db
 from app.repositories.forum import forum_repository
 from app.services.ai.guardrails import scan_retrieved_text_for_injection
 
@@ -135,7 +136,7 @@ def resolve_explicit_forum_references(
 
 def _keyword_recall(query: str) -> list[dict[str, Any]]:
     scored_hits: list[dict[str, Any]] = []
-    for chunk, post in forum_repository.list_active_chunks():
+    for chunk, post in forum_repository.list_active_chunks(db.session):
         score = _score_keyword_match(query=query, title=post.title, text=chunk.chunk_text)
         if score <= 0:
             continue
@@ -177,7 +178,8 @@ def _vector_recall(query: str) -> list[dict[str, Any]]:
         return []
 
     rows = forum_repository.list_active_chunks_by_embedding_ids(
-        [str(item.chunk_id).strip() for item in matches if getattr(item, "chunk_id", None)]
+        db.session,
+        [str(item.chunk_id).strip() for item in matches if getattr(item, "chunk_id", None)],
     )
     row_by_embedding_id = {
         str(chunk.embedding_id): (chunk, post)

@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
-from app.extensions.db import db
 from app.models.ai import RecyclingAuditAttempt, RecyclingCase
 
 
@@ -13,6 +13,7 @@ def _utc_now() -> datetime:
 
 
 def create_recycling_case(
+    session: Session,
     *,
     user_id: int,
     conversation_id: int,
@@ -33,15 +34,16 @@ def create_recycling_case(
         expected_co2_saved_kg=expected_co2_saved_kg,
         expected_carbon_points=expected_carbon_points,
     )
-    db.session.add(recycling_case)
-    db.session.commit()
+    session.add(recycling_case)
+    session.commit()
     return recycling_case
 
 
 def get_pending_case_for_conversation(
+    session: Session,
     conversation_id: int,
 ) -> RecyclingCase | None:
-    return db.session.scalar(
+    return session.scalar(
         select(RecyclingCase)
         .where(
             RecyclingCase.conversation_id == conversation_id,
@@ -51,8 +53,8 @@ def get_pending_case_for_conversation(
     )
 
 
-def list_cases_for_conversation(conversation_id: int) -> list[RecyclingCase]:
-    cases = db.session.scalars(
+def list_cases_for_conversation(session: Session, conversation_id: int) -> list[RecyclingCase]:
+    cases = session.scalars(
         select(RecyclingCase)
         .where(RecyclingCase.conversation_id == conversation_id)
         .order_by(RecyclingCase.created_at.asc(), RecyclingCase.id.asc())
@@ -60,8 +62,8 @@ def list_cases_for_conversation(conversation_id: int) -> list[RecyclingCase]:
     return list(cases)
 
 
-def list_cases_for_user(user_id: int) -> list[RecyclingCase]:
-    cases = db.session.scalars(
+def list_cases_for_user(session: Session, user_id: int) -> list[RecyclingCase]:
+    cases = session.scalars(
         select(RecyclingCase)
         .where(RecyclingCase.user_id == user_id)
         .order_by(RecyclingCase.created_at.desc(), RecyclingCase.id.desc())
@@ -69,8 +71,10 @@ def list_cases_for_user(user_id: int) -> list[RecyclingCase]:
     return list(cases)
 
 
-def list_active_cases_for_conversation(conversation_id: int) -> list[RecyclingCase]:
-    cases = db.session.scalars(
+def list_active_cases_for_conversation(
+    session: Session, conversation_id: int
+) -> list[RecyclingCase]:
+    cases = session.scalars(
         select(RecyclingCase)
         .where(
             RecyclingCase.conversation_id == conversation_id,
@@ -81,8 +85,8 @@ def list_active_cases_for_conversation(conversation_id: int) -> list[RecyclingCa
     return list(cases)
 
 
-def get_case(case_id: int, user_id: int) -> RecyclingCase | None:
-    return db.session.scalar(
+def get_case(session: Session, case_id: int, user_id: int) -> RecyclingCase | None:
+    return session.scalar(
         select(RecyclingCase).where(
             RecyclingCase.id == case_id,
             RecyclingCase.user_id == user_id,
@@ -91,6 +95,7 @@ def get_case(case_id: int, user_id: int) -> RecyclingCase | None:
 
 
 def create_audit_attempt(
+    session: Session,
     *,
     recycling_case_id: int,
     user_id: int,
@@ -101,7 +106,7 @@ def create_audit_attempt(
     audit_reason: str | None = None,
     audit_response_json: str | None = None,
 ) -> RecyclingAuditAttempt:
-    recycling_case = db.session.get(RecyclingCase, recycling_case_id)
+    recycling_case = session.get(RecyclingCase, recycling_case_id)
     if recycling_case is None:
         raise ValueError(f"Recycling case {recycling_case_id} not found.")
 
@@ -123,17 +128,18 @@ def create_audit_attempt(
         recycling_case.status = "audit_failed"
     recycling_case.updated_at = _utc_now()
 
-    db.session.add(attempt)
-    db.session.commit()
+    session.add(attempt)
+    session.commit()
     return attempt
 
 
 def mark_case_audit_passed(
+    session: Session,
     recycling_case_id: int,
     *,
     approved_analysis_id: int | None = None,
 ) -> RecyclingCase:
-    recycling_case = db.session.get(RecyclingCase, recycling_case_id)
+    recycling_case = session.get(RecyclingCase, recycling_case_id)
     if recycling_case is None:
         raise ValueError(f"Recycling case {recycling_case_id} not found.")
 
@@ -141,12 +147,12 @@ def mark_case_audit_passed(
     if approved_analysis_id is not None:
         recycling_case.approved_analysis_id = approved_analysis_id
     recycling_case.updated_at = _utc_now()
-    db.session.commit()
+    session.commit()
     return recycling_case
 
 
-def list_audit_attempts(recycling_case_id: int) -> list[RecyclingAuditAttempt]:
-    attempts = db.session.scalars(
+def list_audit_attempts(session: Session, recycling_case_id: int) -> list[RecyclingAuditAttempt]:
+    attempts = session.scalars(
         select(RecyclingAuditAttempt)
         .where(RecyclingAuditAttempt.recycling_case_id == recycling_case_id)
         .order_by(RecyclingAuditAttempt.attempt_no.asc(), RecyclingAuditAttempt.id.asc())

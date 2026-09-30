@@ -19,6 +19,7 @@ class TestForumRepositoryChunkPersistence:
         db.session.commit()
 
         forum_repository.save_post_chunks(
+            db.session,
             post.id,
             [
                 {
@@ -31,7 +32,7 @@ class TestForumRepositoryChunkPersistence:
             ],
         )
 
-        chunks = forum_repository.get_chunks_by_post(post.id)
+        chunks = forum_repository.get_chunks_by_post(db.session, post.id)
         assert len(chunks) == 1
         assert chunks[0].chunk_index == 0
         assert chunks[0].section_title == "Main"
@@ -45,6 +46,7 @@ class TestForumRepositoryChunkPersistence:
         db.session.commit()
 
         forum_repository.save_post_chunks(
+            db.session,
             post.id,
             [
                 {
@@ -56,4 +58,4 @@ class TestForumRepositoryChunkPersistence:
             ],
         )
 
-        assert forum_repository.get_latest_chunk_version(post.id) == 4
+        assert forum_repository.get_latest_chunk_version(db.session, post.id) == 4

@@ -73,6 +73,7 @@ def _make_recycling_case(user: User) -> RecyclingCase:
 
 def _make_market_item(seller: User, title: str = "Reusable bottle") -> MarketItem:
     item = market_repository.create_item(
+        db.session,
         seller_id=seller.id,
         title=title,
         description="A lightly used reusable bottle.",
@@ -85,6 +86,7 @@ def _make_market_item(seller: User, title: str = "Reusable bottle") -> MarketIte
 
 def _make_market_order(item: MarketItem, buyer: User) -> Order:
     order = market_repository.create_order(
+        db.session,
         item_id=item.id,
         buyer_id=buyer.id,
         seller_id=item.seller_id,
@@ -208,6 +210,7 @@ class TestBehaviorEventService:
         buyer = _make_user("buyer", "buyer@example.com")
         item = _make_market_item(seller)
         preference_profile_repository.replace_content_topic_assignments(
+            db.session,
             domain="market",
             content_type="item",
             content_id=item.id,
@@ -250,6 +253,7 @@ class TestBehaviorEventService:
         item = _make_market_item(seller)
         order = _make_market_order(item, buyer)
         preference_profile_repository.replace_content_topic_assignments(
+            db.session,
             domain="market",
             content_type="item",
             content_id=item.id,
@@ -320,6 +324,7 @@ class TestBehaviorEventService:
         supporter = _make_user("projectsupporter", "projectsupporter@example.com")
         project = _make_project(creator)
         preference_profile_repository.replace_content_topic_assignments(
+            db.session,
             domain="project",
             content_type="project",
             content_id=project.id,

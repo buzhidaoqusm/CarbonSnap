@@ -5,8 +5,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
-from app.extensions.db import db
 from app.models.recommendation import UserBehaviorEvent
 
 
@@ -19,6 +19,7 @@ def _ensure_aware_utc(value: datetime | None) -> datetime:
 
 
 def create_behavior_event(
+    session: Session,
     *,
     user_id: int,
     domain: str,
@@ -41,12 +42,13 @@ def create_behavior_event(
         context_json=json.dumps(context or {}, ensure_ascii=False) if context is not None else None,
     )
     event.created_at = _ensure_aware_utc(created_at)
-    db.session.add(event)
-    db.session.commit()
+    session.add(event)
+    session.commit()
     return event
 
 
 def list_behavior_events_for_user(
+    session: Session,
     user_id: int,
     *,
     domain: str | None = None,
@@ -63,13 +65,14 @@ def list_behavior_events_for_user(
         if normalized_actions:
             stmt = stmt.where(UserBehaviorEvent.action_type.in_(normalized_actions))
 
-    rows = db.session.scalars(
+    rows = session.scalars(
         stmt.order_by(UserBehaviorEvent.created_at.asc(), UserBehaviorEvent.id.asc())
     ).all()
     return list(rows)
 
 
 def list_recent_behavior_events_for_user(
+    session: Session,
     user_id: int,
     *,
     limit: int = 100,
@@ -79,13 +82,14 @@ def list_recent_behavior_events_for_user(
     if domain:
         stmt = stmt.where(UserBehaviorEvent.domain == str(domain).strip().lower())
 
-    rows = db.session.scalars(
+    rows = session.scalars(
         stmt.order_by(UserBehaviorEvent.created_at.desc(), UserBehaviorEvent.id.desc()).limit(limit)
     ).all()
     return list(rows)
 
 
 def list_recent_topic_exposure_counts_for_user(
+    session: Session,
     user_id: int,
     *,
     domain: str | None = None,
@@ -94,6 +98,7 @@ def list_recent_topic_exposure_counts_for_user(
 ) -> dict[str, int]:
     """Count recent topic exposures from topic payload snapshots."""
     events = list_recent_behavior_events_for_user(
+        session,
         user_id,
         domain=domain,
         limit=limit,
@@ -128,14 +133,17 @@ def list_recent_topic_exposure_counts_for_user(
     return counts
 
 
-def count_behavior_events_for_user(user_id: int, *, domain: str | None = None) -> int:
+def count_behavior_events_for_user(
+    session: Session, user_id: int, *, domain: str | None = None
+) -> int:
     stmt = select(UserBehaviorEvent).where(UserBehaviorEvent.user_id == user_id)
     if domain:
         stmt = stmt.where(UserBehaviorEvent.domain == str(domain).strip().lower())
-    return len(db.session.scalars(stmt).all())
+    return len(session.scalars(stmt).all())
 
 
 def get_latest_behavior_event_for_user(
+    session: Session,
     user_id: int,
     *,
     domain: str | None = None,
@@ -143,12 +151,13 @@ def get_latest_behavior_event_for_user(
     stmt = select(UserBehaviorEvent).where(UserBehaviorEvent.user_id == user_id)
     if domain:
         stmt = stmt.where(UserBehaviorEvent.domain == str(domain).strip().lower())
-    return db.session.scalar(
+    return session.scalar(
         stmt.order_by(UserBehaviorEvent.created_at.desc(), UserBehaviorEvent.id.desc())
     )
 
 
 def get_latest_behavior_event_for_target(
+    session: Session,
     user_id: int,
     *,
     target_id: int,
@@ -170,12 +179,13 @@ def get_latest_behavior_event_for_target(
         ]
         if normalized_actions:
             stmt = stmt.where(UserBehaviorEvent.action_type.in_(normalized_actions))
-    return db.session.scalar(
+    return session.scalar(
         stmt.order_by(UserBehaviorEvent.created_at.desc(), UserBehaviorEvent.id.desc())
     )
 
 
 def list_behavior_target_ids_for_user(
+    session: Session,
     user_id: int,
     *,
     domain: str | None = None,
@@ -193,10 +203,11 @@ def list_behavior_target_ids_for_user(
         ]
         if normalized_actions:
             stmt = stmt.where(UserBehaviorEvent.action_type.in_(normalized_actions))
-    return {int(target_id) for target_id in db.session.scalars(stmt).all() if target_id is not None}
+    return {int(target_id) for target_id in session.scalars(stmt).all() if target_id is not None}
 
 
 def list_active_forum_like_target_ids_for_user(
+    session: Session,
     user_id: int,
     *,
     target_type: str = "post",
@@ -204,6 +215,7 @@ def list_active_forum_like_target_ids_for_user(
     normalized_target_type = str(target_type).strip().lower()
     latest_by_target: dict[int, UserBehaviorEvent] = {}
     for event in list_behavior_events_for_user(
+        session,
         user_id,
         domain="forum",
         action_types=["like", "unlike"],

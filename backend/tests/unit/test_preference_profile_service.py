@@ -73,6 +73,7 @@ def _make_recycling_case(
 
 def _make_market_item(seller: User, *, title: str = "Reusable bottle craft") -> MarketItem:
     item = market_repository.create_item(
+        db.session,
         seller_id=seller.id,
         title=title,
         description="Made from reused bottle parts.",
@@ -85,6 +86,7 @@ def _make_market_item(seller: User, *, title: str = "Reusable bottle craft") -> 
 
 def _make_market_order(item: MarketItem, buyer: User) -> Order:
     order = market_repository.create_order(
+        db.session,
         item_id=item.id,
         buyer_id=buyer.id,
         seller_id=item.seller_id,
@@ -134,6 +136,7 @@ class TestPreferenceProfileAggregation:
         post = _make_post(user.id, title="Bottle craft")
 
         preference_profile_repository.replace_content_topic_assignments(
+            db.session,
             domain="forum",
             content_type="post",
             content_id=post.id,
@@ -162,6 +165,7 @@ class TestPreferenceProfileAggregation:
         post = _make_post(user.id, title="Bottle sorting")
 
         preference_profile_repository.replace_content_topic_assignments(
+            db.session,
             domain="forum",
             content_type="post",
             content_id=post.id,
@@ -199,6 +203,7 @@ class TestPreferenceProfileAggregation:
         post = _make_post(user.id, title="Plastic reuse")
 
         preference_profile_repository.replace_content_topic_assignments(
+            db.session,
             domain="forum",
             content_type="post",
             content_id=post.id,
@@ -288,6 +293,7 @@ class TestPreferenceProfileAggregation:
         order = _make_market_order(item, buyer)
 
         preference_profile_repository.replace_content_topic_assignments(
+            db.session,
             domain="market",
             content_type="item",
             content_id=item.id,
@@ -314,6 +320,7 @@ class TestPreferenceProfileAggregation:
         item = _make_market_item(seller, title="Creative glass vase")
 
         preference_profile_repository.replace_content_topic_assignments(
+            db.session,
             domain="market",
             content_type="item",
             content_id=item.id,
@@ -334,6 +341,7 @@ class TestPreferenceProfileAggregation:
         project = _make_project(creator, title="Riverside cleanup station")
 
         preference_profile_repository.replace_content_topic_assignments(
+            db.session,
             domain="project",
             content_type="project",
             content_id=project.id,

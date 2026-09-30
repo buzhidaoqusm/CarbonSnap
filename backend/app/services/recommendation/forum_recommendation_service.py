@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from math import exp
 
+from app.extensions.db import db
 from app.models.forum import ForumPost
 from app.repositories.forum import forum_repository
 from app.repositories.recommendation import behavior_event_repository, preference_profile_repository
@@ -121,8 +122,8 @@ def _preference_match_score(post: ForumPost, ranking_context: dict) -> float:
 
 
 def _engagement_score(post: ForumPost) -> float:
-    likes = forum_repository.count_likes("post", post.id)
-    comments = forum_repository.count_comments(post.id)
+    likes = forum_repository.count_likes(db.session, "post", post.id)
+    comments = forum_repository.count_comments(db.session, post.id)
     raw_score = float(likes) + (float(comments) * 1.5)
     if raw_score <= 0:
         return 0.0
@@ -361,34 +362,40 @@ def build_ranking_context(*, user_id: int, posts: list[ForumPost]) -> dict:
     )
     topic_assignments_by_post_id = (
         preference_profile_repository.list_content_topic_assignments_for_content_ids(
+            db.session,
             domain="forum",
             content_type="post",
             content_ids=post_ids,
         )
     )
     viewed_post_ids = behavior_event_repository.list_behavior_target_ids_for_user(
+        db.session,
         user_id,
         domain="forum",
         target_type="post",
         action_types=["view", "long_view"],
     )
     long_viewed_post_ids = behavior_event_repository.list_behavior_target_ids_for_user(
+        db.session,
         user_id,
         domain="forum",
         target_type="post",
         action_types=["long_view"],
     )
     active_liked_post_ids = behavior_event_repository.list_active_forum_like_target_ids_for_user(
+        db.session,
         user_id,
         target_type="post",
     )
     commented_post_ids = behavior_event_repository.list_behavior_target_ids_for_user(
+        db.session,
         user_id,
         domain="forum",
         target_type="post",
         action_types=["comment_or_reply"],
     )
     recent_topic_exposure = behavior_event_repository.list_recent_topic_exposure_counts_for_user(
+        db.session,
         user_id,
         domain="forum",
     )

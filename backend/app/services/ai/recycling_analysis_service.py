@@ -10,6 +10,7 @@ from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
 
 from app.ai.tools.map.osm_public_provider import MapProviderError, OSMPublicMapProvider
 from app.core.config import get_settings
+from app.extensions.db import db
 from app.repositories.ai import conversation_repository, recycling_case_repository
 from app.services.ai.ai_decision_engine import persist_message_decision
 from app.services.ai.conversation_context_builder import build_runtime_reply_context
@@ -195,7 +196,7 @@ def _resolve_selected_audit_attempt(
     message: str,
     runtime_context: dict[str, Any] | None = None,
 ):
-    attempts = recycling_case_repository.list_audit_attempts(case.id)
+    attempts = recycling_case_repository.list_audit_attempts(db.session, case.id)
     if not attempts:
         return None
 
@@ -271,6 +272,7 @@ def _sync_conversation_session_context(
         return
 
     conversation_repository.update_conversation_state(
+        db.session,
         conversation_id,
         session_context_json=json.dumps(serialize_session(session), ensure_ascii=False),
     )
@@ -312,11 +314,11 @@ def _restore_session_from_persisted_context(
 
     if conversation_id is not None:
         conversation_candidates = [
-            conversation_repository.get_conversation(conversation_id, user_id)
+            conversation_repository.get_conversation(db.session, conversation_id, user_id)
         ]
     else:
         conversation_candidates = conversation_repository.list_conversations(
-            user_id=user_id, limit=100
+            db.session, user_id=user_id, limit=100
         )
 
     for conversation in conversation_candidates:
@@ -369,7 +371,9 @@ def _resolve_authenticated_conversation(
     conversation_id: int | None = None,
 ) -> tuple[Any, dict[str, Any]]:
     if conversation_id is not None:
-        conversation = conversation_repository.get_conversation(conversation_id, user_id)
+        conversation = conversation_repository.get_conversation(
+            db.session, conversation_id, user_id
+        )
         if conversation is None:
             raise ValueError(f"Conversation {conversation_id} not found.")
         session = set_workflow_reference(session["session_id"], conversation_id=conversation.id)
@@ -378,11 +382,15 @@ def _resolve_authenticated_conversation(
 
     conversation_id = session.get("conversation_id")
     if conversation_id is not None:
-        conversation = conversation_repository.get_conversation(conversation_id, user_id)
+        conversation = conversation_repository.get_conversation(
+            db.session, conversation_id, user_id
+        )
         if conversation is not None:
             return conversation, session
 
-    conversation = conversation_repository.create_conversation(user_id=user_id, title=title)
+    conversation = conversation_repository.create_conversation(
+        db.session, user_id=user_id, title=title
+    )
     session = set_workflow_reference(session["session_id"], conversation_id=conversation.id)
     _sync_conversation_session_context(conversation.id, session)
     return conversation, session
@@ -405,6 +413,7 @@ def _create_recycling_case(
     analysis_payload: dict[str, Any],
 ) -> tuple[Any, dict[str, Any]]:
     case = recycling_case_repository.create_recycling_case(
+        db.session,
         user_id=user_id,
         conversation_id=conversation_id,
         origin_message_id=origin_message_id,
@@ -497,6 +506,7 @@ def _persist_recycling_assistant_message(
         content_json["location_state"] = _make_json_safe(location_state)
 
     return conversation_repository.append_message(
+        db.session,
         conversation_id=conversation_id,
         role="assistant",
         message_type=message_type,
@@ -539,6 +549,7 @@ def stream_recycling_analysis(
             conversation_id=conversation_id,
         )
         user_message = conversation_repository.append_message(
+            db.session,
             conversation_id=conversation.id,
             role="user",
             message_type="image" if image_data_url else "text",
@@ -593,11 +604,13 @@ def stream_recycling_analysis(
         target_case_id = decision.get("target_case_id")
         case = None
         if target_case_id and effective_user_id is not None:
-            case = recycling_case_repository.get_case(int(target_case_id), effective_user_id)
+            case = recycling_case_repository.get_case(
+                db.session, int(target_case_id), effective_user_id
+            )
 
         if case is None and conversation is not None:
             pending_case = recycling_case_repository.get_pending_case_for_conversation(
-                conversation.id
+                db.session, conversation.id
             )
             case = pending_case
 
@@ -678,6 +691,7 @@ def stream_recycling_analysis(
             if conversation is not None:
                 _sync_conversation_session_context(conversation.id, session)
                 conversation_repository.update_conversation_state(
+                    db.session,
                     conversation.id,
                     status="awaiting_location",
                     current_pending_action="location_permission",
@@ -751,6 +765,7 @@ def stream_recycling_analysis(
                 recycling_case_id=case.id,
             )
             conversation_repository.update_conversation_state(
+                db.session,
                 conversation.id,
                 status="completed",
                 current_pending_action="none",
@@ -838,6 +853,7 @@ def stream_recycling_analysis(
             session = create_or_get_session(active_session_id)
             _sync_conversation_session_context(conversation.id, session)
             conversation_repository.update_conversation_state(
+                db.session,
                 conversation.id,
                 status="completed",
                 current_pending_action="none",
@@ -873,6 +889,7 @@ def stream_recycling_analysis(
     if effective_user_id is not None and conversation is not None:
         _sync_conversation_session_context(conversation.id, session)
         conversation_repository.update_conversation_state(
+            db.session,
             conversation.id,
             status="awaiting_location",
             current_pending_action="location_permission",
@@ -1107,6 +1124,7 @@ def stream_recycling_resume(session_id: str) -> Generator[dict[str, Any], None, 
             location_state=location_state,
         )
         conversation_repository.update_conversation_state(
+            db.session,
             conversation_id,
             status="completed",
             current_pending_action="none",
@@ -1428,6 +1446,7 @@ def _stream_nearby_stage(
     cleared_session = clear_paused_context(session_id)
     if user_id is not None and conversation_id is not None:
         conversation_repository.update_conversation_state(
+            db.session,
             conversation_id,
             status="completed",
             current_pending_action="none",

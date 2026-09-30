@@ -4,6 +4,7 @@ import re
 from typing import Any
 
 from app.core.config import get_settings
+from app.extensions.db import db
 from app.repositories.ai import message_decision_repository
 from app.services.ai.agent_trace_service import build_trace_shell
 from app.services.ai.case_resolver import resolve_target_case_detailed
@@ -329,6 +330,7 @@ def persist_message_decision(
         key: value for key, value in decision.items() if key not in {"context", "prompt_memory"}
     }
     return message_decision_repository.create_message_decision(
+        db.session,
         conversation_id=conversation_id,
         user_message_id=user_message_id,
         intent=decision["intent"],

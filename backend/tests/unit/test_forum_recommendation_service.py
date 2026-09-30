@@ -64,7 +64,7 @@ class TestForumRecommendationService:
             get_profile_snapshot,
         )
 
-        def load_topic_assignments(*, domain, content_type, content_ids):
+        def load_topic_assignments(_session, *, domain, content_type, content_ids):
             call_counts["topic_assignments"] += 1
             assert domain == "forum"
             assert content_type == "post"
@@ -84,7 +84,7 @@ class TestForumRecommendationService:
             load_topic_assignments,
         )
 
-        def load_viewed_post_ids(user_id, **kwargs):
+        def load_viewed_post_ids(_session, user_id, **kwargs):
             if kwargs.get("action_types") == ["view", "long_view"]:
                 call_counts["viewed"] += 1
                 return {first_post.id}
@@ -146,6 +146,7 @@ class TestForumRecommendationService:
         post = _make_post(user.id, "Mixed recycling", "Mixed recycling content")
 
         preference_profile_repository.replace_content_topic_assignments(
+            db.session,
             domain="forum",
             content_type="post",
             content_id=post.id,
@@ -191,12 +192,14 @@ class TestForumRecommendationService:
         matched_post = _make_post(user.id, "Matched", "Matched content")
 
         preference_profile_repository.replace_content_topic_assignments(
+            db.session,
             domain="forum",
             content_type="post",
             content_id=fallback_post.id,
             topics=[{"topic_id": "uncategorized", "confidence_score": 1.0}],
         )
         preference_profile_repository.replace_content_topic_assignments(
+            db.session,
             domain="forum",
             content_type="post",
             content_id=matched_post.id,
@@ -224,6 +227,7 @@ class TestForumRecommendationService:
         fallback_post = _make_post(user.id, "Recent fallback", "Recent fallback content")
 
         preference_profile_repository.replace_content_topic_assignments(
+            db.session,
             domain="forum",
             content_type="post",
             content_id=matched_post.id,
@@ -274,12 +278,14 @@ class TestForumRecommendationService:
         strong_post = _make_post(user.id, "Strong battery match", "Strong battery content")
 
         preference_profile_repository.replace_content_topic_assignments(
+            db.session,
             domain="forum",
             content_type="post",
             content_id=weak_post.id,
             topics=[{"topic_id": "battery-recycling", "confidence_score": 1.0}],
         )
         preference_profile_repository.replace_content_topic_assignments(
+            db.session,
             domain="forum",
             content_type="post",
             content_id=strong_post.id,
@@ -369,6 +375,7 @@ class TestForumRecommendationService:
         post = _make_post(user.id, "Battery guide", "Battery guide content")
 
         preference_profile_repository.replace_content_topic_assignments(
+            db.session,
             domain="forum",
             content_type="post",
             content_id=post.id,
@@ -489,12 +496,14 @@ class TestForumRecommendationService:
         battery_post = _make_post(user.id, "Battery recycling", "Old batteries")
 
         preference_profile_repository.replace_content_topic_assignments(
+            db.session,
             domain="forum",
             content_type="post",
             content_id=plastic_post.id,
             topics=[{"topic_id": "plastic-recycling", "confidence_score": 1.0}],
         )
         preference_profile_repository.replace_content_topic_assignments(
+            db.session,
             domain="forum",
             content_type="post",
             content_id=battery_post.id,
@@ -539,7 +548,7 @@ class TestForumRecommendationService:
         monkeypatch.setattr(
             forum_recommendation_service.preference_profile_repository,
             "list_content_topic_assignments_for_content_ids",
-            lambda **kwargs: {
+            lambda _session, **kwargs: {
                 weak_post.id: [SimpleNamespace(topic_id="plastic-recycling", confidence_score=1.0)],
                 strong_post.id: [
                     SimpleNamespace(topic_id="battery-recycling", confidence_score=1.0)
@@ -624,12 +633,14 @@ class TestForumRecommendationService:
         fresh = _make_post(user.id, "Fresh battery post", "Battery recycling")
 
         preference_profile_repository.replace_content_topic_assignments(
+            db.session,
             domain="forum",
             content_type="post",
             content_id=viewed.id,
             topics=[{"topic_id": "battery-recycling", "confidence_score": 1.0}],
         )
         preference_profile_repository.replace_content_topic_assignments(
+            db.session,
             domain="forum",
             content_type="post",
             content_id=fresh.id,
@@ -647,7 +658,7 @@ class TestForumRecommendationService:
         monkeypatch.setattr(
             forum_recommendation_service.behavior_event_repository,
             "list_behavior_target_ids_for_user",
-            lambda user_id, **kwargs: (
+            lambda _session, user_id, **kwargs: (
                 {viewed.id} if kwargs.get("action_types") == ["view", "long_view"] else set()
             ),
         )

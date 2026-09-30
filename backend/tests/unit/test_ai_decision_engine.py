@@ -677,7 +677,7 @@ class TestPersistenceAndHelpers:
     ):
         captured: dict = {}
 
-        def fake_create_message_decision(**kwargs):
+        def fake_create_message_decision(_session, **kwargs):
             captured.update(kwargs)
             return kwargs
 

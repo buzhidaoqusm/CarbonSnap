@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from sqlalchemy import delete, select, update
+from sqlalchemy.orm import Session
 
-from app.extensions.db import db
 from app.models.ai import (
     AIConversation,
     AIMessage,
@@ -20,18 +20,20 @@ def _utc_now() -> datetime:
     return datetime.now(UTC)
 
 
-def create_conversation(*, user_id: int, title: str | None = None) -> AIConversation:
+def create_conversation(
+    session: Session, *, user_id: int, title: str | None = None
+) -> AIConversation:
     conversation = AIConversation(
         user_id=user_id,
         title=title or "New chat",
     )
-    db.session.add(conversation)
-    db.session.commit()
+    session.add(conversation)
+    session.commit()
     return conversation
 
 
-def get_conversation(conversation_id: int, user_id: int) -> AIConversation | None:
-    return db.session.scalar(
+def get_conversation(session: Session, conversation_id: int, user_id: int) -> AIConversation | None:
+    return session.scalar(
         select(AIConversation).where(
             AIConversation.id == conversation_id,
             AIConversation.user_id == user_id,
@@ -40,11 +42,12 @@ def get_conversation(conversation_id: int, user_id: int) -> AIConversation | Non
 
 
 def list_conversations(
+    session: Session,
     user_id: int,
     limit: int = 50,
     offset: int = 0,
 ) -> list[AIConversation]:
-    conversations = db.session.scalars(
+    conversations = session.scalars(
         select(AIConversation)
         .where(AIConversation.user_id == user_id)
         .order_by(AIConversation.last_message_at.desc(), AIConversation.id.desc())
@@ -55,6 +58,7 @@ def list_conversations(
 
 
 def append_message(
+    session: Session,
     *,
     conversation_id: int,
     role: str,
@@ -63,12 +67,12 @@ def append_message(
     content_json: str | None = None,
     related_analysis_id: int | None = None,
 ) -> AIMessage:
-    conversation = db.session.get(AIConversation, conversation_id)
+    conversation = session.get(AIConversation, conversation_id)
     if conversation is None:
         raise ValueError(f"Conversation {conversation_id} not found.")
 
     next_sequence_no = (
-        db.session.scalar(
+        session.scalar(
             select(AIMessage.sequence_no)
             .where(AIMessage.conversation_id == conversation_id)
             .order_by(AIMessage.sequence_no.desc())
@@ -87,13 +91,13 @@ def append_message(
         sequence_no=next_sequence_no,
     )
     conversation.last_message_at = _utc_now()
-    db.session.add(message)
-    db.session.commit()
+    session.add(message)
+    session.commit()
     return message
 
 
-def list_messages(conversation_id: int) -> list[AIMessage]:
-    messages = db.session.scalars(
+def list_messages(session: Session, conversation_id: int) -> list[AIMessage]:
+    messages = session.scalars(
         select(AIMessage)
         .where(AIMessage.conversation_id == conversation_id)
         .order_by(AIMessage.sequence_no.asc(), AIMessage.id.asc())
@@ -102,6 +106,7 @@ def list_messages(conversation_id: int) -> list[AIMessage]:
 
 
 def update_conversation_state(
+    session: Session,
     conversation_id: int,
     *,
     status: str | None = None,
@@ -109,7 +114,7 @@ def update_conversation_state(
     session_context_json: str | None = None,
     title: str | None = None,
 ) -> AIConversation:
-    conversation = db.session.get(AIConversation, conversation_id)
+    conversation = session.get(AIConversation, conversation_id)
     if conversation is None:
         raise ValueError(f"Conversation {conversation_id} not found.")
 
@@ -123,25 +128,25 @@ def update_conversation_state(
         conversation.title = title
 
     conversation.updated_at = _utc_now()
-    db.session.commit()
+    session.commit()
     return conversation
 
 
-def delete_conversation(conversation_id: int, user_id: int) -> bool:
-    conversation = get_conversation(conversation_id, user_id)
+def delete_conversation(session: Session, conversation_id: int, user_id: int) -> bool:
+    conversation = get_conversation(session, conversation_id, user_id)
     if conversation is None:
         return False
 
     message_ids = list(
-        db.session.scalars(select(AIMessage.id).where(AIMessage.conversation_id == conversation_id))
+        session.scalars(select(AIMessage.id).where(AIMessage.conversation_id == conversation_id))
     )
     case_ids = list(
-        db.session.scalars(
+        session.scalars(
             select(RecyclingCase.id).where(RecyclingCase.conversation_id == conversation_id)
         )
     )
     audit_attempt_ids = list(
-        db.session.scalars(
+        session.scalars(
             select(RecyclingAuditAttempt.id).where(
                 RecyclingAuditAttempt.conversation_id == conversation_id
             )
@@ -149,50 +154,48 @@ def delete_conversation(conversation_id: int, user_id: int) -> bool:
     )
 
     if message_ids:
-        db.session.execute(
+        session.execute(
             update(UserMemoryItem)
             .where(UserMemoryItem.source_message_id.in_(message_ids))
             .values(source_message_id=None)
         )
 
-    db.session.execute(
+    session.execute(
         update(UserMemoryItem)
         .where(UserMemoryItem.conversation_id == conversation_id)
         .values(conversation_id=None)
     )
 
     if audit_attempt_ids:
-        db.session.execute(
+        session.execute(
             update(WasteAnalysisRecord)
             .where(WasteAnalysisRecord.approved_audit_attempt_id.in_(audit_attempt_ids))
             .values(approved_audit_attempt_id=None)
         )
 
     if case_ids:
-        db.session.execute(
+        session.execute(
             update(WasteAnalysisRecord)
             .where(WasteAnalysisRecord.recycling_case_id.in_(case_ids))
             .values(recycling_case_id=None)
         )
 
-    db.session.execute(
+    session.execute(
         update(WasteAnalysisRecord)
         .where(WasteAnalysisRecord.conversation_id == conversation_id)
         .values(conversation_id=None)
     )
 
-    db.session.execute(
+    session.execute(
         delete(AIMessageDecision).where(AIMessageDecision.conversation_id == conversation_id)
     )
-    db.session.execute(
+    session.execute(
         delete(RecyclingAuditAttempt).where(
             RecyclingAuditAttempt.conversation_id == conversation_id
         )
     )
-    db.session.execute(
-        delete(RecyclingCase).where(RecyclingCase.conversation_id == conversation_id)
-    )
-    db.session.execute(delete(AIMessage).where(AIMessage.conversation_id == conversation_id))
-    db.session.delete(conversation)
-    db.session.commit()
+    session.execute(delete(RecyclingCase).where(RecyclingCase.conversation_id == conversation_id))
+    session.execute(delete(AIMessage).where(AIMessage.conversation_id == conversation_id))
+    session.delete(conversation)
+    session.commit()
     return True

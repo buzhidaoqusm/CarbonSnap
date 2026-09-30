@@ -215,7 +215,7 @@ class TestConversationRepository:
     def test_create_conversation_uses_default_title(self):
         user = _make_user("dylan", "dylan@example.com")
 
-        conversation = conversation_repository.create_conversation(user_id=user.id)
+        conversation = conversation_repository.create_conversation(db.session, user_id=user.id)
 
         assert conversation.title == "New chat"
         assert conversation.status == "active"
@@ -227,19 +227,21 @@ class TestConversationRepository:
         conversation = _make_conversation(user)
 
         first = conversation_repository.append_message(
+            db.session,
             conversation_id=conversation.id,
             role="user",
             message_type="text",
             content_text="hello",
         )
         second = conversation_repository.append_message(
+            db.session,
             conversation_id=conversation.id,
             role="assistant",
             message_type="text",
             content_text="hi there",
         )
 
-        messages = conversation_repository.list_messages(conversation.id)
+        messages = conversation_repository.list_messages(db.session, conversation.id)
         assert first.sequence_no == 1
         assert second.sequence_no == 2
         assert [message.sequence_no for message in messages] == [1, 2]
@@ -247,30 +249,33 @@ class TestConversationRepository:
     def test_update_conversation_state_and_list_order(self):
         user = _make_user("frank", "frank@example.com")
         first_conversation = conversation_repository.create_conversation(
-            user_id=user.id, title="First"
+            db.session, user_id=user.id, title="First"
         )
         second_conversation = conversation_repository.create_conversation(
-            user_id=user.id, title="Second"
+            db.session, user_id=user.id, title="Second"
         )
 
         conversation_repository.append_message(
+            db.session,
             conversation_id=first_conversation.id,
             role="user",
             message_type="text",
             content_text="old chat",
         )
         conversation_repository.append_message(
+            db.session,
             conversation_id=second_conversation.id,
             role="user",
             message_type="text",
             content_text="new chat",
         )
 
-        ordered = conversation_repository.list_conversations(user.id)
+        ordered = conversation_repository.list_conversations(db.session, user.id)
         assert ordered[0].id == second_conversation.id
         assert ordered[1].id == first_conversation.id
 
         updated = conversation_repository.update_conversation_state(
+            db.session,
             first_conversation.id,
             status="awaiting_location",
             current_pending_action="location_permission",
@@ -289,6 +294,7 @@ class TestMessageDecisionRepository:
         conversation = _make_conversation(user)
         origin_message = _make_message(conversation, content_text="Analyze this bottle.")
         recycling_case = recycling_case_repository.create_recycling_case(
+            db.session,
             user_id=user.id,
             conversation_id=conversation.id,
             origin_message_id=origin_message.id,
@@ -299,6 +305,7 @@ class TestMessageDecisionRepository:
             expected_carbon_points=4.0,
         )
         user_message = conversation_repository.append_message(
+            db.session,
             conversation_id=conversation.id,
             role="user",
             message_type="text",
@@ -306,6 +313,7 @@ class TestMessageDecisionRepository:
         )
 
         decision = message_decision_repository.create_message_decision(
+            db.session,
             conversation_id=conversation.id,
             user_message_id=user_message.id,
             intent="recycling_follow_up",
@@ -318,10 +326,10 @@ class TestMessageDecisionRepository:
         )
 
         latest = message_decision_repository.get_latest_message_decision_for_message(
-            user_message.id
+            db.session, user_message.id
         )
         all_for_conversation = message_decision_repository.list_message_decisions_for_conversation(
-            conversation.id
+            db.session, conversation.id
         )
 
         assert decision.target_case_id == recycling_case.id
@@ -338,6 +346,7 @@ class TestRecyclingCaseRepository:
         origin_message = _make_message(conversation, content_text="Analyze this bottle.")
 
         case = recycling_case_repository.create_recycling_case(
+            db.session,
             user_id=user.id,
             conversation_id=conversation.id,
             origin_message_id=origin_message.id,
@@ -348,8 +357,10 @@ class TestRecyclingCaseRepository:
             expected_carbon_points=4.0,
         )
 
-        pending = recycling_case_repository.get_pending_case_for_conversation(conversation.id)
-        fetched = recycling_case_repository.get_case(case.id, user.id)
+        pending = recycling_case_repository.get_pending_case_for_conversation(
+            db.session, conversation.id
+        )
+        fetched = recycling_case_repository.get_case(db.session, case.id, user.id)
 
         assert pending is not None
         assert pending.id == case.id
@@ -362,6 +373,7 @@ class TestRecyclingCaseRepository:
         conversation = _make_conversation(user)
         origin_message = _make_message(conversation, content_text="Analyze this item.")
         case = recycling_case_repository.create_recycling_case(
+            db.session,
             user_id=user.id,
             conversation_id=conversation.id,
             origin_message_id=origin_message.id,
@@ -373,6 +385,7 @@ class TestRecyclingCaseRepository:
         )
 
         first_attempt = recycling_case_repository.create_audit_attempt(
+            db.session,
             recycling_case_id=case.id,
             user_id=user.id,
             conversation_id=conversation.id,
@@ -381,6 +394,7 @@ class TestRecyclingCaseRepository:
             auditor_confidence=0.41,
         )
         second_attempt = recycling_case_repository.create_audit_attempt(
+            db.session,
             recycling_case_id=case.id,
             user_id=user.id,
             conversation_id=conversation.id,
@@ -389,8 +403,8 @@ class TestRecyclingCaseRepository:
             auditor_confidence=0.96,
         )
 
-        attempts = recycling_case_repository.list_audit_attempts(case.id)
-        refreshed_case = recycling_case_repository.get_case(case.id, user.id)
+        attempts = recycling_case_repository.list_audit_attempts(db.session, case.id)
+        refreshed_case = recycling_case_repository.get_case(db.session, case.id, user.id)
 
         assert first_attempt.attempt_no == 1
         assert second_attempt.attempt_no == 2
@@ -408,7 +422,7 @@ class TestRecyclingCaseRepository:
         db.session.flush()
 
         marked = recycling_case_repository.mark_case_audit_passed(
-            case.id, approved_analysis_id=analysis.id
+            db.session, case.id, approved_analysis_id=analysis.id
         )
         assert marked.approved_analysis_id == analysis.id
         assert marked.status == "audit_passed"

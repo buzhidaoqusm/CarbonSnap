@@ -81,7 +81,7 @@ def _build_source_url(n) -> str:
     if source_type == "forum_comment":
         if source_id is None:
             return "/notification"
-        context = forum_repository.get_comment_notification_context(int(source_id))
+        context = forum_repository.get_comment_notification_context(db.session, int(source_id))
         if context is None:
             return "/notification"
         post_id = context.get("post_id")
