@@ -1,0 +1,2358 @@
+{
+  "ai_conversations": {
+    "columns": {
+      "created_at": {
+        "default": "<callable>",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TIMESTAMP WITHOUT TIME ZONE",
+        "unique": null
+      },
+      "current_pending_action": {
+        "default": "'none'",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(32)",
+        "unique": null
+      },
+      "id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": true,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "last_message_at": {
+        "default": "<callable>",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TIMESTAMP WITHOUT TIME ZONE",
+        "unique": null
+      },
+      "session_context_json": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TEXT",
+        "unique": null
+      },
+      "status": {
+        "default": "'active'",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(32)",
+        "unique": null
+      },
+      "title": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(256)",
+        "unique": null
+      },
+      "updated_at": {
+        "default": "<callable>",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": "<callable>",
+        "primary_key": false,
+        "server_default": null,
+        "type": "TIMESTAMP WITHOUT TIME ZONE",
+        "unique": null
+      },
+      "user_id": {
+        "default": null,
+        "foreign_keys": [
+          "users.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      }
+    },
+    "ddl": "CREATE TABLE ai_conversations (\n\tid SERIAL NOT NULL, \n\tuser_id INTEGER NOT NULL, \n\ttitle VARCHAR(256), \n\tstatus VARCHAR(32) NOT NULL, \n\tcurrent_pending_action VARCHAR(32) NOT NULL, \n\tsession_context_json TEXT, \n\tlast_message_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tcreated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tupdated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(user_id) REFERENCES users (id)\n)",
+    "indexes": []
+  },
+  "ai_message_decisions": {
+    "columns": {
+      "confidence": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "FLOAT",
+        "unique": null
+      },
+      "conversation_id": {
+        "default": null,
+        "foreign_keys": [
+          "ai_conversations.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "created_at": {
+        "default": "<callable>",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TIMESTAMP WITHOUT TIME ZONE",
+        "unique": null
+      },
+      "decision_json": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TEXT",
+        "unique": null
+      },
+      "engine_version": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(64)",
+        "unique": null
+      },
+      "follow_up_type": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(32)",
+        "unique": null
+      },
+      "id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": true,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "intent": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(32)",
+        "unique": null
+      },
+      "needs_clarification": {
+        "default": "False",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "BOOLEAN",
+        "unique": null
+      },
+      "target_case_id": {
+        "default": null,
+        "foreign_keys": [
+          "recycling_cases.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "user_message_id": {
+        "default": null,
+        "foreign_keys": [
+          "ai_messages.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      }
+    },
+    "ddl": "CREATE TABLE ai_message_decisions (\n\tid SERIAL NOT NULL, \n\tconversation_id INTEGER NOT NULL, \n\tuser_message_id INTEGER NOT NULL, \n\tintent VARCHAR(32) NOT NULL, \n\tfollow_up_type VARCHAR(32), \n\ttarget_case_id INTEGER, \n\tconfidence FLOAT, \n\tneeds_clarification BOOLEAN NOT NULL, \n\tdecision_json TEXT NOT NULL, \n\tengine_version VARCHAR(64) NOT NULL, \n\tcreated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(conversation_id) REFERENCES ai_conversations (id), \n\tFOREIGN KEY(user_message_id) REFERENCES ai_messages (id), \n\tFOREIGN KEY(target_case_id) REFERENCES recycling_cases (id)\n)",
+    "indexes": [
+      "CREATE INDEX ix_ai_message_decisions_conversation_id ON ai_message_decisions (conversation_id)",
+      "CREATE INDEX ix_ai_message_decisions_user_message_id ON ai_message_decisions (user_message_id)"
+    ]
+  },
+  "ai_messages": {
+    "columns": {
+      "content_json": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TEXT",
+        "unique": null
+      },
+      "content_text": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TEXT",
+        "unique": null
+      },
+      "conversation_id": {
+        "default": null,
+        "foreign_keys": [
+          "ai_conversations.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "created_at": {
+        "default": "<callable>",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TIMESTAMP WITHOUT TIME ZONE",
+        "unique": null
+      },
+      "id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": true,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "message_type": {
+        "default": "'text'",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(32)",
+        "unique": null
+      },
+      "related_analysis_id": {
+        "default": null,
+        "foreign_keys": [
+          "waste_analysis_records.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "role": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(16)",
+        "unique": null
+      },
+      "sequence_no": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      }
+    },
+    "ddl": "CREATE TABLE ai_messages (\n\tid SERIAL NOT NULL, \n\tconversation_id INTEGER NOT NULL, \n\trole VARCHAR(16) NOT NULL, \n\tmessage_type VARCHAR(32) NOT NULL, \n\tcontent_text TEXT, \n\tcontent_json TEXT, \n\trelated_analysis_id INTEGER, \n\tsequence_no INTEGER NOT NULL, \n\tcreated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tPRIMARY KEY (id), \n\tCONSTRAINT uq_ai_messages_conversation_sequence UNIQUE (conversation_id, sequence_no), \n\tFOREIGN KEY(conversation_id) REFERENCES ai_conversations (id), \n\tFOREIGN KEY(related_analysis_id) REFERENCES waste_analysis_records (id)\n)",
+    "indexes": []
+  },
+  "content_topic_assignments": {
+    "columns": {
+      "confidence_score": {
+        "default": "0.0",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "FLOAT",
+        "unique": null
+      },
+      "content_id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "content_type": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(32)",
+        "unique": null
+      },
+      "created_at": {
+        "default": "<callable>",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TIMESTAMP WITHOUT TIME ZONE",
+        "unique": null
+      },
+      "domain": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(32)",
+        "unique": null
+      },
+      "id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": true,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "source": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(32)",
+        "unique": null
+      },
+      "topic_id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(64)",
+        "unique": null
+      },
+      "updated_at": {
+        "default": "<callable>",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": "<callable>",
+        "primary_key": false,
+        "server_default": null,
+        "type": "TIMESTAMP WITHOUT TIME ZONE",
+        "unique": null
+      }
+    },
+    "ddl": "CREATE TABLE content_topic_assignments (\n\tid SERIAL NOT NULL, \n\tdomain VARCHAR(32) NOT NULL, \n\tcontent_type VARCHAR(32) NOT NULL, \n\tcontent_id INTEGER NOT NULL, \n\ttopic_id VARCHAR(64) NOT NULL, \n\tconfidence_score FLOAT NOT NULL, \n\tsource VARCHAR(32) NOT NULL, \n\tcreated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tupdated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tPRIMARY KEY (id), \n\tCONSTRAINT uq_content_topic_assignments_content_topic UNIQUE (domain, content_type, content_id, topic_id)\n)",
+    "indexes": []
+  },
+  "forum_comments": {
+    "columns": {
+      "content": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TEXT",
+        "unique": null
+      },
+      "created_at": {
+        "default": "<callable>",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TIMESTAMP WITHOUT TIME ZONE",
+        "unique": null
+      },
+      "id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": true,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "parent_comment_id": {
+        "default": null,
+        "foreign_keys": [
+          "forum_comments.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "post_id": {
+        "default": null,
+        "foreign_keys": [
+          "forum_posts.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "status": {
+        "default": "'published'",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(16)",
+        "unique": null
+      },
+      "user_id": {
+        "default": null,
+        "foreign_keys": [
+          "users.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      }
+    },
+    "ddl": "CREATE TABLE forum_comments (\n\tid SERIAL NOT NULL, \n\tpost_id INTEGER NOT NULL, \n\tuser_id INTEGER NOT NULL, \n\tparent_comment_id INTEGER, \n\tcontent TEXT NOT NULL, \n\tstatus VARCHAR(16) NOT NULL, \n\tcreated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(post_id) REFERENCES forum_posts (id), \n\tFOREIGN KEY(user_id) REFERENCES users (id), \n\tFOREIGN KEY(parent_comment_id) REFERENCES forum_comments (id)\n)",
+    "indexes": []
+  },
+  "forum_post_chunks": {
+    "columns": {
+      "chunk_index": {
+        "default": "0",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "chunk_text": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TEXT",
+        "unique": null
+      },
+      "chunk_version": {
+        "default": "1",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "embedding_id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(64)",
+        "unique": null
+      },
+      "id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": true,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "post_id": {
+        "default": null,
+        "foreign_keys": [
+          "forum_posts.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "section_title": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(256)",
+        "unique": null
+      }
+    },
+    "ddl": "CREATE TABLE forum_post_chunks (\n\tid SERIAL NOT NULL, \n\tpost_id INTEGER NOT NULL, \n\tchunk_text TEXT NOT NULL, \n\tchunk_index INTEGER NOT NULL, \n\tsection_title VARCHAR(256), \n\tchunk_version INTEGER NOT NULL, \n\tembedding_id VARCHAR(64), \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(post_id) REFERENCES forum_posts (id)\n)",
+    "indexes": []
+  },
+  "forum_posts": {
+    "columns": {
+      "author_id": {
+        "default": null,
+        "foreign_keys": [
+          "users.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "content": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TEXT",
+        "unique": null
+      },
+      "created_at": {
+        "default": "<callable>",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TIMESTAMP WITHOUT TIME ZONE",
+        "unique": null
+      },
+      "id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": true,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "image_urls_json": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TEXT",
+        "unique": null
+      },
+      "status": {
+        "default": "'published'",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(16)",
+        "unique": null
+      },
+      "title": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(256)",
+        "unique": null
+      }
+    },
+    "ddl": "CREATE TABLE forum_posts (\n\tid SERIAL NOT NULL, \n\tauthor_id INTEGER NOT NULL, \n\ttitle VARCHAR(256) NOT NULL, \n\tcontent TEXT NOT NULL, \n\timage_urls_json TEXT, \n\tstatus VARCHAR(16) NOT NULL, \n\tcreated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(author_id) REFERENCES users (id)\n)",
+    "indexes": []
+  },
+  "likes": {
+    "columns": {
+      "created_at": {
+        "default": "<callable>",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TIMESTAMP WITHOUT TIME ZONE",
+        "unique": null
+      },
+      "id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": true,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "target_id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "target_type": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(16)",
+        "unique": null
+      },
+      "user_id": {
+        "default": null,
+        "foreign_keys": [
+          "users.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      }
+    },
+    "ddl": "CREATE TABLE likes (\n\tid SERIAL NOT NULL, \n\tuser_id INTEGER NOT NULL, \n\ttarget_type VARCHAR(16) NOT NULL, \n\ttarget_id INTEGER NOT NULL, \n\tcreated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tPRIMARY KEY (id), \n\tCONSTRAINT uq_likes_user_target UNIQUE (user_id, target_type, target_id), \n\tFOREIGN KEY(user_id) REFERENCES users (id)\n)",
+    "indexes": []
+  },
+  "market_items": {
+    "columns": {
+      "created_at": {
+        "default": "<callable>",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TIMESTAMP WITHOUT TIME ZONE",
+        "unique": null
+      },
+      "description": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TEXT",
+        "unique": null
+      },
+      "id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": true,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "image_urls_json": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TEXT",
+        "unique": null
+      },
+      "price_points": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "seller_id": {
+        "default": null,
+        "foreign_keys": [
+          "users.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "status": {
+        "default": "'active'",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(16)",
+        "unique": null
+      },
+      "title": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(256)",
+        "unique": null
+      }
+    },
+    "ddl": "CREATE TABLE market_items (\n\tid SERIAL NOT NULL, \n\tseller_id INTEGER NOT NULL, \n\ttitle VARCHAR(256) NOT NULL, \n\tdescription TEXT, \n\timage_urls_json TEXT, \n\tprice_points INTEGER NOT NULL, \n\tstatus VARCHAR(16) NOT NULL, \n\tcreated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(seller_id) REFERENCES users (id)\n)",
+    "indexes": []
+  },
+  "notifications": {
+    "columns": {
+      "created_at": {
+        "default": "<callable>",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TIMESTAMP WITHOUT TIME ZONE",
+        "unique": null
+      },
+      "event_type": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(32)",
+        "unique": null
+      },
+      "id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": true,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "is_read": {
+        "default": "False",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "BOOLEAN",
+        "unique": null
+      },
+      "recipient_user_id": {
+        "default": null,
+        "foreign_keys": [
+          "users.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "source_id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "source_type": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(32)",
+        "unique": null
+      },
+      "title": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(256)",
+        "unique": null
+      }
+    },
+    "ddl": "CREATE TABLE notifications (\n\tid SERIAL NOT NULL, \n\trecipient_user_id INTEGER NOT NULL, \n\tevent_type VARCHAR(32) NOT NULL, \n\tsource_type VARCHAR(32) NOT NULL, \n\tsource_id INTEGER NOT NULL, \n\ttitle VARCHAR(256) NOT NULL, \n\tis_read BOOLEAN NOT NULL, \n\tcreated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(recipient_user_id) REFERENCES users (id)\n)",
+    "indexes": []
+  },
+  "orders": {
+    "columns": {
+      "buyer_id": {
+        "default": null,
+        "foreign_keys": [
+          "users.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "created_at": {
+        "default": "<callable>",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TIMESTAMP WITHOUT TIME ZONE",
+        "unique": null
+      },
+      "id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": true,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "item_id": {
+        "default": null,
+        "foreign_keys": [
+          "market_items.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "price_points": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "seller_id": {
+        "default": null,
+        "foreign_keys": [
+          "users.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "status": {
+        "default": "'paid'",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(16)",
+        "unique": null
+      }
+    },
+    "ddl": "CREATE TABLE orders (\n\tid SERIAL NOT NULL, \n\titem_id INTEGER NOT NULL, \n\tbuyer_id INTEGER NOT NULL, \n\tseller_id INTEGER NOT NULL, \n\tprice_points INTEGER NOT NULL, \n\tstatus VARCHAR(16) NOT NULL, \n\tcreated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(item_id) REFERENCES market_items (id), \n\tFOREIGN KEY(buyer_id) REFERENCES users (id), \n\tFOREIGN KEY(seller_id) REFERENCES users (id)\n)",
+    "indexes": []
+  },
+  "project_contributions": {
+    "columns": {
+      "created_at": {
+        "default": "<callable>",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TIMESTAMP WITHOUT TIME ZONE",
+        "unique": null
+      },
+      "id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": true,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "points": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "project_id": {
+        "default": null,
+        "foreign_keys": [
+          "projects.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "user_id": {
+        "default": null,
+        "foreign_keys": [
+          "users.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      }
+    },
+    "ddl": "CREATE TABLE project_contributions (\n\tid SERIAL NOT NULL, \n\tproject_id INTEGER NOT NULL, \n\tuser_id INTEGER NOT NULL, \n\tpoints INTEGER NOT NULL, \n\tcreated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(project_id) REFERENCES projects (id), \n\tFOREIGN KEY(user_id) REFERENCES users (id)\n)",
+    "indexes": []
+  },
+  "projects": {
+    "columns": {
+      "cover_image_url": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(512)",
+        "unique": null
+      },
+      "created_at": {
+        "default": "<callable>",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TIMESTAMP WITHOUT TIME ZONE",
+        "unique": null
+      },
+      "creator_user_id": {
+        "default": null,
+        "foreign_keys": [
+          "users.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "deadline_at": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TIMESTAMP WITHOUT TIME ZONE",
+        "unique": null
+      },
+      "description": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TEXT",
+        "unique": null
+      },
+      "id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": true,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "points_raised": {
+        "default": "0",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "points_target": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "status": {
+        "default": "'fundraising'",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(16)",
+        "unique": null
+      },
+      "title": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(256)",
+        "unique": null
+      }
+    },
+    "ddl": "CREATE TABLE projects (\n\tid SERIAL NOT NULL, \n\tcreator_user_id INTEGER NOT NULL, \n\ttitle VARCHAR(256) NOT NULL, \n\tdescription TEXT, \n\tcover_image_url VARCHAR(512), \n\tpoints_target INTEGER NOT NULL, \n\tpoints_raised INTEGER NOT NULL, \n\tstatus VARCHAR(16) NOT NULL, \n\tdeadline_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tcreated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(creator_user_id) REFERENCES users (id)\n)",
+    "indexes": []
+  },
+  "recycling_audit_attempts": {
+    "columns": {
+      "attempt_no": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "audit_image_url": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(256)",
+        "unique": null
+      },
+      "audit_reason": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TEXT",
+        "unique": null
+      },
+      "audit_response_json": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TEXT",
+        "unique": null
+      },
+      "audit_result": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(16)",
+        "unique": null
+      },
+      "auditor_confidence": {
+        "default": "0.0",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "FLOAT",
+        "unique": null
+      },
+      "conversation_id": {
+        "default": null,
+        "foreign_keys": [
+          "ai_conversations.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "created_at": {
+        "default": "<callable>",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TIMESTAMP WITHOUT TIME ZONE",
+        "unique": null
+      },
+      "id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": true,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "recycling_case_id": {
+        "default": null,
+        "foreign_keys": [
+          "recycling_cases.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "user_id": {
+        "default": null,
+        "foreign_keys": [
+          "users.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      }
+    },
+    "ddl": "CREATE TABLE recycling_audit_attempts (\n\tid SERIAL NOT NULL, \n\trecycling_case_id INTEGER NOT NULL, \n\tuser_id INTEGER NOT NULL, \n\tconversation_id INTEGER NOT NULL, \n\taudit_image_url VARCHAR(256) NOT NULL, \n\tattempt_no INTEGER NOT NULL, \n\taudit_result VARCHAR(16) NOT NULL, \n\tauditor_confidence FLOAT NOT NULL, \n\taudit_reason TEXT, \n\taudit_response_json TEXT, \n\tcreated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tPRIMARY KEY (id), \n\tCONSTRAINT uq_recycling_audit_attempt_case_attempt UNIQUE (recycling_case_id, attempt_no), \n\tFOREIGN KEY(recycling_case_id) REFERENCES recycling_cases (id), \n\tFOREIGN KEY(user_id) REFERENCES users (id), \n\tFOREIGN KEY(conversation_id) REFERENCES ai_conversations (id)\n)",
+    "indexes": []
+  },
+  "recycling_cases": {
+    "columns": {
+      "approved_analysis_id": {
+        "default": null,
+        "foreign_keys": [
+          "waste_analysis_records.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "confidence": {
+        "default": "0.0",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "FLOAT",
+        "unique": null
+      },
+      "conversation_id": {
+        "default": null,
+        "foreign_keys": [
+          "ai_conversations.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "created_at": {
+        "default": "<callable>",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TIMESTAMP WITHOUT TIME ZONE",
+        "unique": null
+      },
+      "estimated_weight_kg": {
+        "default": "0.0",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "FLOAT",
+        "unique": null
+      },
+      "expected_carbon_points": {
+        "default": "0.0",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "FLOAT",
+        "unique": null
+      },
+      "expected_co2_saved_kg": {
+        "default": "0.0",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "FLOAT",
+        "unique": null
+      },
+      "id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": true,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "latest_audit_attempt_no": {
+        "default": "0",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "origin_message_id": {
+        "default": null,
+        "foreign_keys": [
+          "ai_messages.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "status": {
+        "default": "'pending_audit'",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(32)",
+        "unique": null
+      },
+      "updated_at": {
+        "default": "<callable>",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": "<callable>",
+        "primary_key": false,
+        "server_default": null,
+        "type": "TIMESTAMP WITHOUT TIME ZONE",
+        "unique": null
+      },
+      "user_id": {
+        "default": null,
+        "foreign_keys": [
+          "users.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "waste_type_predicted": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(64)",
+        "unique": null
+      }
+    },
+    "ddl": "CREATE TABLE recycling_cases (\n\tid SERIAL NOT NULL, \n\tuser_id INTEGER NOT NULL, \n\tconversation_id INTEGER NOT NULL, \n\torigin_message_id INTEGER NOT NULL, \n\twaste_type_predicted VARCHAR(64) NOT NULL, \n\tconfidence FLOAT NOT NULL, \n\testimated_weight_kg FLOAT NOT NULL, \n\texpected_co2_saved_kg FLOAT NOT NULL, \n\texpected_carbon_points FLOAT NOT NULL, \n\tstatus VARCHAR(32) NOT NULL, \n\tlatest_audit_attempt_no INTEGER NOT NULL, \n\tapproved_analysis_id INTEGER, \n\tcreated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tupdated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(user_id) REFERENCES users (id), \n\tFOREIGN KEY(conversation_id) REFERENCES ai_conversations (id), \n\tFOREIGN KEY(origin_message_id) REFERENCES ai_messages (id), \n\tFOREIGN KEY(approved_analysis_id) REFERENCES waste_analysis_records (id)\n)",
+    "indexes": []
+  },
+  "recycling_stations": {
+    "columns": {
+      "address": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(256)",
+        "unique": null
+      },
+      "id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": true,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "latitude": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "FLOAT",
+        "unique": null
+      },
+      "longitude": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "FLOAT",
+        "unique": null
+      },
+      "name": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(128)",
+        "unique": null
+      }
+    },
+    "ddl": "CREATE TABLE recycling_stations (\n\tid SERIAL NOT NULL, \n\tname VARCHAR(128) NOT NULL, \n\taddress VARCHAR(256), \n\tlatitude FLOAT NOT NULL, \n\tlongitude FLOAT NOT NULL, \n\tPRIMARY KEY (id)\n)",
+    "indexes": []
+  },
+  "transactions": {
+    "columns": {
+      "co2_delta_kg": {
+        "default": "0.0",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "FLOAT",
+        "unique": null
+      },
+      "created_at": {
+        "default": "<callable>",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TIMESTAMP WITHOUT TIME ZONE",
+        "unique": null
+      },
+      "id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": true,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "points_delta": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "source_id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "source_type": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(32)",
+        "unique": null
+      },
+      "type": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(16)",
+        "unique": null
+      },
+      "user_id": {
+        "default": null,
+        "foreign_keys": [
+          "users.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      }
+    },
+    "ddl": "CREATE TABLE transactions (\n\tid SERIAL NOT NULL, \n\tuser_id INTEGER NOT NULL, \n\ttype VARCHAR(16) NOT NULL, \n\tpoints_delta INTEGER NOT NULL, \n\tco2_delta_kg FLOAT NOT NULL, \n\tsource_type VARCHAR(32) NOT NULL, \n\tsource_id INTEGER, \n\tcreated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(user_id) REFERENCES users (id)\n)",
+    "indexes": []
+  },
+  "user_behavior_events": {
+    "columns": {
+      "action_type": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(32)",
+        "unique": null
+      },
+      "context_json": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TEXT",
+        "unique": null
+      },
+      "created_at": {
+        "default": "<callable>",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TIMESTAMP WITHOUT TIME ZONE",
+        "unique": null
+      },
+      "domain": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(32)",
+        "unique": null
+      },
+      "id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": true,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "target_id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "target_type": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(32)",
+        "unique": null
+      },
+      "topic_payload_json": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TEXT",
+        "unique": null
+      },
+      "user_id": {
+        "default": null,
+        "foreign_keys": [
+          "users.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      }
+    },
+    "ddl": "CREATE TABLE user_behavior_events (\n\tid SERIAL NOT NULL, \n\tuser_id INTEGER NOT NULL, \n\tdomain VARCHAR(32) NOT NULL, \n\taction_type VARCHAR(32) NOT NULL, \n\ttarget_type VARCHAR(32), \n\ttarget_id INTEGER NOT NULL, \n\ttopic_payload_json TEXT, \n\tcontext_json TEXT, \n\tcreated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(user_id) REFERENCES users (id)\n)",
+    "indexes": []
+  },
+  "user_memory_items": {
+    "columns": {
+      "conversation_id": {
+        "default": null,
+        "foreign_keys": [
+          "ai_conversations.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "created_at": {
+        "default": "<callable>",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TIMESTAMP WITHOUT TIME ZONE",
+        "unique": null
+      },
+      "id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": true,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "memory_key": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(128)",
+        "unique": null
+      },
+      "memory_type": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(32)",
+        "unique": null
+      },
+      "source_message_id": {
+        "default": null,
+        "foreign_keys": [
+          "ai_messages.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "source_type": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(32)",
+        "unique": null
+      },
+      "status": {
+        "default": "'active'",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(16)",
+        "unique": null
+      },
+      "updated_at": {
+        "default": "<callable>",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": "<callable>",
+        "primary_key": false,
+        "server_default": null,
+        "type": "TIMESTAMP WITHOUT TIME ZONE",
+        "unique": null
+      },
+      "user_id": {
+        "default": null,
+        "foreign_keys": [
+          "users.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "value_json": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TEXT",
+        "unique": null
+      }
+    },
+    "ddl": "CREATE TABLE user_memory_items (\n\tid SERIAL NOT NULL, \n\tuser_id INTEGER NOT NULL, \n\tmemory_type VARCHAR(32) NOT NULL, \n\tmemory_key VARCHAR(128) NOT NULL, \n\tvalue_json TEXT NOT NULL, \n\tsource_type VARCHAR(32) NOT NULL, \n\tsource_message_id INTEGER, \n\tconversation_id INTEGER, \n\tstatus VARCHAR(16) NOT NULL, \n\tcreated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tupdated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(user_id) REFERENCES users (id), \n\tFOREIGN KEY(source_message_id) REFERENCES ai_messages (id), \n\tFOREIGN KEY(conversation_id) REFERENCES ai_conversations (id)\n)",
+    "indexes": [
+      "CREATE INDEX ix_user_memory_items_user_status_type_key ON user_memory_items (user_id, status, memory_type, memory_key)"
+    ]
+  },
+  "user_preference_profiles": {
+    "columns": {
+      "confidence_score": {
+        "default": "0.0",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "FLOAT",
+        "unique": null
+      },
+      "created_at": {
+        "default": "<callable>",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TIMESTAMP WITHOUT TIME ZONE",
+        "unique": null
+      },
+      "event_count": {
+        "default": "0",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": true,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "last_event_at": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TIMESTAMP WITHOUT TIME ZONE",
+        "unique": null
+      },
+      "normalized_score": {
+        "default": "0.0",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "FLOAT",
+        "unique": null
+      },
+      "profile_key": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(128)",
+        "unique": null
+      },
+      "profile_type": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(32)",
+        "unique": null
+      },
+      "raw_score": {
+        "default": "0.0",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "FLOAT",
+        "unique": null
+      },
+      "source_domains_json": {
+        "default": "'[]'",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TEXT",
+        "unique": null
+      },
+      "updated_at": {
+        "default": "<callable>",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": "<callable>",
+        "primary_key": false,
+        "server_default": null,
+        "type": "TIMESTAMP WITHOUT TIME ZONE",
+        "unique": null
+      },
+      "user_id": {
+        "default": null,
+        "foreign_keys": [
+          "users.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      }
+    },
+    "ddl": "CREATE TABLE user_preference_profiles (\n\tid SERIAL NOT NULL, \n\tuser_id INTEGER NOT NULL, \n\tprofile_type VARCHAR(32) NOT NULL, \n\tprofile_key VARCHAR(128) NOT NULL, \n\traw_score FLOAT NOT NULL, \n\tnormalized_score FLOAT NOT NULL, \n\tconfidence_score FLOAT NOT NULL, \n\tevent_count INTEGER NOT NULL, \n\tsource_domains_json TEXT NOT NULL, \n\tlast_event_at TIMESTAMP WITHOUT TIME ZONE, \n\tcreated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tupdated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tPRIMARY KEY (id), \n\tCONSTRAINT uq_user_preference_profiles_user_profile_key UNIQUE (user_id, profile_type, profile_key), \n\tFOREIGN KEY(user_id) REFERENCES users (id)\n)",
+    "indexes": []
+  },
+  "users": {
+    "columns": {
+      "avatar_url": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(256)",
+        "unique": null
+      },
+      "bio": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TEXT",
+        "unique": null
+      },
+      "created_at": {
+        "default": "<callable>",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TIMESTAMP WITHOUT TIME ZONE",
+        "unique": null
+      },
+      "current_points": {
+        "default": "0",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "email": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(120)",
+        "unique": true
+      },
+      "id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": true,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "password_hash": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(256)",
+        "unique": null
+      },
+      "preferences_json": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TEXT",
+        "unique": null
+      },
+      "total_carbon_amount": {
+        "default": "0.0",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "FLOAT",
+        "unique": null
+      },
+      "username": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(64)",
+        "unique": true
+      }
+    },
+    "ddl": "CREATE TABLE users (\n\tid SERIAL NOT NULL, \n\tusername VARCHAR(64) NOT NULL, \n\temail VARCHAR(120) NOT NULL, \n\tpassword_hash VARCHAR(256) NOT NULL, \n\tavatar_url VARCHAR(256), \n\tbio TEXT, \n\ttotal_carbon_amount FLOAT NOT NULL, \n\tcurrent_points INTEGER NOT NULL, \n\tpreferences_json TEXT, \n\tcreated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tPRIMARY KEY (id), \n\tUNIQUE (username), \n\tUNIQUE (email)\n)",
+    "indexes": []
+  },
+  "waste_analysis_records": {
+    "columns": {
+      "approved_audit_attempt_id": {
+        "default": null,
+        "foreign_keys": [
+          "recycling_audit_attempts.id use_alter=True name=fk_waste_analysis_records_approved_audit_attempt_id"
+        ],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "carbon_points": {
+        "default": "0",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "co2_saved_kg": {
+        "default": "0.0",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "FLOAT",
+        "unique": null
+      },
+      "confidence": {
+        "default": "0.0",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "FLOAT",
+        "unique": null
+      },
+      "conversation_id": {
+        "default": null,
+        "foreign_keys": [
+          "ai_conversations.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "created_at": {
+        "default": "<callable>",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TIMESTAMP WITHOUT TIME ZONE",
+        "unique": null
+      },
+      "estimated_weight_kg": {
+        "default": "0.0",
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "FLOAT",
+        "unique": null
+      },
+      "id": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": true,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "image_url": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(256)",
+        "unique": null
+      },
+      "raw_ai_response_json": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "TEXT",
+        "unique": null
+      },
+      "recycling_case_id": {
+        "default": null,
+        "foreign_keys": [
+          "recycling_cases.id use_alter=True name=fk_waste_analysis_records_recycling_case_id_recycling_cases"
+        ],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "user_id": {
+        "default": null,
+        "foreign_keys": [
+          "users.id use_alter=False name=None"
+        ],
+        "index": null,
+        "nullable": false,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "INTEGER",
+        "unique": null
+      },
+      "waste_type": {
+        "default": null,
+        "foreign_keys": [],
+        "index": null,
+        "nullable": true,
+        "onupdate": null,
+        "primary_key": false,
+        "server_default": null,
+        "type": "VARCHAR(64)",
+        "unique": null
+      }
+    },
+    "ddl": "CREATE TABLE waste_analysis_records (\n\tid SERIAL NOT NULL, \n\tuser_id INTEGER NOT NULL, \n\tconversation_id INTEGER, \n\trecycling_case_id INTEGER, \n\tapproved_audit_attempt_id INTEGER, \n\timage_url VARCHAR(256), \n\twaste_type VARCHAR(64), \n\tconfidence FLOAT NOT NULL, \n\testimated_weight_kg FLOAT NOT NULL, \n\tco2_saved_kg FLOAT NOT NULL, \n\tcarbon_points INTEGER NOT NULL, \n\traw_ai_response_json TEXT, \n\tcreated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, \n\tPRIMARY KEY (id), \n\tFOREIGN KEY(user_id) REFERENCES users (id), \n\tFOREIGN KEY(conversation_id) REFERENCES ai_conversations (id)\n)",
+    "indexes": []
+  }
+}
