@@ -164,6 +164,22 @@ docs/adr/
 
 ### 3.3 数据层与 Flask 解耦（4 天）
 
+> ✅ **已完成（2026-09-30），和原计划有两处不同**：
+> - **repository 保持同步，没有 async 化**。一轮对话 13.9 s 里 LLM 占约 13.6 s，数据库加其他开销约 0.3 s，
+>   async 数据库省不了多少；async 会一路传染到 23 个调用方文件和 agent 工具，留给 P2 在对话链路上做。
+>   repository 已经显式接收 `session` 参数，将来切到 `AsyncSession` 是机械修改。
+> - **models 直接继承 `app.db.base.Base`**，不再继承 `db.Model`。Flask-SQLAlchemy 建在同一个 Base 上，
+>   共用 metadata，`Model.query` 等 Flask 专属功能本来就没有用到。
+> - 结果：
+>   - repository 里的 `db.session` 从 183 处降到 0；services 暂时传 `db.session`，所以 services 里的用法
+>     变成了 247 处，3.4 换成 FastAPI 依赖注入。
+>   - `test_repositories_without_flask` 在没有 Flask app context 的线程里调用 repository。
+>   - schema 快照（22 张表、195 列的 DDL 加 Python 端默认值）改写前后一致。
+>   - mypy 覆盖从 7 个文件扩到 35 个。
+> - 事务边界没动，repository 仍然自己 commit。改成请求级别的 unit of work 是单独的任务。
+> - 顺带发现：本机代理（`HTTP_PROXY=127.0.0.1:10808`）会让测试里没 mock 的 LLM 调用卡到超时，
+>   全量测试从约 230 s 变成 854 s。conftest 已屏蔽代理，现在是 163 s。
+
 - 新建 `app/db/base.py`，定义 `class Base(DeclarativeBase)`。过渡期用 `db = SQLAlchemy(model_class=Base)`，让 Flask 和 FastAPI 共用同一套模型。
 - 11 个 models 文件改成 SQLAlchemy 2.0 的类型写法（`Mapped[...]` + `mapped_column`）。
 - 新建 `app/db/session.py`：async engine（asyncpg）+ `async_sessionmaker`。FastAPI 用依赖 `get_db()` 注入 `AsyncSession`。
