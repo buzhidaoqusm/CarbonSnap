@@ -1,72 +1,63 @@
 from datetime import UTC, datetime
 
-from app.extensions.db import db
+from sqlalchemy import ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.db.base import Base
 
 
-class ForumPost(db.Model):
+class ForumPost(Base):
     __tablename__ = "forum_posts"
 
-    id = db.Column(db.Integer, primary_key=True)
-    author_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    title = db.Column(db.String(256), nullable=False)
-    content = db.Column(db.Text, nullable=False)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    author_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    title: Mapped[str] = mapped_column(String(256))
+    content: Mapped[str] = mapped_column(Text)
     # JSON array of image URLs stored as text.
-    image_urls_json = db.Column(db.Text)
+    image_urls_json: Mapped[str | None] = mapped_column(Text)
     # published | deleted  (soft delete)
-    status = db.Column(db.String(16), nullable=False, default="published")
-    created_at = db.Column(
-        db.DateTime,
-        nullable=False,
-        default=lambda: datetime.now(UTC),
-    )
+    status: Mapped[str] = mapped_column(String(16), default="published")
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
 
 
-class ForumComment(db.Model):
+class ForumComment(Base):
     __tablename__ = "forum_comments"
 
-    id = db.Column(db.Integer, primary_key=True)
-    post_id = db.Column(db.Integer, db.ForeignKey("forum_posts.id"), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    post_id: Mapped[int] = mapped_column(ForeignKey("forum_posts.id"))
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     # NULL for top-level comments; set to parent comment id for replies.
-    parent_comment_id = db.Column(db.Integer, db.ForeignKey("forum_comments.id"))
-    content = db.Column(db.Text, nullable=False)
+    parent_comment_id: Mapped[int | None] = mapped_column(ForeignKey("forum_comments.id"))
+    content: Mapped[str] = mapped_column(Text)
     # published | deleted  (soft delete)
-    status = db.Column(db.String(16), nullable=False, default="published")
-    created_at = db.Column(
-        db.DateTime,
-        nullable=False,
-        default=lambda: datetime.now(UTC),
-    )
+    status: Mapped[str] = mapped_column(String(16), default="published")
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
 
 
-class Like(db.Model):
+class Like(Base):
     __tablename__ = "likes"
 
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     # post | comment
-    target_type = db.Column(db.String(16), nullable=False)
-    target_id = db.Column(db.Integer, nullable=False)
-    created_at = db.Column(
-        db.DateTime,
-        nullable=False,
-        default=lambda: datetime.now(UTC),
-    )
+    target_type: Mapped[str] = mapped_column(String(16))
+    target_id: Mapped[int] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
 
     # Prevent duplicate likes: one user can only like a target once.
     __table_args__ = (
-        db.UniqueConstraint("user_id", "target_type", "target_id", name="uq_likes_user_target"),
+        UniqueConstraint("user_id", "target_type", "target_id", name="uq_likes_user_target"),
     )
 
 
-class ForumPostChunk(db.Model):
+class ForumPostChunk(Base):
     __tablename__ = "forum_post_chunks"
 
-    id = db.Column(db.Integer, primary_key=True)
-    post_id = db.Column(db.Integer, db.ForeignKey("forum_posts.id"), nullable=False)
-    chunk_text = db.Column(db.Text, nullable=False)
-    chunk_index = db.Column(db.Integer, nullable=False, default=0)
-    section_title = db.Column(db.String(256))
-    chunk_version = db.Column(db.Integer, nullable=False, default=1)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    post_id: Mapped[int] = mapped_column(ForeignKey("forum_posts.id"))
+    chunk_text: Mapped[str] = mapped_column(Text)
+    chunk_index: Mapped[int] = mapped_column(default=0)
+    section_title: Mapped[str | None] = mapped_column(String(256))
+    chunk_version: Mapped[int] = mapped_column(default=1)
     # Key into the FAISS index. NULL until the chunk has been embedded.
-    embedding_id = db.Column(db.String(64))
+    embedding_id: Mapped[str | None] = mapped_column(String(64))

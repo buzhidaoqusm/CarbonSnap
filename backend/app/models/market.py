@@ -1,39 +1,34 @@
 from datetime import UTC, datetime
 
-from app.extensions.db import db
+from sqlalchemy import ForeignKey, String, Text
+from sqlalchemy.orm import Mapped, mapped_column
+
+from app.db.base import Base
 
 
-class MarketItem(db.Model):
+class MarketItem(Base):
     __tablename__ = "market_items"
 
-    id = db.Column(db.Integer, primary_key=True)
-    seller_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    title = db.Column(db.String(256), nullable=False)
-    description = db.Column(db.Text)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    seller_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    title: Mapped[str] = mapped_column(String(256))
+    description: Mapped[str | None] = mapped_column(Text)
     # JSON array of image URLs stored as text.
-    image_urls_json = db.Column(db.Text)
-    price_points = db.Column(db.Integer, nullable=False)
+    image_urls_json: Mapped[str | None] = mapped_column(Text)
+    price_points: Mapped[int] = mapped_column()
     # active | sold_out | removed
-    status = db.Column(db.String(16), nullable=False, default="active")
-    created_at = db.Column(
-        db.DateTime,
-        nullable=False,
-        default=lambda: datetime.now(UTC),
-    )
+    status: Mapped[str] = mapped_column(String(16), default="active")
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))
 
 
-class Order(db.Model):
+class Order(Base):
     __tablename__ = "orders"
 
-    id = db.Column(db.Integer, primary_key=True)
-    item_id = db.Column(db.Integer, db.ForeignKey("market_items.id"), nullable=False)
-    buyer_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    seller_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    price_points = db.Column(db.Integer, nullable=False)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    item_id: Mapped[int] = mapped_column(ForeignKey("market_items.id"))
+    buyer_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    seller_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    price_points: Mapped[int] = mapped_column()
     # paid | shipped | completed
-    status = db.Column(db.String(16), nullable=False, default="paid")
-    created_at = db.Column(
-        db.DateTime,
-        nullable=False,
-        default=lambda: datetime.now(UTC),
-    )
+    status: Mapped[str] = mapped_column(String(16), default="paid")
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))

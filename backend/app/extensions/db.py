@@ -3,7 +3,9 @@ from collections.abc import Iterable
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
 
-db = SQLAlchemy()
+from app.db.base import Base
+
+db = SQLAlchemy(model_class=Base)
 
 
 def truncate_tables(table_names: Iterable[str]) -> None:

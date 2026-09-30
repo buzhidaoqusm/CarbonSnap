@@ -77,6 +77,8 @@ files = [
     "app/services/ai/prompt_registry.py",
     "app/core/config.py",
     "app/config/settings.py",
+    "app/db",
+    "app/models",
 ]
 follow_imports = "silent"
 ignore_missing_imports = true
