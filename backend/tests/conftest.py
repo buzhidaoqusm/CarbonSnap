@@ -83,8 +83,17 @@ os.environ.update(
         "NEO4J_URI": "",
         "NEO4J_USERNAME": "",
         "NEO4J_PASSWORD": "",
+        # No proxy, whatever the machine has configured. block_network allows
+        # localhost, so a developer proxy there (env vars or, on Windows, the
+        # registry) turned un-mocked calls into waits of a full LLM timeout.
+        # "*" also stops the registry lookup.
+        "NO_PROXY": "*",
+        "no_proxy": "*",
     }
 )
+for _proxy_var in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"):
+    os.environ.pop(_proxy_var, None)
+    os.environ.pop(_proxy_var.lower(), None)
 
 from flask_jwt_extended import create_access_token  # noqa: E402
 from werkzeug.security import generate_password_hash  # noqa: E402
