@@ -1,10 +1,13 @@
 """Run the same four cases against SQLite and PostgreSQL, using the app's real models.
 
-Run from backend/:
+Run from backend/ (PostgreSQL: `docker compose up -d postgres` first):
 
     uv run python ../tools/db_compare.py sqlite:///../data/compare.db
-    uv run --with "psycopg[binary]" python ../tools/db_compare.py \
-        postgresql+psycopg://carbonsnap:carbonsnap@127.0.0.1:5432/carbonsnap
+    uv run python ../tools/db_compare.py \
+        postgresql+psycopg://carbonsnap:carbonsnap@127.0.0.1:5432/compare
+
+The tables are dropped and recreated, so the database must be named
+"compare" (on PostgreSQL it is created fresh on every run).
 """
 
 from __future__ import annotations
