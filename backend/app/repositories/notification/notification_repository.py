@@ -1,10 +1,11 @@
 from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 
-from app.extensions.db import db
 from app.models.notification import Notification
 
 
 def create_notification(
+    session: Session,
     *,
     recipient_user_id: int,
     event_type: str,
@@ -19,14 +20,16 @@ def create_notification(
         source_id=source_id,
         title=title,
     )
-    db.session.add(notification)
-    db.session.commit()
+    session.add(notification)
+    session.commit()
     return notification
 
 
-def get_notification_by_id(notification_id: int, *, user_id: int) -> Notification | None:
+def get_notification_by_id(
+    session: Session, notification_id: int, *, user_id: int
+) -> Notification | None:
     """Return a notification only if it belongs to the given user."""
-    return db.session.scalar(
+    return session.scalar(
         select(Notification).where(
             Notification.id == notification_id,
             Notification.recipient_user_id == user_id,
@@ -35,6 +38,7 @@ def get_notification_by_id(notification_id: int, *, user_id: int) -> Notificatio
 
 
 def list_notifications_page(
+    session: Session,
     user_id: int,
     page: int,
     per_page: int,
@@ -45,16 +49,16 @@ def list_notifications_page(
     if unread_only:
         base = base.where(Notification.is_read.is_(False))
 
-    total = db.session.scalar(select(func.count()).select_from(base.subquery())) or 0
-    items = db.session.scalars(
+    total = session.scalar(select(func.count()).select_from(base.subquery())) or 0
+    items = session.scalars(
         base.order_by(Notification.created_at.desc()).limit(per_page).offset((page - 1) * per_page)
     ).all()
     return list(items), total
 
 
-def count_unread(user_id: int) -> int:
+def count_unread(session: Session, user_id: int) -> int:
     return (
-        db.session.scalar(
+        session.scalar(
             select(func.count(Notification.id)).where(
                 Notification.recipient_user_id == user_id,
                 Notification.is_read.is_(False),
@@ -64,18 +68,18 @@ def count_unread(user_id: int) -> int:
     )
 
 
-def mark_as_read(notification: Notification) -> Notification:
+def mark_as_read(session: Session, notification: Notification) -> Notification:
     """Mark a single notification as read. Caller must own it."""
     notification.is_read = True
-    db.session.commit()
+    session.commit()
     return notification
 
 
-def mark_all_as_read(user_id: int) -> int:
+def mark_all_as_read(session: Session, user_id: int) -> int:
     """Mark every unread notification for a user as read.
     Returns the number of rows updated.
     """
-    rows = db.session.scalars(
+    rows = session.scalars(
         select(Notification).where(
             Notification.recipient_user_id == user_id,
             Notification.is_read.is_(False),
@@ -83,5 +87,5 @@ def mark_all_as_read(user_id: int) -> int:
     ).all()
     for n in rows:
         n.is_read = True
-    db.session.commit()
+    session.commit()
     return len(rows)

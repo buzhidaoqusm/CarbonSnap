@@ -11,6 +11,7 @@ Design:
 import logging
 from datetime import UTC
 
+from app.extensions.db import db
 from app.repositories.forum import forum_repository
 from app.repositories.notification import notification_repository
 
@@ -134,6 +135,7 @@ def dispatch(
     """
     try:
         notification_repository.create_notification(
+            db.session,
             recipient_user_id=recipient_user_id,
             event_type=event_type,
             source_type=source_type,
@@ -262,29 +264,29 @@ def list_notifications(
     user_id: int, page: int, per_page: int, *, unread_only: bool = False
 ) -> dict:
     items, total = notification_repository.list_notifications_page(
-        user_id, page, per_page, unread_only=unread_only
+        db.session, user_id, page, per_page, unread_only=unread_only
     )
     return {
         "items": [_serialize(n) for n in items],
         "total": total,
         "page": page,
         "per_page": per_page,
-        "unread_count": notification_repository.count_unread(user_id),
+        "unread_count": notification_repository.count_unread(db.session, user_id),
     }
 
 
 def get_unread_count(user_id: int) -> dict:
-    return {"unread_count": notification_repository.count_unread(user_id)}
+    return {"unread_count": notification_repository.count_unread(db.session, user_id)}
 
 
 def mark_as_read(notification_id: int, *, user_id: int) -> dict:
-    n = notification_repository.get_notification_by_id(notification_id, user_id=user_id)
+    n = notification_repository.get_notification_by_id(db.session, notification_id, user_id=user_id)
     if n is None:
         raise NotificationError("Notification not found.", code=40400, http_status=404)
-    n = notification_repository.mark_as_read(n)
+    n = notification_repository.mark_as_read(db.session, n)
     return _serialize(n)
 
 
 def mark_all_as_read(user_id: int) -> dict:
-    updated = notification_repository.mark_all_as_read(user_id)
+    updated = notification_repository.mark_all_as_read(db.session, user_id)
     return {"updated": updated}
