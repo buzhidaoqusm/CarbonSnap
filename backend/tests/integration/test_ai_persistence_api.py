@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 
+import pytest
 from sqlalchemy import select
 
 from app.extensions.db import db
@@ -61,6 +62,7 @@ def _extract_sse_payloads(response) -> list[dict]:
 
 
 class TestChatPersistenceApi:
+    @pytest.mark.usefixtures("llm_unavailable")
     def test_authenticated_chat_persists_conversation_and_messages(
         self, client, make_auth_headers, monkeypatch, app, override_settings
     ):
@@ -112,6 +114,7 @@ class TestChatPersistenceApi:
             == "general-chat-answer-v1"
         )
 
+    @pytest.mark.usefixtures("llm_unavailable")
     def test_authenticated_chat_history_exposes_uploaded_image_url(
         self, client, make_auth_headers, monkeypatch
     ):
@@ -146,7 +149,7 @@ class TestChatPersistenceApi:
         assert image_response.status_code == 200
 
     def test_authenticated_chat_accepts_image_without_text(
-        self, client, make_auth_headers, monkeypatch
+        self, client, make_auth_headers, monkeypatch, llm_unavailable
     ):
         _, headers = make_auth_headers()
         captured_request = {}
@@ -181,6 +184,8 @@ class TestChatPersistenceApi:
         )
         history = history_response.get_json()["data"]
 
+        # The title model is down, so this is the fallback title for an image.
+        assert llm_unavailable.calls >= 1
         assert history["conversation"]["title"] == "Image discussion"
         assert history["items"][0]["message_type"] == "image"
         assert history["items"][0]["content_text"] == ""
@@ -212,6 +217,7 @@ class TestChatPersistenceApi:
 
         assert response.status_code == 401
 
+    @pytest.mark.usefixtures("llm_unavailable")
     def test_stream_chat_persists_after_completion(
         self, client, make_auth_headers, monkeypatch, app, override_settings
     ):
@@ -267,6 +273,7 @@ class TestChatPersistenceApi:
 
 
 class TestConversationListingApi:
+    @pytest.mark.usefixtures("llm_unavailable")
     def test_conversations_are_listed_latest_first_and_user_scoped(
         self,
         client,
@@ -306,6 +313,7 @@ class TestConversationListingApi:
         response = client.get("/api/ai/conversations/1/messages")
         assert response.status_code == 401
 
+    @pytest.mark.usefixtures("llm_unavailable")
     def test_delete_conversation_removes_history_and_unlinks_memory(
         self, client, make_auth_headers, monkeypatch
     ):
@@ -361,6 +369,7 @@ class TestConversationListingApi:
         assert refreshed_memory.source_message_id is None
 
 
+@pytest.mark.usefixtures("llm_unavailable")
 class TestRecyclingPersistenceApi:
     def test_authenticated_recycling_analysis_creates_pending_case_without_transaction(
         self,

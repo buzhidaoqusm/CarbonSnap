@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import uuid
 
+import pytest
 from sqlalchemy import select
 from werkzeug.security import generate_password_hash
 
@@ -45,6 +46,7 @@ def _messages_for_conversation(conversation_id: int) -> list[AIMessage]:
 
 
 class TestCompleteChatMessage:
+    @pytest.mark.usefixtures("llm_unavailable")
     def test_persists_authenticated_conversation_and_messages(self, monkeypatch):
         user = _make_user()
 
@@ -84,6 +86,7 @@ class TestCompleteChatMessage:
         assert messages[1].content_text == "Hi there!"
         assert json.loads(messages[0].content_json) == {"has_image": False}
 
+    @pytest.mark.usefixtures("llm_unavailable")
     def test_persists_image_metadata_for_user_messages(self, monkeypatch):
         user = _make_user("imageuser", "imageuser@example.com")
 
@@ -108,6 +111,7 @@ class TestCompleteChatMessage:
         assert payload["has_image"] is True
         assert payload["image_url"].startswith("/api/uploads/chat/")
 
+    @pytest.mark.usefixtures("llm_unavailable")
     def test_complete_chat_message_persists_used_forum_references(self, monkeypatch):
         user = _make_user("forumrefs", "forumrefs@example.com")
 
@@ -173,6 +177,7 @@ class TestCompleteChatMessage:
             == result["forum_references"]
         )
 
+    @pytest.mark.usefixtures("llm_unavailable")
     def test_complete_chat_message_fuses_graph_and_forum_context_into_trace(self, monkeypatch):
         user = _make_user("graphfuse", "graphfuse@example.com")
         captured_request = {}
@@ -259,6 +264,7 @@ class TestCompleteChatMessage:
         assert result["trace"]["retrieval"]["neo4j"]["rules"][0]["id"] == "rule-battery-dropoff"
         assert result["trace"]["entity_extraction"]["items"] == ["battery"]
 
+    @pytest.mark.usefixtures("llm_unavailable")
     def test_complete_chat_message_attaches_open_graph_forum_sources(self, monkeypatch):
         user = _make_user("opengraph", "opengraph@example.com")
 
@@ -338,6 +344,7 @@ class TestCompleteChatMessage:
         assert result["trace"]["retrieval"]["neo4j"]["relation_fact_count"] == 1
         assert result["trace"]["retrieval"]["neo4j"]["source_count"] == 1
 
+    @pytest.mark.usefixtures("llm_unavailable")
     def test_complete_chat_message_records_graph_fallback_when_feature_disabled(
         self, monkeypatch, app
     ):
@@ -380,6 +387,7 @@ class TestCompleteChatMessage:
         assert result["trace"]["retrieval"]["neo4j"]["fallback_reason"] == "feature_disabled"
         assert result["trace"]["entity_extraction"]["items"] == ["battery"]
 
+    @pytest.mark.usefixtures("llm_unavailable")
     def test_complete_chat_message_persists_memory_updates_on_assistant_message(self, monkeypatch):
         user = _make_user("memorypersist", "memorypersist@example.com")
 
@@ -431,6 +439,7 @@ class TestCompleteChatMessage:
         ]
         assert assistant_payload["memory_updates"] == result["memory_updates"]
 
+    @pytest.mark.usefixtures("llm_unavailable")
     def test_reuses_persisted_history_when_conversation_exists(self, monkeypatch):
         user = _make_user("brenda", "brenda@example.com")
 
@@ -505,6 +514,7 @@ class TestCompleteChatMessage:
         assert conversation.title == "Bottle recycling help"
         assert generated_titles == ["How should I recycle this bottle?"]
 
+    @pytest.mark.usefixtures("llm_unavailable")
     def test_uses_recent_ten_turns_for_short_term_memory_prompt(self, monkeypatch):
         user = _make_user("turns", "turns@example.com")
         captured_request = {}
@@ -550,6 +560,7 @@ class TestCompleteChatMessage:
         )
 
 
+@pytest.mark.usefixtures("llm_unavailable")
 class TestStreamChatMessage:
     def test_persists_after_stream_completion(self, monkeypatch):
         user = _make_user("cora", "cora@example.com")
@@ -696,6 +707,7 @@ class TestStreamChatMessage:
         )
 
 
+@pytest.mark.usefixtures("llm_unavailable")
 class TestConversationListing:
     def test_list_user_conversations_returns_latest_first(self, monkeypatch):
         user = _make_user("dylan", "dylan@example.com")
@@ -854,6 +866,7 @@ class TestConversationListing:
         assert refreshed_memory.source_message_id is None
 
 
+@pytest.mark.usefixtures("llm_unavailable")
 class TestRecyclingAnalysisPersistence:
     def test_authenticated_recycling_analysis_creates_pending_case_without_transaction(
         self,

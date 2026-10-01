@@ -14,6 +14,7 @@ def _future_deadline(days: int = 10) -> str:
     return (datetime.now(UTC) + timedelta(days=days)).isoformat()
 
 
+@pytest.mark.usefixtures("llm_unavailable")
 def test_create_project_returns_serialized_project(app, make_user):
     creator_id, _ = make_user(points=100)
 

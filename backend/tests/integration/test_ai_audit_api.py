@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import uuid
 
+import pytest
 from flask_jwt_extended import create_access_token
 from sqlalchemy import func, select
 from werkzeug.security import generate_password_hash
@@ -97,6 +98,7 @@ def _seed_pending_case(client, headers, monkeypatch):
     return persisted_payload["conversation_id"], persisted_payload["recycling_case_id"]
 
 
+@pytest.mark.usefixtures("llm_unavailable")
 class TestAuditApi:
     def test_failed_audit_keeps_case_retryable(self, client, monkeypatch):
         _, headers = _make_auth_headers(client)

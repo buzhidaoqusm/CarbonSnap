@@ -7,6 +7,7 @@ import pytest
 from app.services.ai import intent_router, memory_extractor, openrouter_service
 
 
+@pytest.mark.real_llm_client
 def test_client_applies_configured_timeout(app, override_settings):
     # Regression: AI_LLM_TIMEOUT_SECONDS used to reach only complete_with_tools,
     # so the main chat path ran on the SDK's 600 s default and a hanging

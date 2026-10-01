@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import uuid
 
+import pytest
 from werkzeug.security import generate_password_hash
 
 from app.extensions.db import db
@@ -24,6 +25,7 @@ def _make_user(username: str = "forumflow", email: str = "forumflow@example.com"
     return user
 
 
+@pytest.mark.usefixtures("llm_unavailable")
 def test_complete_chat_message_uses_real_forum_retrieval_for_chinese_plastic_bottle_query(
     monkeypatch,
 ):

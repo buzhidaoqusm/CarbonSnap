@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 
+import pytest
 from flask_jwt_extended import create_access_token
 
 from app.services.ai import ai_conversation_service, recycling_analysis_service
@@ -39,6 +40,7 @@ class TestAiMemoryApi:
         assert payload["items"] == []
         assert payload["summary"]["action_preferences"]["response_style"] is None
 
+    @pytest.mark.usefixtures("llm_unavailable")
     def test_generic_chat_with_explicit_preference_creates_memory_item(
         self,
         client,
@@ -92,6 +94,7 @@ class TestAiMemoryApi:
         assert payload["summary"]["action_preferences"]["response_style"] == "concise"
         assert payload["items"][0]["memory_key"] == "response_style"
 
+    @pytest.mark.usefixtures("llm_unavailable")
     def test_generic_chat_without_explicit_preference_creates_no_memory_item(
         self,
         client,
@@ -143,6 +146,7 @@ class TestAiMemoryApi:
         assert payload["item"]["status"] == "deleted"
         assert payload["summary"]["action_preferences"]["response_style"] is None
 
+    @pytest.mark.usefixtures("llm_unavailable")
     def test_recycling_flow_uses_stored_memory_summary(
         self,
         client,

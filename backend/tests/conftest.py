@@ -15,13 +15,21 @@ Architecture:
   seen by the next one, even though the code under test calls commit().
 - `client` provides a Flask test client.
 - `make_auth_headers` is a per-test factory that creates distinct users.
+- `guard_llm_client` fails any test that reaches the LLM provider un-mocked.
+  Mock the call, or request `llm_unavailable` to run the provider-down
+  fallback; `@pytest.mark.real_llm_client` opts out for tests that only build
+  the real client object.
 """
 
 import os
 import socket
+import sys
 from pathlib import Path
 from tempfile import mkdtemp
+from types import SimpleNamespace
 
+import httpx
+import openai
 import pytest
 from flask_sqlalchemy.session import _app_ctx_id
 from sqlalchemy import create_engine, text
@@ -189,6 +197,91 @@ def block_network(monkeypatch):
     monkeypatch.setattr(socket, "getaddrinfo", guarded_getaddrinfo)
     monkeypatch.setattr(socket, "create_connection", guarded_create_connection)
     monkeypatch.setattr(socket.socket, "connect", guarded_connect)
+
+
+# ---------------------------------------------------------------------------
+# LLM isolation
+# ---------------------------------------------------------------------------
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "real_llm_client: let the test build the real OpenAI client object "
+        "(it must still not send a request).",
+    )
+
+
+@pytest.fixture(autouse=True)
+def guard_llm_client(request, monkeypatch):
+    """Fail any test whose code reaches the LLM provider without a mock.
+
+    The app swallows provider errors and falls back, so raising here alone
+    would go unnoticed: the call is recorded and the test fails at teardown.
+    Mock the call you expect, or use ``llm_unavailable`` to test the fallback.
+    """
+    if request.node.get_closest_marker("real_llm_client"):
+        yield
+        return
+
+    from app.services.ai import openrouter_service
+
+    callers: list[str] = []
+
+    def guarded_get_client():
+        # Name the app functions that led here; the immediate caller is
+        # always the same low-level request helper.
+        chain = []
+        frame = sys._getframe(1)
+        while frame is not None and len(chain) < 4:
+            if f"{os.sep}app{os.sep}" in frame.f_code.co_filename:
+                chain.append(frame.f_code.co_name)
+            frame = frame.f_back
+        callers.append(" <- ".join(chain))
+        raise AssertionError("un-mocked LLM call")
+
+    monkeypatch.setattr(openrouter_service, "_get_client", guarded_get_client)
+    yield
+    if callers:
+        pytest.fail(
+            "Un-mocked LLM provider call from: "
+            + ", ".join(dict.fromkeys(callers))
+            + ". Mock the call, or request the llm_unavailable fixture to test the fallback.",
+            pytrace=False,
+        )
+
+
+class _UnreachableLLMClient:
+    """Stands in for OpenAI when the provider is down: every request fails
+    with the same error a refused connection produces, at the same point."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+        self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._fail))
+        self.embeddings = SimpleNamespace(create=self._fail)
+
+    def with_options(self, **_kwargs):
+        return self
+
+    def _fail(self, **_kwargs):
+        self.calls += 1
+        raise openai.APIConnectionError(
+            request=httpx.Request("POST", "http://openrouter.test.invalid/v1")
+        )
+
+
+@pytest.fixture
+def llm_unavailable(guard_llm_client, monkeypatch):
+    """The LLM provider is unreachable, so the code under test must fall back.
+
+    Returns the stub client; ``.calls`` counts the failed requests, so a test
+    can assert the fallback was actually taken.
+    """
+    from app.services.ai import openrouter_service
+
+    client = _UnreachableLLMClient()
+    monkeypatch.setattr(openrouter_service, "_get_client", lambda: client)
+    return client
 
 
 # ---------------------------------------------------------------------------

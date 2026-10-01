@@ -35,7 +35,9 @@ class TestCaseResolver:
         assert result["target_case_id"] == 12
         assert result["needs_clarification"] is False
 
-    def test_fallback_asks_for_clarification_when_multiple_cases_match_poorly(self):
+    def test_fallback_asks_for_clarification_when_multiple_cases_match_poorly(
+        self, llm_unavailable
+    ):
         result = case_resolver.resolve_target_case(
             message="Can you continue that recycling task?",
             recent_history=[],
@@ -49,6 +51,8 @@ class TestCaseResolver:
             ],
         )
 
+        # The model was asked and failed; the answer comes from the fallback.
+        assert llm_unavailable.calls == 1
         assert result["target_case_id"] is None
         assert result["needs_clarification"] is True
         assert len(result["clarification_options"]) == 2

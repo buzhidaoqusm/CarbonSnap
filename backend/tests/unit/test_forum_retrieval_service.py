@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
+
 from app.extensions.db import db
 from app.models.forum import ForumPost
 from app.models.user import User
@@ -121,6 +123,7 @@ def test_extract_and_resolve_forum_references_only_returns_known_candidates():
     assert explicit == used
 
 
+@pytest.mark.usefixtures("llm_unavailable")
 def test_retrieve_forum_references_expands_chinese_plastic_bottle_queries(app):
     with app.app_context():
         user = _make_user(username="forumrag-cn", email="forumrag-cn@example.com")
@@ -157,6 +160,7 @@ def test_retrieve_forum_references_expands_chinese_plastic_bottle_queries(app):
         assert "keyword" in result["candidates"][0]["retrieval_reason"]
 
 
+@pytest.mark.usefixtures("llm_unavailable")
 def test_retrieve_forum_references_filters_prompt_injection_chunks(app):
     with app.app_context():
         user = _make_user(username="forumrag-guardrail", email="forumrag-guardrail@example.com")

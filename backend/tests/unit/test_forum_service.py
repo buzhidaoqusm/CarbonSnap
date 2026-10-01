@@ -90,6 +90,7 @@ class TestGetPost:
 
 
 class TestRecordPostLongView:
+    @pytest.mark.usefixtures("llm_unavailable")
     def test_records_long_view_and_recomputes_profile(self, monkeypatch):
         user = _make_user("reader", "reader@example.com")
         created = forum_service.create_post(author_id=user.id, title="Battery", content="Tips")
@@ -118,6 +119,7 @@ class TestRecordPostLongView:
         assert captured == {"user_id": user.id, "post_id": created["id"]}
         assert recomputed == [user.id]
 
+    @pytest.mark.usefixtures("llm_unavailable")
     def test_skips_duplicate_long_view_inside_dedup_window(self, monkeypatch):
         user = _make_user("dedup", "dedup@example.com")
         created = forum_service.create_post(author_id=user.id, title="Plastic", content="Bottle")
@@ -145,6 +147,7 @@ class TestRecordPostLongView:
 
         assert result == {"tracked": False, "reason": "deduplicated"}
 
+    @pytest.mark.usefixtures("llm_unavailable")
     def test_skips_duplicate_long_view_when_latest_timestamp_is_naive(self, monkeypatch):
         user = _make_user("naive", "naive@example.com")
         created = forum_service.create_post(author_id=user.id, title="Glass", content="Bottle")
@@ -288,6 +291,7 @@ class TestListPosts:
         assert p1["id"] in ids
         assert p2["id"] not in ids
 
+    @pytest.mark.usefixtures("llm_unavailable")
     def test_authenticated_user_uses_personalized_order(self, monkeypatch):
         user = _make_user("personal", "personal@example.com")
         first = forum_service.create_post(author_id=user.id, title="Plastic", content="Bottle")

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 
+import pytest
 from sqlalchemy import select
 
 from app.extensions.db import db
@@ -129,6 +130,7 @@ class TestAiDecisionRoutingApi:
         assert payloads[1]["type"] == "stage_start"
         assert payloads[1]["stage"] == "analysis"
 
+    @pytest.mark.usefixtures("llm_unavailable")
     def test_chat_stream_persists_clarification_decision_and_history(
         self,
         client,
