@@ -7,8 +7,9 @@ Order state machine:
 
 Points flow:
   place_order:      buyer.spend_points  (escrow deducted)
-  confirm_receipt:  seller.earn_points  (escrow settled)
-  cancel_order:     buyer.earn_points   (refund, only from 'paid' state)
+  confirm_receipt:  seller.earn_points  (escrow settled; counts as earned)
+  cancel_order:     buyer.earn_points   (refund, only from 'paid' state; recorded
+                                         as 'market_refund', not counted as earned)
 
 All multi-step mutations (item status + order write + transaction write)
 are wrapped in a single db.session commit for atomicity.
@@ -18,6 +19,7 @@ from datetime import UTC, datetime, timedelta
 
 from app.extensions.db import db
 from app.repositories.ledger.ledger_repository import (
+    MARKET_REFUND,
     InsufficientPointsError,
     earn_points,
     spend_points,
@@ -380,12 +382,13 @@ def cancel_order(order_id: int, *, operator_user_id: int) -> dict:
             http_status=409,
         )
 
-    # Refund buyer.
+    # Refund buyer. The points come back but were not earned, so they stay out
+    # of lifetime earned points and the weekly leaderboard.
     earn_points(
         db.session,
         user_id=order.buyer_id,
         points=order.price_points,
-        source_type="market_order",
+        source_type=MARKET_REFUND,
         source_id=order.id,
     )
     # Reinstate item as active so it can be purchased again.

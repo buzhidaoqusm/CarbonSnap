@@ -253,6 +253,7 @@ As a user, after uploading a waste image, I want to receive:
 ### Acceptance criteria
 - Default query range is last 30 days.
 - Ledger entries are auditable against points transactions.
+- Lifetime earned points (and the level, badges and forest built on them) and the weekly leaderboard count only points a user earned. A refund gives back points the user spent: it restores the balance but is not earned.
 
 ## 6.5 C2C Marketplace
 
@@ -269,6 +270,7 @@ As a user, after uploading a waste image, I want to receive:
 ### Acceptance criteria
 - Escrow and settlement transactions are fully traceable.
 - Seller cannot access escrow points before buyer confirmation.
+- Cancelling a paid order refunds the buyer with a `market_refund` transaction, which is not earned points. The seller's settlement of a completed order counts as earned points.
 
 ## 6.6 User Profile
 

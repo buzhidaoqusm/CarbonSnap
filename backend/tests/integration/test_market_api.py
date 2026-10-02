@@ -4,6 +4,9 @@ import json
 
 from flask_jwt_extended import create_access_token
 
+from app.extensions.db import db
+from app.repositories.ledger.ledger_repository import earn_points
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -421,3 +424,83 @@ class TestListMyOrders:
 
     def test_unauthenticated_returns_401(self, client):
         assert client.get("/api/market/orders").status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Order points in the ledger
+# ---------------------------------------------------------------------------
+
+
+def _get_data(client, url, headers):
+    resp = client.get(url, headers=headers)
+    assert resp.status_code == 200
+    return resp.get_json()["data"]
+
+
+def _recycle_then_buy_and_cancel(app, client, make_auth_headers, *, times):
+    """A buyer earns 100 points recycling, then buys a 100-point item and
+    cancels the order, `times` times over. Returns the buyer's headers."""
+    _, seller_headers = make_auth_headers()
+    buyer_id, buyer_headers = make_auth_headers()
+    with app.app_context():
+        earn_points(db.session, user_id=buyer_id, points=100, source_type="waste_analysis")
+        db.session.commit()
+    item = _create_item(client, seller_headers, price_points=100)
+    for _ in range(times):
+        order = _place_order(client, buyer_headers, item["id"])
+        resp = _patch_json(client, f"/api/market/orders/{order['id']}/cancel", buyer_headers)
+        assert resp.status_code == 200
+    return buyer_headers
+
+
+class TestOrderPointsInLedger:
+    # A refund hands the buyer's own points back; it is not something they
+    # earned. Before it was told apart, buying and cancelling the same item
+    # raised lifetime earned points and the weekly gain by the price each time.
+
+    def test_refunds_are_not_lifetime_earned_points(self, app, client, make_auth_headers):
+        headers = _recycle_then_buy_and_cancel(app, client, make_auth_headers, times=3)
+
+        summary = _get_data(client, "/api/ledger/summary", headers)
+        assert summary["current_points"] == 100
+        assert summary["total_points_earned"] == 100
+
+        gamification = _get_data(client, "/api/ledger/gamification", headers)
+        assert gamification["total_points_earned"] == 100
+        assert gamification["level"] == 1
+
+    def test_refunds_are_not_weekly_leaderboard_gains(self, app, client, make_auth_headers):
+        headers = _recycle_then_buy_and_cancel(app, client, make_auth_headers, times=3)
+
+        leaderboard = _get_data(client, "/api/ledger/leaderboard/weekly", headers)
+        assert leaderboard["current_user_rank"]["weekly_points_gain"] == 100
+
+    def test_refunds_are_recorded_as_market_refunds(self, app, client, make_auth_headers):
+        headers = _recycle_then_buy_and_cancel(app, client, make_auth_headers, times=1)
+
+        transactions = _get_data(client, "/api/ledger/transactions", headers)["items"]
+        assert sorted((t["type"], t["source_type"]) for t in transactions) == [
+            ("earn", "market_refund"),
+            ("earn", "waste_analysis"),
+            ("spend", "market_order"),
+        ]
+
+    def test_completed_sale_is_earned_by_the_seller(self, client, make_auth_headers):
+        # Unlike a refund, the seller gave up an item for these points, so they
+        # count as earned. This is a decision, not an accident: keep it unless
+        # the product rules for market income change.
+        _, seller_headers = make_auth_headers()
+        _, buyer_headers = make_auth_headers(points=100)
+        item = _create_item(client, seller_headers, price_points=100)
+        order = _place_order(client, buyer_headers, item["id"])
+        ship = _patch_json(client, f"/api/market/orders/{order['id']}/ship", seller_headers)
+        assert ship.status_code == 200
+        confirm = _patch_json(client, f"/api/market/orders/{order['id']}/confirm", buyer_headers)
+        assert confirm.status_code == 200
+
+        summary = _get_data(client, "/api/ledger/summary", seller_headers)
+        assert summary["current_points"] == 100
+        assert summary["total_points_earned"] == 100
+
+        leaderboard = _get_data(client, "/api/ledger/leaderboard/weekly", seller_headers)
+        assert leaderboard["current_user_rank"]["weekly_points_gain"] == 100

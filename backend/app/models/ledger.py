@@ -17,7 +17,8 @@ class Transaction(Base):
     points_delta: Mapped[int] = mapped_column()
     # 0 if not a carbon-related transaction.
     co2_delta_kg: Mapped[float] = mapped_column(default=0.0)
-    # waste_analysis | project | market_order
+    # waste_analysis | project | market_order | market_refund
+    # (market_refund credits are not earned points; see ledger_repository)
     source_type: Mapped[str] = mapped_column(String(32))
     source_id: Mapped[int | None] = mapped_column()
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC))

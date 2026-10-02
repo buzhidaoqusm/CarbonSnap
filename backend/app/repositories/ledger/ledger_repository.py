@@ -1,6 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, and_, func, select
 from sqlalchemy.orm import Session
 
 from app.models.ai import RecyclingAuditAttempt, RecyclingCase, WasteAnalysisRecord
@@ -138,20 +138,36 @@ def get_transactions_page(
     return list(txns), total
 
 
+# A refund gives a user back points they spent. It is an "earn" transaction,
+# because `type` is the direction and the balance does go up, but nothing was
+# earned: lifetime earned points (and the level and badges built on them) and
+# the weekly leaderboard leave it out. A seller's market sale is deliberately
+# not here; for the seller it is income.
+MARKET_REFUND = "market_refund"
+REFUND_SOURCE_TYPES = (MARKET_REFUND,)
+
+
+def _counts_as_earned() -> ColumnElement[bool]:
+    return and_(
+        Transaction.type == "earn",
+        Transaction.points_delta > 0,
+        Transaction.source_type.not_in(REFUND_SOURCE_TYPES),
+    )
+
+
 def sum_earned_points(session: Session, user_id: int) -> int:
-    """Return lifetime earned points, ignoring spend transactions."""
+    """Return lifetime earned points, ignoring spends and refunds."""
     value = session.scalar(
         select(func.sum(Transaction.points_delta)).where(
             Transaction.user_id == user_id,
-            Transaction.type == "earn",
-            Transaction.points_delta > 0,
+            _counts_as_earned(),
         )
     )
     return int(value or 0)
 
 
 def get_weekly_points_gains(session: Session, window_days: int = 7) -> list[dict]:
-    """Return ranked weekly points gains derived from earn transactions."""
+    """Return ranked weekly gains in earned points, ignoring spends and refunds."""
     window_start = datetime.now(UTC) - timedelta(days=window_days)
     weekly_gain = func.sum(Transaction.points_delta)
     last_activity_at = func.max(Transaction.created_at)
@@ -165,8 +181,7 @@ def get_weekly_points_gains(session: Session, window_days: int = 7) -> list[dict
         )
         .join(User, User.id == Transaction.user_id)
         .where(
-            Transaction.type == "earn",
-            Transaction.points_delta > 0,
+            _counts_as_earned(),
             Transaction.created_at >= window_start,
         )
         .group_by(Transaction.user_id, User.avatar_url)
@@ -243,6 +258,8 @@ def earn_points(
 ) -> Transaction:
     """Add *points* to user balance and write an 'earn' transaction.
 
+    A refund must pass a source type from REFUND_SOURCE_TYPES, otherwise it
+    counts as earned points.
     Does NOT commit; caller must commit after all related writes.
     """
     user = session.get(User, user_id)
