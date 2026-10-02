@@ -18,6 +18,8 @@ const ProjectDetailView = () => import("../views/project/ProjectDetailView.vue")
 const ProjectListView = () => import("../views/project/ProjectListView.vue");
 const NotificationCenterView = () => import("../views/notification/NotificationCenterView.vue");
 const ProfileOverviewView = () => import("../views/profile/ProfileOverviewView.vue");
+// Prototypes for the redesign; not linked from the app.
+const ViewfinderLabView = () => import("../views/lab/ViewfinderLabView.vue");
 
 const TOKEN_KEY = "cs_token";
 
@@ -106,6 +108,11 @@ const routes = [
     name: "profile",
     component: ProfileOverviewView,
     meta: { requiresAuth: true },
+  },
+  {
+    path: "/lab/viewfinder",
+    name: "lab-viewfinder",
+    component: ViewfinderLabView,
   },
   {
     path: "/:pathMatch(.*)*",
