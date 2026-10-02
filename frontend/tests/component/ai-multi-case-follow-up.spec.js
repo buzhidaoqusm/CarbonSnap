@@ -1,5 +1,5 @@
 import { asResponse } from "../helpers/fetch.js";
-import { defineComponent, h, nextTick } from "vue";
+import { defineComponent, h } from "vue";
 import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -56,13 +56,10 @@ const MemoryPanelStub = defineComponent({
   template: '<div class="memory-panel-stub">Memory panel</div>',
 });
 
-const flushPromises = async () => {
-  await Promise.resolve();
-  await nextTick();
-  await new Promise((resolve) => setTimeout(resolve, 0));
-};
-
-const waitForStreaming = (ms = 3200) => new Promise((resolve) => setTimeout(resolve, ms));
+// The view types replies out with setTimeout and requestAnimationFrame waits. On fake
+// timers this fires every pending timer, and the promise callbacks between them, until
+// none are left, so each step waits exactly as long as the view needs.
+const settle = () => vi.runAllTimersAsync();
 
 describe("AiChatView multi-case follow-up", () => {
   beforeEach(() => {
@@ -80,6 +77,7 @@ describe("AiChatView multi-case follow-up", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
@@ -151,6 +149,8 @@ describe("AiChatView multi-case follow-up", () => {
       handlers.onDone({ stream_stage: "completed" });
     });
 
+    // Install after the dynamic imports so module loading is not on the fake clock.
+    vi.useFakeTimers();
     const wrapper = mount(AiChatView, {
       global: {
         stubs: {
@@ -162,16 +162,11 @@ describe("AiChatView multi-case follow-up", () => {
       },
     });
 
-    await flushPromises();
-    await flushPromises();
+    await settle();
 
     await wrapper.find("textarea").setValue("I need more help with that.");
     await wrapper.find("form").trigger("submit.prevent");
-
-    await flushPromises();
-    await flushPromises();
-    await flushPromises();
-    await waitForStreaming();
+    await settle();
 
     expect(wrapper.text()).toContain("Which item do you mean?");
     expect(wrapper.text()).toContain("Battery case");
@@ -179,22 +174,14 @@ describe("AiChatView multi-case follow-up", () => {
 
     await wrapper.find("textarea").setValue("I am still thinking.");
     await wrapper.find("form").trigger("submit.prevent");
-
-    await flushPromises();
-    await flushPromises();
-    await flushPromises();
-    await waitForStreaming();
+    await settle();
 
     expect(requests).toHaveLength(2);
     expect(wrapper.text()).toContain("Which item do you mean?");
     expect(wrapper.text()).toContain("Battery case");
 
     await wrapper.findAll(".chat-card__button").find((button) => button.text() === "Battery case").trigger("click");
-
-    await flushPromises();
-    await flushPromises();
-    await flushPromises();
-    await waitForStreaming();
+    await settle();
 
     expect(requests).toHaveLength(3);
     expect(requests[2].message).toContain("Clarification question: Which item do you mean?");
@@ -215,5 +202,5 @@ describe("AiChatView multi-case follow-up", () => {
       .map((node) => node.text())
       .join(" ");
     expect(assistantTranscript).toContain("Understood");
-  }, 12000);
+  });
 });
