@@ -55,6 +55,25 @@ npx vitest run tests/unit/auth-api.spec.js   # 单个文件
 npm run build                           # 确认能打包
 ```
 
+## 前端加载与截图（在仓库根目录，需要本机装有 Chrome 或 Edge）
+
+量生产构建，不要量 dev server（dev 下是几百个未打包的模块，数字没有意义）：
+
+```bash
+npm --prefix frontend run build
+npm --prefix frontend run preview -- --port 4173 --strictPort         # 另开一个终端
+node tools/frontend/metrics.mjs http://localhost:4173/                # 传输量、LCP、长任务
+node tools/frontend/metrics.mjs http://localhost:4173/ --down 10 --rtt 40 --detail   # 限速 + 逐个资源
+```
+
+LCP 受外部 CDN 的网络波动影响很大（同一构建连跑 5 次在 3.4–6.0 秒之间），对比时各跑 5 次取中位数。
+
+截图（滚动过程、手机宽度、减少动态效果），计划文件的格式写在脚本开头：
+
+```bash
+node tools/frontend/shoot.mjs plan.json
+```
+
 ## Docker（在仓库根目录，需先启动 Docker Desktop）
 
 启动并冒烟测试：
