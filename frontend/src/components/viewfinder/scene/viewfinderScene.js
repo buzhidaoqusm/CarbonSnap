@@ -20,6 +20,7 @@ import {
   SRGBColorSpace,
   Vector3,
   WebGLRenderer,
+  WebGLRenderTarget,
 } from "three";
 
 import { createSpring, stepSpring, SPRING_UI } from "../../../motion/spring.js";
@@ -131,13 +132,23 @@ function createStudioEnvironment() {
 
 export async function createViewfinderScene(canvas, { items, maxPixelRatio = 2 }) {
   // Canvas text uses only fonts that are already loaded.
+  // Phase timings, visible in DevTools' Performance panel and to tools/frontend scripts.
+  let phaseStart = performance.now();
+  const phase = (name) => {
+    const now = performance.now();
+    performance.measure(`viewfinder:${name}`, { start: phaseStart, end: now });
+    phaseStart = now;
+  };
+
   await document.fonts?.load('700 32px "Archivo Variable"').catch(() => {});
+  phase("fonts");
 
   const renderer = new WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
   renderer.outputColorSpace = SRGBColorSpace;
   renderer.toneMapping = NeutralToneMapping; // keeps product colors close to their real values
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = PCFShadowMap;
+  phase("renderer");
 
   const scene = new Scene();
   scene.background = new Color(BACKDROP);
@@ -152,6 +163,7 @@ export async function createViewfinderScene(canvas, { items, maxPixelRatio = 2 }
   });
   scene.environment = environment;
   scene.environmentIntensity = 1;
+  phase("environment");
 
   scene.add(createSweep());
 
@@ -195,6 +207,8 @@ export async function createViewfinderScene(canvas, { items, maxPixelRatio = 2 }
     scene.add(model, shadow);
     objects.set(item.id, { model, shadow, samples: [] });
   }
+  phase("models");
+  let firstFrame = true;
 
   const camera = new PerspectiveCamera(30, 1, 0.01, 20);
   const base = { position: new Vector3(), target: new Vector3() };
@@ -276,7 +290,12 @@ export async function createViewfinderScene(canvas, { items, maxPixelRatio = 2 }
       camera.zoom = zoom.value;
       camera.updateProjectionMatrix();
     }
+    if (firstFrame) phaseStart = performance.now();
     renderer.render(scene, camera);
+    if (firstFrame) {
+      phase("first-frame"); // includes compiling every shader the scene needs
+      firstFrame = false;
+    }
     for (const [id, entry] of objects) {
       rects.set(id, projectPoints(entry.samples, camera, width, height));
     }
@@ -304,6 +323,23 @@ export async function createViewfinderScene(canvas, { items, maxPixelRatio = 2 }
     // Browsers allow only a handful of live WebGL contexts; give this one back now.
     renderer.forceContextLoss();
   }
+
+  // Compile every shader before the first frame, in the background where the
+  // browser supports it (KHR_parallel_shader_compile). Compiling inside the
+  // first render() blocked the page for 3 s on Windows, where ANGLE runs the
+  // Direct3D shader compiler.
+  //
+  // Twice: to show what is behind the bottles, three.js first renders the
+  // opaque objects into an off-screen target, and drawing into a target needs
+  // shader variants without tone mapping. Compiling with a target bound
+  // prepares those too.
+  const warmUpTarget = new WebGLRenderTarget(1, 1);
+  renderer.setRenderTarget(warmUpTarget);
+  await renderer.compileAsync(scene, camera);
+  renderer.setRenderTarget(null);
+  warmUpTarget.dispose();
+  await renderer.compileAsync(scene, camera);
+  phase("compile");
 
   return {
     resize,
