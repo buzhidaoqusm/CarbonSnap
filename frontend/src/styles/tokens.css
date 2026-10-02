@@ -1,0 +1,113 @@
+/*
+ * Design tokens for the redesigned UI.
+ *
+ * Pages that have not been migrated yet keep using the --cs-* variables in
+ * base.css. New UI opts in by rendering inside an element with class "ui",
+ * so the two systems never fight over the same selectors.
+ *
+ * Text colors are checked against WCAG AA (4.5:1) on the backgrounds they
+ * sit on; the ratio is noted next to each one.
+ */
+
+:root {
+  /* Base palette */
+  --color-steel: #eceff1; /* page background */
+  --color-ink: #17212b; /* body text, dark surfaces: 14.1:1 on steel */
+  --color-ink-2: #46525e; /* secondary text: 6.9:1 on steel */
+  --color-ink-3: #5f6b77; /* tertiary text: 4.7:1 on steel, 5.5:1 on paper */
+  --color-paper: #ffffff; /* floating layers, inputs */
+  --color-line: rgba(23, 33, 43, 0.12);
+
+  /* Recyclables-bin blue: primary actions and links. 5.8:1 on steel, white text on it 6.7:1 */
+  --color-blue: #0b5cad;
+  --color-blue-strong: #084a8c;
+  /* Camera focus: only the moment something is being recognized. 6.3:1 on ink */
+  --color-focus: #ff7a1a;
+
+  /* Materials: data encoding only (charts, chips, map pins), never decoration */
+  --color-pet: #8ccbea;
+  --color-aluminum: #a7afb7;
+  --color-fiber: #b88655;
+  --color-glass: #2f8a5b;
+
+  /* Status: all >= 4.5:1 on steel */
+  --color-success: #1f7a4d;
+  --color-danger: #c2362b;
+  --color-warning: #8c5a0e;
+
+  /*
+   * Type: one family, three widths. font-stretch drives Archivo's width axis
+   * (62%-125%). Chinese falls back to system fonts, which have no width axis,
+   * so CJK headings rely on weight alone.
+   */
+  --font-sans: "Archivo Variable", "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei UI",
+    "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  --stretch-display: 118%;
+  --stretch-text: 100%;
+  --stretch-data: 75%;
+
+  /* The classic typographic scale, in rem at a 16px root */
+  --text-12: 0.75rem;
+  --text-14: 0.875rem;
+  --text-16: 1rem;
+  --text-18: 1.125rem;
+  --text-21: 1.3125rem;
+  --text-24: 1.5rem;
+  --text-36: 2.25rem;
+  --text-48: 3rem;
+  --text-72: 4.5rem;
+  --leading-display: 1.02;
+  --leading-heading: 1.2;
+  --leading-text: 1.55;
+
+  /* Space: 4px base */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+
+  /* Radius by role, not one value for everything */
+  --radius-control: 10px;
+  --radius-media: 14px;
+  --radius-sheet: 20px;
+  --radius-pill: 999px;
+
+  /* Elevation: only for layers that float above the page (menus, sheets, toasts) */
+  --shadow-float: 0 12px 32px rgba(23, 33, 43, 0.16), 0 2px 6px rgba(23, 33, 43, 0.08);
+
+  /* CSS-side motion. Springs and physics live in src/motion. */
+  --duration-crossfade: 150ms;
+}
+
+.ui {
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-16);
+  font-stretch: var(--stretch-text);
+  line-height: var(--leading-text);
+  font-kerning: normal;
+  -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * base.css styles every h1-h6 with the old heading font and color (that rule
+ * is what turns the login headline dark on dark). :where() adds no
+ * specificity, so this selector weighs exactly one class: enough to beat
+ * base.css's bare element selectors, while Vue's scoped component styles
+ * (a class plus a data attribute) still override it.
+ */
+.ui :where(h1, h2, h3, h4, h5, h6) {
+  color: inherit;
+  font-family: inherit;
+  letter-spacing: normal;
+}
+
+.ui :where(:focus-visible) {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+}
