@@ -10,8 +10,13 @@
 //     { "name": "m-home", "url": "...", "width": 390, "height": 844, "mobile": true },
 //     { "name": "ledger", "url": "...", "localStorage": { "cs_token": "..." } },
 //     { "name": "home-rm", "url": "...", "reducedMotion": true }
-//   ]
+//   ],
+//   "blockUrls": ["*fonts.googleapis.com*"]
 // }
+//
+// blockUrls makes matching requests fail at once. A third-party stylesheet that
+// hangs in <head> keeps the whole page blank; blocking it shows what users who
+// cannot reach that host get.
 //
 // Scrolling happens in 40px steps, one animation frame each, so scroll-driven
 // timelines see every position instead of jumping to the end.
@@ -36,6 +41,10 @@ on((message) => {
 });
 await send("Page.enable");
 await send("Runtime.enable");
+if (plan.blockUrls?.length) {
+  await send("Network.enable");
+  await send("Network.setBlockedURLs", { urls: plan.blockUrls });
+}
 
 const report = [];
 try {
@@ -49,8 +58,11 @@ try {
 
     const origin = new URL(shot.url).origin;
     // Start every shot from a clean origin so one shot's login does not leak into the next.
+    // Wait for this page's own load event: if it fired late, it would be taken
+    // for the real page's and the screenshot would catch a page still loading.
+    const blankLoaded = waitFor("Page.loadEventFired", 60000);
     await send("Page.navigate", { url: `${origin}/__blank` });
-    await sleep(600);
+    await blankLoaded;
     await evaluate(`(() => {
       localStorage.clear();
       const values = ${JSON.stringify(shot.localStorage || {})};
