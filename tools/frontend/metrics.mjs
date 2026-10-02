@@ -57,9 +57,16 @@ try {
   await send("Page.addScriptToEvaluateOnNewDocument", {
     source: `
       window.__lcp = 0;
+      window.__lcpElement = "";
       window.__longTasks = [];
-      new PerformanceObserver((list) => { for (const e of list.getEntries()) window.__lcp = e.startTime; })
-        .observe({ type: "largest-contentful-paint", buffered: true });
+      new PerformanceObserver((list) => {
+        for (const e of list.getEntries()) {
+          window.__lcp = e.startTime;
+          const el = e.element;
+          window.__lcpElement = (e.url ? e.url.split("/").pop() + " " : "") +
+            (el ? el.tagName.toLowerCase() + (el.className && typeof el.className === "string" ? "." + el.className.trim().split(/\\s+/).join(".") : "") : "");
+        }
+      }).observe({ type: "largest-contentful-paint", buffered: true });
       new PerformanceObserver((list) => { for (const e of list.getEntries()) window.__longTasks.push(Math.round(e.duration)); })
         .observe({ type: "longtask", buffered: true });`,
   });
@@ -71,7 +78,9 @@ try {
   const loadMs = Date.now() - startedAt;
   await sleep(3000); // let late requests and LCP candidates settle
 
-  const page = await evaluate("({ lcp: Math.round(window.__lcp), longTasks: window.__longTasks })");
+  const page = await evaluate(
+    "({ lcp: Math.round(window.__lcp), lcpElement: window.__lcpElement, longTasks: window.__longTasks })",
+  );
   const finished = [...requests.values()].filter((request) => request.bytes !== undefined);
   const kbByType = {};
   for (const request of finished) {
