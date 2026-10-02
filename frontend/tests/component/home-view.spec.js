@@ -91,7 +91,9 @@ describe("HomeView", () => {
 
     const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
     let animationStep;
-    const startTime = performance.now();
+    // Whole numbers keep the frame math exact; with a real performance.now() reading,
+    // (startTime + 10000) - startTime can round to 9999.999999999998.
+    const startTime = 1000;
     vi.spyOn(performance, "now").mockReturnValue(startTime);
     vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
       animationStep = callback;
