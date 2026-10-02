@@ -120,3 +120,24 @@ class TestLedgerWeeklyLeaderboardApi:
             "avatar_url": "https://example.com/avatars/current.png",
             "weekly_points_gain": 70,
         }
+
+
+class TestLedgerRecordsApi:
+    def test_post_cannot_mint_points(self, client, make_auth_headers):
+        # Points are earned only when a recycling audit passes; a client that
+        # names its own reward must get nothing.
+        _, headers = make_auth_headers(points=60)
+
+        response = client.post(
+            "/api/ledger/records",
+            json={"waste_type": "x", "co2_saved_kg": 1000, "carbon_points": 100000},
+            headers=headers,
+        )
+
+        summary = client.get("/api/ledger/summary", headers=headers).get_json()["data"]
+        assert summary["current_points"] == 60
+        assert summary["total_carbon_amount"] == 0
+        assert summary["total_points_earned"] == 0
+        records = client.get("/api/ledger/records", headers=headers).get_json()["data"]
+        assert records["total"] == 0
+        assert response.status_code == 405

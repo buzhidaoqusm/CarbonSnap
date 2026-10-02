@@ -7,36 +7,6 @@ _SEGMENT = 200
 _MAX_LEVEL = 50
 
 
-def record_waste_analysis(
-    *,
-    user_id: int,
-    waste_type: str,
-    co2_saved_kg: float,
-    carbon_points: float,
-    image_url: str | None = None,
-    raw_ai_response_json: str | None = None,
-) -> dict:
-    """Persist an AI analysis result, earn points, and return summary dict."""
-    pts = int(round(carbon_points))
-    record, _txn, user = ledger_repository.record_analysis_and_earn(
-        db.session,
-        user_id=user_id,
-        waste_type=waste_type,
-        co2_saved_kg=co2_saved_kg,
-        carbon_points=pts,
-        image_url=image_url,
-        raw_ai_response_json=raw_ai_response_json,
-    )
-    return {
-        "record_id": record.id,
-        "waste_type": record.waste_type,
-        "co2_saved_kg": record.co2_saved_kg,
-        "carbon_points": record.carbon_points,
-        "new_total_carbon": user.total_carbon_amount,
-        "new_total_points": user.current_points,
-    }
-
-
 def get_waste_records(user_id: int, page: int, per_page: int) -> dict:
     records, total = ledger_repository.get_waste_records_page(db.session, user_id, page, per_page)
     return {

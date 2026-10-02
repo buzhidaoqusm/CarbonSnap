@@ -8,47 +8,6 @@ from app.models.ledger import Transaction
 from app.models.user import User
 
 
-def record_analysis_and_earn(
-    session: Session,
-    *,
-    user_id: int,
-    waste_type: str,
-    co2_saved_kg: float,
-    carbon_points: int,
-    image_url: str | None,
-    raw_ai_response_json: str | None,
-) -> tuple[WasteAnalysisRecord, Transaction, User]:
-    """Atomically insert analysis record + earn transaction, then update user totals."""
-    record = WasteAnalysisRecord(
-        user_id=user_id,
-        image_url=image_url,
-        waste_type=waste_type,
-        co2_saved_kg=co2_saved_kg,
-        carbon_points=carbon_points,
-        raw_ai_response_json=raw_ai_response_json,
-    )
-    session.add(record)
-    session.flush()  # populate record.id before creating transaction
-
-    txn = Transaction(
-        user_id=user_id,
-        type="earn",
-        points_delta=carbon_points,
-        co2_delta_kg=co2_saved_kg,
-        source_type="waste_analysis",
-        source_id=record.id,
-    )
-    session.add(txn)
-
-    # The record's foreign key already guarantees the user exists.
-    user = session.get_one(User, user_id)
-    user.current_points += carbon_points
-    user.total_carbon_amount = round(user.total_carbon_amount + co2_saved_kg, 4)
-
-    session.commit()
-    return record, txn, user
-
-
 def finalize_approved_recycling_case_and_earn(
     session: Session,
     *,

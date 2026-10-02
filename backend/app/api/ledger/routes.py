@@ -21,44 +21,10 @@ def _parse_pagination() -> tuple[int, int]:
 
 
 # ---------------------------------------------------------------------------
-# POST /api/ledger/records
-# Save an AI analysis result, earn points atomically.
-# ---------------------------------------------------------------------------
-
-
-@ledger_bp.post("/ledger/records")
-@jwt_required()
-def create_record():
-    user_id = int(get_jwt_identity())
-    body = request.get_json(silent=True) or {}
-
-    waste_type = str(body.get("waste_type", "")).strip()
-    if not waste_type:
-        return fail(40001, "Field 'waste_type' is required.")
-
-    try:
-        co2_saved_kg = float(body.get("co2_saved_kg", 0))
-        carbon_points = float(body.get("carbon_points", 0))
-    except (TypeError, ValueError):
-        return fail(40001, "Fields 'co2_saved_kg' and 'carbon_points' must be numbers.")
-
-    if co2_saved_kg < 0 or carbon_points < 0:
-        return fail(40001, "Fields 'co2_saved_kg' and 'carbon_points' must be non-negative.")
-
-    result = ledger_service.record_waste_analysis(
-        user_id=user_id,
-        waste_type=waste_type,
-        co2_saved_kg=co2_saved_kg,
-        carbon_points=carbon_points,
-        image_url=body.get("image_url") or None,
-        raw_ai_response_json=body.get("raw_ai_response_json") or None,
-    )
-    return ok(result, status=201)
-
-
-# ---------------------------------------------------------------------------
 # GET /api/ledger/records
-# List the current user's waste analysis history.
+# List the current user's waste analysis history. Records are written only
+# when a recycling audit passes (recycling_audit_service), never from a
+# request body, so this resource is read-only.
 # ---------------------------------------------------------------------------
 
 
