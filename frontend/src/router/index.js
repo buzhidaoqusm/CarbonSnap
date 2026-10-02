@@ -1,21 +1,23 @@
 import { createRouter, createWebHistory } from "vue-router";
 
-import AiChatView from "../views/ai/AiChatView.vue";
-import LoginView from "../views/auth/LoginView.vue";
-import RegisterView from "../views/auth/RegisterView.vue";
-import TermsView from "../views/auth/TermsView.vue";
-import ForumPostDetailView from "../views/forum/ForumPostDetailView.vue";
-import ForumListView from "../views/forum/ForumListView.vue";
+// The homepage is where most visits start, so it ships in the main bundle.
+// Every other page is its own chunk, downloaded the first time it is visited.
 import HomeView from "../views/HomeView.vue";
-import LedgerView from "../views/ledger/LedgerView.vue";
-import MarketExploreView from "../views/market/MarketExploreView.vue";
-import MarketItemDetailView from "../views/market/MarketItemDetailView.vue";
-import MarketOrdersView from "../views/market/MarketOrdersView.vue";
-import ProjectDetailView from "../views/project/ProjectDetailView.vue";
-import ProjectListView from "../views/project/ProjectListView.vue";
-import NotificationCenterView from "../views/notification/NotificationCenterView.vue";
-import ProfileOverviewView from "../views/profile/ProfileOverviewView.vue";
-import ProjectPlaceholderView from "../views/project/ProjectPlaceholderView.vue";
+
+const AiChatView = () => import("../views/ai/AiChatView.vue");
+const LoginView = () => import("../views/auth/LoginView.vue");
+const RegisterView = () => import("../views/auth/RegisterView.vue");
+const TermsView = () => import("../views/auth/TermsView.vue");
+const ForumPostDetailView = () => import("../views/forum/ForumPostDetailView.vue");
+const ForumListView = () => import("../views/forum/ForumListView.vue");
+const LedgerView = () => import("../views/ledger/LedgerView.vue");
+const MarketExploreView = () => import("../views/market/MarketExploreView.vue");
+const MarketItemDetailView = () => import("../views/market/MarketItemDetailView.vue");
+const MarketOrdersView = () => import("../views/market/MarketOrdersView.vue");
+const ProjectDetailView = () => import("../views/project/ProjectDetailView.vue");
+const ProjectListView = () => import("../views/project/ProjectListView.vue");
+const NotificationCenterView = () => import("../views/notification/NotificationCenterView.vue");
+const ProfileOverviewView = () => import("../views/profile/ProfileOverviewView.vue");
 
 const TOKEN_KEY = "cs_token";
 
