@@ -234,7 +234,7 @@
                         <div class="flex items-center gap-4">
                           <div
                             class="w-10 h-10 rounded-full flex items-center justify-center transition-transform group-hover:scale-110"
-                            :class="txn.points_delta >= 0 ? 'bg-primary-container text-primary' : 'bg-error-container/20 text-error'"
+                            :class="isSpend(txn) ? 'bg-error-container/20 text-error' : 'bg-primary-container text-primary'"
                           >
                             <span class="material-symbols-outlined" :data-icon="transactionIcon(txn)">
                               {{ transactionIcon(txn) }}
@@ -248,7 +248,7 @@
                       </td>
                       <td class="px-8 py-6">
                         <span class="text-xs px-3 py-1 bg-surface-container rounded-full font-bold">
-                          {{ txn.points_delta >= 0 ? "Earned" : "Spent" }}
+                          {{ isSpend(txn) ? "Spent" : "Earned" }}
                         </span>
                       </td>
                       <td class="px-8 py-6 text-sm text-on-surface-variant">
@@ -256,9 +256,9 @@
                       </td>
                       <td
                         class="px-8 py-6 text-right font-headline font-bold"
-                        :class="txn.points_delta >= 0 ? 'text-primary' : 'text-on-surface-variant'"
+                        :class="isSpend(txn) ? 'text-on-surface-variant' : 'text-primary'"
                       >
-                        {{ formatSignedPoints(txn.points_delta) }}
+                        {{ formatSignedPoints(signedPoints(txn)) }}
                       </td>
                     </tr>
                   </tbody>
@@ -433,12 +433,13 @@ useForestWebGL({
 
 const monthlyTrendLabel = computed(() => {
   const cutoff = Date.now() - 1000 * 60 * 60 * 24 * 30;
+  // The trend sits under lifetime earned points, so spending doesn't count towards it.
   const delta = transactions.value.reduce((sum, txn) => {
     const time = Date.parse(txn.created_at || "");
-    if (Number.isNaN(time) || time < cutoff) {
+    if (isSpend(txn) || Number.isNaN(time) || time < cutoff) {
       return sum;
     }
-    return sum + Number(txn.points_delta || 0);
+    return sum + signedPoints(txn);
   }, 0);
 
   if (!delta) {
@@ -456,10 +457,10 @@ const visibleTransactions = computed(() => {
   });
 
   if (activeTransactionFilter.value === "earned") {
-    return items.filter((txn) => Number(txn.points_delta || 0) > 0);
+    return items.filter((txn) => !isSpend(txn));
   }
   if (activeTransactionFilter.value === "spent") {
-    return items.filter((txn) => Number(txn.points_delta || 0) < 0);
+    return items.filter((txn) => isSpend(txn));
   }
   return items;
 });
@@ -516,6 +517,16 @@ function formatKg(value) {
     return "0.00 kg";
   }
   return `${parsed.toFixed(2)} kg`;
+}
+
+// The API sends points_delta as an absolute amount; `type` ("earn" | "spend") carries the direction.
+function isSpend(txn) {
+  return txn.type === "spend";
+}
+
+function signedPoints(txn) {
+  const amount = Math.abs(Number(txn.points_delta) || 0);
+  return isSpend(txn) ? -amount : amount;
 }
 
 function formatSignedPoints(value) {
@@ -592,7 +603,7 @@ function transactionIcon(txn) {
   if (source.includes("record") || source.includes("analysis") || source.includes("waste")) {
     return "recycling";
   }
-  return Number(txn.points_delta || 0) >= 0 ? "recycling" : "shopping_cart";
+  return isSpend(txn) ? "shopping_cart" : "recycling";
 }
 
 function drawShareCard(canvas) {

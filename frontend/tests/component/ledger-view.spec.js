@@ -42,6 +42,64 @@ const flushPromises = async () => {
   await nextTick();
 };
 
+const daysAgo = (days) => new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+// Shaped like GET /api/ledger/transactions: points_delta is always positive and
+// `type` carries the direction (see backend/app/models/ledger.py).
+const earnThenSpend = [
+  {
+    id: 1,
+    type: "earn",
+    source_type: "waste_analysis",
+    points_delta: 12,
+    co2_delta_kg: 0.12,
+    created_at: daysAgo(2),
+  },
+  {
+    id: 2,
+    type: "spend",
+    source_type: "market_order",
+    points_delta: 35,
+    co2_delta_kg: 0,
+    created_at: daysAgo(1),
+  },
+];
+
+const mountWithTransactions = async (items) => {
+  const {
+    fetchLedgerGamification,
+    fetchLedgerRecords,
+    fetchLedgerSummary,
+    fetchLedgerTransactions,
+  } = await import("../../src/api/ledger/ledger.js");
+  const LedgerView = (await import("../../src/views/ledger/LedgerView.vue")).default;
+
+  fetchLedgerSummary.mockResolvedValue(asResponse({ current_points: 124, total_points_earned: 320 }));
+  fetchLedgerGamification.mockResolvedValue(asResponse({ level: 1, badges: [] }));
+  fetchLedgerTransactions.mockResolvedValue(asResponse({ items }));
+  fetchLedgerRecords.mockResolvedValue(asResponse({ items: [] }));
+
+  const wrapper = mount(LedgerView, {
+    global: {
+      stubs: {
+        RouterLink: RouterLinkStub,
+      },
+    },
+  });
+
+  await flushPromises();
+  await flushPromises();
+  return wrapper;
+};
+
+const transactionRows = (wrapper) =>
+  wrapper.findAll("[data-ledger-transactions] tbody tr").map((row) => {
+    const cells = row.findAll("td");
+    return { category: cells[1].text(), value: cells[3].text() };
+  });
+
+const filterButton = (wrapper, label) => wrapper.findAll("button").find((button) => button.text() === label);
+
 describe("LedgerView", () => {
   beforeEach(() => {
     HTMLCanvasElement.prototype.getContext = vi.fn(() => ({
@@ -114,6 +172,7 @@ describe("LedgerView", () => {
         {
           id: 9,
           created_at: "2024-01-01T10:00:00.000Z",
+          type: "earn",
           source_type: "forum_post",
           points_delta: 12,
           co2_delta_kg: 1.5,
@@ -206,5 +265,30 @@ describe("LedgerView", () => {
     expect(wrapper.text()).toContain("Sign in");
     expect(wrapper.text()).toContain("personal green capital");
     expect(wrapper.find('a[href="/login"]').exists()).toBe(true);
+  });
+
+  it("shows spend transactions as spent points", async () => {
+    const wrapper = await mountWithTransactions(earnThenSpend);
+
+    expect(transactionRows(wrapper)).toEqual([
+      { category: "Spent", value: "-35 pts" },
+      { category: "Earned", value: "+12 pts" },
+    ]);
+  });
+
+  it("lists spend transactions under Spent and keeps them out of Earned", async () => {
+    const wrapper = await mountWithTransactions(earnThenSpend);
+
+    await filterButton(wrapper, "Spent").trigger("click");
+    expect(transactionRows(wrapper)).toEqual([{ category: "Spent", value: "-35 pts" }]);
+
+    await filterButton(wrapper, "Earned").trigger("click");
+    expect(transactionRows(wrapper)).toEqual([{ category: "Earned", value: "+12 pts" }]);
+  });
+
+  it("counts only earned points in the monthly trend", async () => {
+    const wrapper = await mountWithTransactions(earnThenSpend);
+
+    expect(wrapper.find("[data-ledger-hero]").text()).toContain("+12 pts this month");
   });
 });
