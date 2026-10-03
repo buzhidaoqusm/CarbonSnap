@@ -7,10 +7,10 @@ been run yet.
 ## What is being measured, and why
 
 `/api/ai/chat/stream` holds a connection open for the entire model response.
-Under gunicorn's **sync** workers, one in-flight stream occupies one worker for
-its whole duration, so the ceiling on concurrent conversations is the worker
-count — not CPU, not memory. `backend/gunicorn.conf.py` sets
-`workers = min(3, cpu_count)`, which puts that ceiling at **3**.
+Under gunicorn's **sync** workers (the baseline), one in-flight stream
+occupied one worker for its whole duration, so the ceiling on concurrent
+conversations was the worker count — not CPU, not memory. The baseline ran
+`workers = min(3, cpu_count)`, which put that ceiling at **3**.
 
 That is the claim the baseline has to prove before P1 (async migration) can
 claim to have fixed it.
@@ -101,13 +101,63 @@ Hardware: Intel i7-13700H (14C/20T), 16 GB RAM, Windows 11; Docker Desktop
 VM with 20 CPUs / 8 GB. Load generator on the same machine.
 Commit: `699fa5a` + the Dockerfile fixes in the same commit as these numbers.
 
-### After P1 — FastAPI + uvicorn (async)
+### P1 stage 1 — uvicorn, Flask behind FastAPI on a thread pool
 
-Pending P1.
+No route has moved yet (2026-10-03). `app.main` puts FastAPI in front and runs
+the Flask app through a2wsgi on a thread pool, served by uvicorn instead of
+gunicorn's sync workers. A chat stream now holds one **thread**, not one
+process. Same scenario and fake-provider timings as the baseline.
 
-| Users | ttft p50 | ttft p95 | stream p50 | stream p95 | errors |
+Defaults: **1 process × 40 threads** (`WEB_WORKERS=1`, `WSGI_THREADS=40`),
+database pool sized to the thread count (40 + 5 overflow).
+
+| Users | ttft p50 | ttft p95 | stream p50 | stream p95 | errors | turns/s | notes |
+|---|---|---|---|---|---|---|---|
+| 20 | 11 | 11 | 14 | 14 | 0 / 139 | 1.17 | same as one user |
+| 40 | 11 | 12 | 14 | 14 | 0 / 267 | 2.22 | same as one user |
+| 60 | 15 | 16 | 18 | 19 | 0 / 310 | 2.60 | past the 40 threads: requests wait ~4.6 s for one |
+
+Against the baseline at 20 users: ttft p50 **51 s → 11 s**, p95 **91 s → 11 s**,
+throughput **0.18 → 1.17 turns/s**. Throughput now tops out at ~2.6 turns/s,
+i.e. threads ÷ seconds per turn (40 ÷ ~15). `/api/health` with 10 streams in
+flight: **3 ms** (baseline: 12.8 s with 3). `POST /api/auth/register` at 40
+users: 86 ms p50 (baseline: 14 s at 20). Memory: ~100 MB idle, ~245 MB after
+the 40-user run, against 320 MB for the 3 idle gunicorn workers.
+
+The concurrency gain comes from threads, not from FastAPI itself: gunicorn's
+gthread workers would have bought much the same. FastAPI is there for typed
+request/response models, dependency injection and, in P2, async streaming.
+
+How the defaults were chosen — two configurations that did not work:
+
+| Configuration | Users | ttft p50 / p95 | errors | turns/s | what went wrong |
 |---|---|---|---|---|---|
-| 1 | | | | | |
-| 20 | | | | | |
-| 50 | | | | | |
-| 100 | | | | | |
+| 3 processes × 10 threads | 10 | 11 / 11 | 0 | 0.61 | fine |
+| 3 processes × 10 threads | 20 | 15 / 21 | 0 | 0.89 | queueing already |
+| 3 processes × 10 threads | 40 | 21 / 47 | 0 | 0.95 | |
+| 1 process × 40 threads, default pool (5 + 10) | 40 | 20 / 36 | **34% of chats** | 1.01 | `QueuePool limit ... connection timed out` |
+
+- **Three processes share load unevenly.** They all accept on one socket, and
+  locust users keep their connections alive, so a connection stays with
+  whichever process took it. Under 20 users one of the three processes held
+  no client connection at all (its socket count stayed at the idle level), so
+  only ~20 of the 30 threads did any work. One process with more threads has
+  no such problem, and three processes × 40 threads would need 135 database
+  connections, past PostgreSQL's default of 100.
+- **A chat turn keeps a database connection for its whole duration.** Its
+  first query (the user's preference profiles) opens a transaction that stays
+  open, idle, across the LLM calls: 11–20 connections sat "idle in
+  transaction" at 20 users. With more threads than pooled connections, the
+  extra threads waited 30 s for one and failed. The pool is now sized to the
+  thread count; the real fix, ending the transaction before calling the
+  model, belongs to P2 (issue 9 in [PERFORMANCE_ISSUES.md](PERFORMANCE_ISSUES.md)).
+
+Reproduce (bench stack as above; `WEB_WORKERS` / `WSGI_THREADS` pick the
+configuration):
+
+```bash
+WEB_WORKERS=3 WSGI_THREADS=10 docker compose -f docker-compose.yml -f docker-compose.bench.yml --profile bench up -d api
+uv run --no-project --with locust locust -f tools/load_test/locustfile.py --host http://127.0.0.1:5000 --headless --users 40 --spawn-rate 2 --run-time 2m --only-summary
+```
+
+Commit: the stage 1 merge into `main` (`p1/asgi-shell`).

@@ -6,7 +6,7 @@
 ## 压测是怎么做的
 
 ```
-locust / probe.py  ──HTTP──▶  api（gunicorn，3 个 sync worker）  ──HTTP──▶  fake-llm
+locust / probe.py  ──HTTP──▶  api（uvicorn，1 个进程 × 40 线程；P1 之前是 gunicorn 3 个 sync worker）  ──HTTP──▶  fake-llm
     模拟用户                        被测对象                             假的大模型
 ```
 
@@ -28,14 +28,15 @@ docker compose -f docker-compose.yml -f docker-compose.bench.yml --profile bench
 
 | # | 问题 | 当前数字 | 由哪个阶段修 | 目标 |
 |---|---|---|---|---|
-| 1 | 并发上限等于 worker 数 | 最大稳定并发 **3** | P1 | ≥ 50 |
-| 2 | 3 个人聊天，整个 API 无响应 | `/api/health` **4 ms → 12.8 s** | P1 | < 50 ms |
+| 1 | ~~并发上限等于 worker 数~~ ✅ 已修 | 最大稳定并发 **3 → ≥ 60**（只测到 60）；20 个用户时 ttft p50 **51 s → 11 s** | 已修（2026-10-03，P1 第 1 段） | ≥ 50 |
+| 2 | ~~3 个人聊天，整个 API 无响应~~ ✅ 已修 | 3 个对话时 `/api/health` **12.8 s → 9 ms**，10 个对话时 3 ms | 已修（2026-10-03，P1 第 1 段） | < 50 ms |
 | 3 | 单用户首 token 就要 10 s | ttft **10.7 s**（其中 10.2 s 在串行等 LLM） | P2 | < 4 s |
 | 4 | 首 token 前 10 s 没有任何进度 | 心跳之后 **10.2 s** 无事件 | P2 | 每个阶段都推送事件 |
 | 5 | 用户关掉页面，服务端不停 | 继续占用 worker **8.5 s**，打满 4 次 LLM 调用，留下没有回复的会话 | P1 | 断开后 < 1 s 释放 |
 | 6 | ~~LLM 调用实际没有超时~~ ✅ 已修 | provider 卡住时：600 s 后 worker 被强杀 → **105 s 后返回错误事件** | 已修（2026-09-26） | 配置值生效 |
-| 7 | 每个并发会话约 115 MB | 3 个 worker 共 320 MB，12 个共 1.04 GB | P1 | 内存不随并发线性增长 |
+| 7 | ~~每个并发会话约 115 MB~~ ✅ 已修 | 3 个对话 320 MB → 40 个对话 **245 MB**（单进程 40 线程） | 已修（2026-10-03，P1 第 1 段） | 内存不随并发线性增长 |
 | 8 | ~~第三方资源卡住，整站白屏~~ ✅ 已修 | 第三方请求挂起时：**30 s 后仍白屏 → 0.7 s 出现**；首页 LCP 中位数 **3.0 s → 0.68 s** | 已修（2026-10-03） | 首屏不依赖任何第三方 |
+| 9 | 一轮对话全程占着一个数据库连接 | 20 个用户时 **11–20 个连接 "idle in transaction"**；线程多于连接池时 **34% 的对话失败** | P2（第 1 段先把连接池调到和线程数一样大） | 调用 LLM 前结束事务 |
 
 ---
 
@@ -59,13 +60,16 @@ uv run --no-project --with locust locust -f tools/load_test/locustfile.py --host
 
 `--users` 依次取 1 / 3 / 10 / 20。
 
+**✅ 已修（P1 第 1 段，2026-10-03）**：改用 uvicorn，Flask 挂在 FastAPI 后面、跑在线程池里，
+一个对话只占一个线程。单进程 40 线程：20 / 40 个用户时 ttft p50 都是 11 s，吞吐 1.17 / 2.22 轮/秒；
+60 个用户时开始排队（ttft p50 15 s），0 错误。完整数字和选型过程见 [benchmarks.md](benchmarks.md)。
+
 **加 worker 行不行？** 12 个 worker、20 个用户时，吞吐升到 0.83，ttft p50 降到 19 s，
 但内存从 320 MB 涨到 1.04 GB，而且 20 个用户仍然多于 12 个 worker，还是要排队。
 这只是把上限往后推，"一个对话占一个进程"的模型没有变。
 
-```bash
-GUNICORN_CMD_ARGS="--workers 12" docker compose -f docker-compose.yml -f docker-compose.bench.yml --profile bench up -d api
-```
+（这组数字是修复前用 gunicorn 测的，gunicorn 现在已经移除。修复后换进程数和线程数的方法：
+`WEB_WORKERS=3 WSGI_THREADS=10 docker compose -f docker-compose.yml -f docker-compose.bench.yml --profile bench up -d api`）
 
 ## 2. 3 个人聊天，整个 API 无响应
 
@@ -83,6 +87,9 @@ locust 里的注册接口也一样：1 个用户时 0.1 s，20 个用户时 14 s
 ```bash
 uv run --no-project --with requests python tools/load_test/probe.py blocking --streams 3
 ```
+
+**✅ 已修（P1 第 1 段）**：3 个对话进行中时 `/api/health` 9 ms，10 个时 3 ms；
+40 个用户压测时注册接口 p50 86 ms（修复前 20 个用户时 14 s）。
 
 ## 3. 单用户首 token 就要 10 s
 
@@ -188,6 +195,9 @@ uv run --no-project --with requests python tools/load_test/probe.py slow
 docker stats --no-stream carbonsnap-api-1
 ```
 
+**✅ 已修（P1 第 1 段）**：一个对话占一个线程而不是一个进程。单进程空闲约 100 MB，
+40 个用户压测之后约 245 MB。
+
 ## 8. 第三方资源卡住，整站白屏 ✅ 已修复
 
 **原来的问题**：`index.html` 的 `<head>` 里同步加载了 Google Fonts 的两个样式表和 Tailwind 的
@@ -240,6 +250,26 @@ node tools/frontend/third-party.mjs http://localhost:4173/ --fail   # 别的域�
 ```
 
 ---
+
+## 9. 一轮对话全程占着一个数据库连接
+
+一轮对话的第一条查询（读用户的偏好画像）会自动开启一个事务（SQLAlchemy 的 autobegin），
+之后代码去调 LLM，事务一直不结束，连接也就一直被占着，直到下一次 commit，大约 13 s。
+20 个用户时，PG 里同时有 11–20 个连接处于 "idle in transaction"。
+
+后果：
+- 连接池比线程少时，多出来的线程等 30 s 拿不到连接就报错。单进程 40 线程、默认连接池（5 + 10）、
+  40 个用户时，**34% 的对话失败**（`QueuePool limit of size 5 overflow 10 reached`）。
+- 长时间不结束的事务会拖住 PG 的清理（vacuum），持有的锁也会挡住别的写操作。
+
+P1 第 1 段的处理只是止血：连接池大小跟线程数一致（40 + 5）。真正的修法是在调用 LLM 之前结束事务，
+放在 P2 重写对话链路时做；做完以后连接池可以缩回去。
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.bench.yml exec postgres psql -U carbonsnap -d carbonsnap -c "select state, count(*) from pg_stat_activity group by state"
+```
+
+（压测进行中执行。）
 
 ## 查过但没有发现问题的
 
