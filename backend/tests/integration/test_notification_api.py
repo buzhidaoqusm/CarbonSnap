@@ -1,7 +1,5 @@
 """Integration tests for Notification API endpoints."""
 
-import json
-
 from app.services.notification import notification_service
 
 # ---------------------------------------------------------------------------
@@ -22,22 +20,17 @@ def _seed_notifications(user_id: int, count: int = 3):
 
 
 def _post_json(client, url, data, headers=None):
-    return client.post(url, data=json.dumps(data), content_type="application/json", headers=headers)
+    return client.post(url, json=data, headers=headers)
 
 
 def _patch_json(client, url, data=None, headers=None):
-    return client.patch(
-        url,
-        data=json.dumps(data or {}),
-        content_type="application/json",
-        headers=headers,
-    )
+    return client.patch(url, json=data or {}, headers=headers)
 
 
 def _create_forum_post(client, headers, title="Hello", content="World"):
     resp = _post_json(client, "/api/forum/posts", {"title": title, "content": content}, headers)
     assert resp.status_code == 201
-    return resp.get_json()["data"]
+    return resp.json()["data"]
 
 
 def _create_forum_comment(client, headers, post_id, content="Nice!", parent_comment_id=None):
@@ -46,7 +39,7 @@ def _create_forum_comment(client, headers, post_id, content="Nice!", parent_comm
         body["parent_comment_id"] = parent_comment_id
     resp = _post_json(client, f"/api/forum/posts/{post_id}/comments", body, headers)
     assert resp.status_code == 201
-    return resp.get_json()["data"]
+    return resp.json()["data"]
 
 
 # ---------------------------------------------------------------------------
@@ -60,7 +53,7 @@ class TestListNotifications:
         _seed_notifications(user_id, 3)
         resp = client.get("/api/notifications", headers=headers)
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["total"] == 3
         assert len(data["items"]) == 3
         first = data["items"][0]
@@ -71,7 +64,7 @@ class TestListNotifications:
         user_id, headers = make_auth_headers()
         _seed_notifications(user_id, 5)
         resp = client.get("/api/notifications?page=1&per_page=2", headers=headers)
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["total"] == 5
         assert len(data["items"]) == 2
 
@@ -80,7 +73,7 @@ class TestListNotifications:
         _seed_notifications(user_id, 1)
 
         resp = client.get("/api/notifications", headers=headers)
-        item = resp.get_json()["data"]["items"][0]
+        item = resp.json()["data"]["items"][0]
 
         assert item["created_at"].endswith("Z")
 
@@ -89,17 +82,17 @@ class TestListNotifications:
         _seed_notifications(user_id, 4)
         # Mark first one as read via API.
         all_resp = client.get("/api/notifications", headers=headers)
-        first_id = all_resp.get_json()["data"]["items"][0]["id"]
+        first_id = all_resp.json()["data"]["items"][0]["id"]
         _patch_json(client, f"/api/notifications/{first_id}/read", headers=headers)
 
         resp = client.get("/api/notifications?unread_only=true", headers=headers)
-        assert resp.get_json()["data"]["total"] == 3
+        assert resp.json()["data"]["total"] == 3
 
     def test_unread_count_in_response(self, client, make_auth_headers):
         user_id, headers = make_auth_headers()
         _seed_notifications(user_id, 2)
         resp = client.get("/api/notifications", headers=headers)
-        assert resp.get_json()["data"]["unread_count"] == 2
+        assert resp.json()["data"]["unread_count"] == 2
 
     def test_unauthenticated_returns_401(self, client):
         assert client.get("/api/notifications").status_code == 401
@@ -109,7 +102,7 @@ class TestListNotifications:
         _u2_id, h2 = make_auth_headers()
         _seed_notifications(u1_id, 3)
         resp = client.get("/api/notifications", headers=h2)
-        assert resp.get_json()["data"]["total"] == 0
+        assert resp.json()["data"]["total"] == 0
 
     def test_comment_notification_routes_to_source_post_anchor(self, client, make_auth_headers):
         _, author_headers = make_auth_headers(username="author")
@@ -126,7 +119,7 @@ class TestListNotifications:
         )
 
         resp = client.get("/api/notifications", headers=author_headers)
-        item = resp.get_json()["data"]["items"][0]
+        item = resp.json()["data"]["items"][0]
         assert item["source_url"] == f"/forum/posts/{post['id']}#comment-{comment['id']}"
         assert item["body"] == "A forum comment you published received a like."
 
@@ -141,7 +134,7 @@ class TestListNotifications:
         )
 
         resp = client.get("/api/notifications", headers=headers)
-        item = resp.get_json()["data"]["items"][0]
+        item = resp.json()["data"]["items"][0]
         assert item["source_url"] == "/forum/posts/77"
         assert item["body"] == "A forum post you published received a new comment."
 
@@ -156,7 +149,7 @@ class TestListNotifications:
         )
 
         resp = client.get("/api/notifications", headers=headers)
-        item = resp.get_json()["data"]["items"][0]
+        item = resp.json()["data"]["items"][0]
         assert item["source_url"] == "/notification"
 
     def test_project_completed_uses_project_route_and_body(self, client, make_auth_headers):
@@ -170,7 +163,7 @@ class TestListNotifications:
         )
 
         resp = client.get("/api/notifications", headers=headers)
-        item = resp.get_json()["data"]["items"][0]
+        item = resp.json()["data"]["items"][0]
         assert item["source_url"] == "/project"
         assert item["body"] == "A project you created or supported has reached completion."
 
@@ -192,7 +185,7 @@ class TestListNotifications:
         )
 
         resp = client.get("/api/notifications", headers=headers)
-        items = resp.get_json()["data"]["items"]
+        items = resp.json()["data"]["items"]
         assert items[0]["source_url"] == "/market/orders"
         assert items[1]["source_url"] == "/market/orders"
         assert items[0]["body"] == "An order linked to your account has been completed."
@@ -209,13 +202,13 @@ class TestUnreadCount:
         _, headers = make_auth_headers()
         resp = client.get("/api/notifications/unread-count", headers=headers)
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["unread_count"] == 0
+        assert resp.json()["data"]["unread_count"] == 0
 
     def test_increments_with_new_notifications(self, client, make_auth_headers):
         user_id, headers = make_auth_headers()
         _seed_notifications(user_id, 3)
         resp = client.get("/api/notifications/unread-count", headers=headers)
-        assert resp.get_json()["data"]["unread_count"] == 3
+        assert resp.json()["data"]["unread_count"] == 3
 
 
 # ---------------------------------------------------------------------------
@@ -227,17 +220,17 @@ class TestMarkAsRead:
     def test_mark_single_notification(self, client, make_auth_headers):
         user_id, headers = make_auth_headers()
         _seed_notifications(user_id, 1)
-        notifs = client.get("/api/notifications", headers=headers).get_json()["data"]["items"]
+        notifs = client.get("/api/notifications", headers=headers).json()["data"]["items"]
         nid = notifs[0]["id"]
         resp = _patch_json(client, f"/api/notifications/{nid}/read", headers=headers)
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["is_read"] is True
+        assert resp.json()["data"]["is_read"] is True
 
     def test_cannot_mark_other_users_notification(self, client, make_auth_headers):
         u1_id, h1 = make_auth_headers()
         _u2_id, h2 = make_auth_headers()
         _seed_notifications(u1_id, 1)
-        nid = client.get("/api/notifications", headers=h1).get_json()["data"]["items"][0]["id"]
+        nid = client.get("/api/notifications", headers=h1).json()["data"]["items"][0]["id"]
         resp = _patch_json(client, f"/api/notifications/{nid}/read", headers=h2)
         assert resp.status_code == 404
 
@@ -258,17 +251,17 @@ class TestMarkAllAsRead:
         _seed_notifications(user_id, 4)
         resp = _patch_json(client, "/api/notifications/read-all", headers=headers)
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["updated"] == 4
+        assert resp.json()["data"]["updated"] == 4
         # Unread count should now be 0.
         count_resp = client.get("/api/notifications/unread-count", headers=headers)
-        assert count_resp.get_json()["data"]["unread_count"] == 0
+        assert count_resp.json()["data"]["unread_count"] == 0
 
     def test_idempotent(self, client, make_auth_headers):
         user_id, headers = make_auth_headers()
         _seed_notifications(user_id, 2)
         _patch_json(client, "/api/notifications/read-all", headers=headers)
         resp = _patch_json(client, "/api/notifications/read-all", headers=headers)
-        assert resp.get_json()["data"]["updated"] == 0
+        assert resp.json()["data"]["updated"] == 0
 
     def test_unauthenticated_returns_401(self, client):
         assert client.patch("/api/notifications/read-all").status_code == 401

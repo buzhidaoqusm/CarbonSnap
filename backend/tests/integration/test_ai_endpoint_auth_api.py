@@ -7,8 +7,6 @@ were missing the decorator; this is the regression guard.
 
 from __future__ import annotations
 
-import json
-
 import pytest
 
 PROTECTED_ENDPOINTS = [
@@ -25,8 +23,7 @@ PROTECTED_ENDPOINTS = [
 def test_ai_endpoint_rejects_anonymous_request(client, path, payload):
     response = client.post(
         path,
-        data=json.dumps(payload),
-        content_type="application/json",
+        json=payload,
     )
 
     assert response.status_code == 401

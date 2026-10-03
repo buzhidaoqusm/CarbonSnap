@@ -22,18 +22,16 @@ _VALID_IMAGE_DATA_URL = (
 )
 
 
-def _post_json(client, url, data, headers=None, buffered=False):
+def _post_json(client, url, data, headers=None):
     return client.post(
         url,
-        data=json.dumps(data),
-        content_type="application/json",
+        json=data,
         headers=headers,
-        buffered=buffered,
     )
 
 
 def _extract_sse_payloads(response) -> list[dict]:
-    body = response.get_data(as_text=True)
+    body = response.text
     data_lines = [line for line in body.splitlines() if line.startswith("data: ")]
     return [json.loads(line.removeprefix("data: ")) for line in data_lines]
 
@@ -42,19 +40,16 @@ def _make_auth_headers(
     client, *, username: str = "audit-user", email: str = "audit@example.com", points: int = 0
 ):
     unique_suffix = uuid.uuid4().hex[:8]
-    with client.application.app_context():
-        db.session.rollback()
-        db.create_all()
-        user = User(
-            username=f"{username}_{unique_suffix}",
-            email=f"{unique_suffix}_{email}",
-            password_hash=generate_password_hash("password123"),
-            current_points=points,
-        )
-        db.session.add(user)
-        db.session.commit()
-        token = create_access_token(identity=str(user.id))
-        return user.id, {"Authorization": f"Bearer {token}"}
+    user = User(
+        username=f"{username}_{unique_suffix}",
+        email=f"{unique_suffix}_{email}",
+        password_hash=generate_password_hash("password123"),
+        current_points=points,
+    )
+    db.session.add(user)
+    db.session.commit()
+    token = create_access_token(identity=str(user.id))
+    return user.id, {"Authorization": f"Bearer {token}"}
 
 
 def _seed_pending_case(client, headers, monkeypatch):
@@ -90,7 +85,6 @@ def _seed_pending_case(client, headers, monkeypatch):
             "session_id": session_id,
         },
         headers,
-        buffered=True,
     )
     payloads = _extract_sse_payloads(response)
     stage_payloads = [payload for payload in payloads if payload.get("type") == "stage_payload"]
@@ -124,7 +118,6 @@ class TestAuditApi:
                 "image": _VALID_IMAGE_DATA_URL,
             },
             headers,
-            buffered=True,
         )
 
         assert response.status_code == 200
@@ -167,7 +160,6 @@ class TestAuditApi:
                 "image": _VALID_IMAGE_DATA_URL,
             },
             headers,
-            buffered=True,
         )
 
         assert response.status_code == 200
@@ -227,7 +219,6 @@ class TestAuditApi:
                 "image": _VALID_IMAGE_DATA_URL,
             },
             headers,
-            buffered=True,
         )
         assert failed_response.status_code == 200
 
@@ -241,7 +232,6 @@ class TestAuditApi:
                 "image": _VALID_IMAGE_DATA_URL,
             },
             headers,
-            buffered=True,
         )
         assert passed_response.status_code == 200
 

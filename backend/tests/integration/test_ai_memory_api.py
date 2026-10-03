@@ -8,18 +8,16 @@ from flask_jwt_extended import create_access_token
 from app.services.ai import ai_conversation_service, recycling_analysis_service
 
 
-def _post_json(client, url, data, headers=None, buffered=False):
+def _post_json(client, url, data, headers=None):
     return client.post(
         url,
-        data=json.dumps(data),
-        content_type="application/json",
+        json=data,
         headers=headers,
-        buffered=buffered,
     )
 
 
 def _extract_sse_payloads(response) -> list[dict]:
-    body = response.get_data(as_text=True)
+    body = response.text
     data_lines = [line for line in body.splitlines() if line.startswith("data: ")]
     return [json.loads(line.removeprefix("data: ")) for line in data_lines]
 
@@ -36,7 +34,7 @@ class TestAiMemoryApi:
         response = client.get("/api/ai/memory", headers={"Authorization": f"Bearer {token}"})
 
         assert response.status_code == 200
-        payload = response.get_json()["data"]
+        payload = response.json()["data"]
         assert payload["items"] == []
         assert payload["summary"]["action_preferences"]["response_style"] is None
 
@@ -84,13 +82,13 @@ class TestAiMemoryApi:
         )
 
         assert response.status_code == 200
-        data = response.get_json()["data"]
+        data = response.json()["data"]
         assert data["memory_updates"][0]["memory_type"] == "response_style"
         assert captured_prompt_memory["action_preferences"]["response_style"] == "concise"
 
         memory_response = client.get("/api/ai/memory", headers=headers)
         assert memory_response.status_code == 200
-        payload = memory_response.get_json()["data"]
+        payload = memory_response.json()["data"]
         assert payload["summary"]["action_preferences"]["response_style"] == "concise"
         assert payload["items"][0]["memory_key"] == "response_style"
 
@@ -112,11 +110,11 @@ class TestAiMemoryApi:
         response = _post_json(client, "/api/ai/chat", {"message": "hello"}, headers)
 
         assert response.status_code == 200
-        data = response.get_json()["data"]
+        data = response.json()["data"]
         assert data["memory_updates"] == []
 
         memory_response = client.get("/api/ai/memory", headers=headers)
-        payload = memory_response.get_json()["data"]
+        payload = memory_response.json()["data"]
         assert payload["items"] == []
 
     def test_delete_ai_memory_soft_deletes_item_and_rebuilds_summary(
@@ -137,12 +135,12 @@ class TestAiMemoryApi:
             headers,
         )
         assert create_response.status_code == 200
-        item_id = create_response.get_json()["data"]["item"]["id"]
+        item_id = create_response.json()["data"]["item"]["id"]
 
         delete_response = client.delete(f"/api/ai/memory/{item_id}", headers=headers)
         assert delete_response.status_code == 200
 
-        payload = delete_response.get_json()["data"]
+        payload = delete_response.json()["data"]
         assert payload["item"]["status"] == "deleted"
         assert payload["summary"]["action_preferences"]["response_style"] is None
 
@@ -194,7 +192,6 @@ class TestAiMemoryApi:
             "/api/ai/analyze-image",
             {"message": "Analyze this battery", "session_id": "memory-recycling-test"},
             headers,
-            buffered=True,
         )
 
         assert response.status_code == 200
@@ -203,7 +200,7 @@ class TestAiMemoryApi:
         assert captured_prompt_memory["action_preferences"]["prefer_nearby_options"] is False
 
         memory_response = client.get("/api/ai/memory", headers=headers)
-        memory_payload = memory_response.get_json()["data"]
+        memory_payload = memory_response.json()["data"]
         assert any(
             topic["topic_id"] == "battery-recycling"
             for topic in memory_payload["summary"]["content_interest_preferences"]["topics"]

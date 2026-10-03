@@ -6,18 +6,16 @@ from app.services.ai import ai_conversation_service
 from app.services.ai.agent_trace_service import build_trace_shell
 
 
-def _post_json(client, url, data, headers=None, buffered=False):
+def _post_json(client, url, data, headers=None):
     return client.post(
         url,
-        data=json.dumps(data),
-        content_type="application/json",
+        json=data,
         headers=headers,
-        buffered=buffered,
     )
 
 
 def _extract_sse_payloads(response, *, include_heartbeat: bool = False) -> list[dict]:
-    body = response.get_data(as_text=True)
+    body = response.text
     data_lines = [line for line in body.splitlines() if line.startswith("data: ")]
     payloads = [json.loads(line.removeprefix("data: ")) for line in data_lines]
     if include_heartbeat:
@@ -72,7 +70,7 @@ def test_ai_chat_uses_langgraph_when_feature_flag_enabled(
     _, headers = make_auth_headers()
     response = _post_json(client, "/api/ai/chat", {"message": "hello"}, headers)
 
-    data = response.get_json()["data"]
+    data = response.json()["data"]
     assert response.status_code == 200
     assert data["reply"] == "Graph API answer"
     assert data["graph_agent"]["enabled"] is True
@@ -105,7 +103,6 @@ def test_ai_chat_stream_uses_langgraph_when_feature_flag_enabled(
         "/api/ai/chat/stream",
         {"message": "hello"},
         headers,
-        buffered=True,
     )
 
     payloads = _extract_sse_payloads(response)
@@ -140,7 +137,7 @@ def test_ai_chat_keeps_existing_route_when_graph_agent_disabled(
     _, headers = make_auth_headers()
     response = _post_json(client, "/api/ai/chat", {"message": "hello"}, headers)
 
-    data = response.get_json()["data"]
+    data = response.json()["data"]
     assert response.status_code == 200
     assert data["reply"] == "Classic answer"
     assert "graph_agent" not in data

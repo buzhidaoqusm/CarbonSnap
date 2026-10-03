@@ -25,12 +25,12 @@ class TestLedgerSummaryApi:
         gamification_response = client.get("/api/ledger/gamification", headers=headers)
 
         assert summary_response.status_code == 200
-        summary = summary_response.get_json()["data"]
+        summary = summary_response.json()["data"]
         assert summary["current_points"] == 60
         assert summary["total_points_earned"] == 220
 
         assert gamification_response.status_code == 200
-        gamification = gamification_response.get_json()["data"]
+        gamification = gamification_response.json()["data"]
         assert gamification["current_points"] == 60
         assert gamification["total_points_earned"] == 220
         assert gamification["score"] == 220
@@ -100,7 +100,7 @@ class TestLedgerWeeklyLeaderboardApi:
         response = client.get("/api/ledger/leaderboard/weekly", headers=current_headers)
 
         assert response.status_code == 200
-        data = response.get_json()["data"]
+        data = response.json()["data"]
         assert data["window_days"] == 7
 
         top_users = data["top_users"]
@@ -134,10 +134,10 @@ class TestLedgerRecordsApi:
             headers=headers,
         )
 
-        summary = client.get("/api/ledger/summary", headers=headers).get_json()["data"]
+        summary = client.get("/api/ledger/summary", headers=headers).json()["data"]
         assert summary["current_points"] == 60
         assert summary["total_carbon_amount"] == 0
         assert summary["total_points_earned"] == 0
-        records = client.get("/api/ledger/records", headers=headers).get_json()["data"]
+        records = client.get("/api/ledger/records", headers=headers).json()["data"]
         assert records["total"] == 0
         assert response.status_code == 405

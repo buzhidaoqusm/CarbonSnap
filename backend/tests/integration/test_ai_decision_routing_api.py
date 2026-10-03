@@ -10,18 +10,16 @@ from app.models.ai import AIMessageDecision
 from app.services.ai import ai_conversation_service, recycling_analysis_service
 
 
-def _post_json(client, url, data, headers=None, buffered=False):
+def _post_json(client, url, data, headers=None):
     return client.post(
         url,
-        data=json.dumps(data),
-        content_type="application/json",
+        json=data,
         headers=headers,
-        buffered=buffered,
     )
 
 
 def _extract_sse_payloads(response, *, include_heartbeat: bool = False) -> list[dict]:
-    body = response.get_data(as_text=True)
+    body = response.text
     data_lines = [line for line in body.splitlines() if line.startswith("data: ")]
     payloads = [json.loads(line.removeprefix("data: ")) for line in data_lines]
     if include_heartbeat:
@@ -71,7 +69,6 @@ class TestAiDecisionRoutingApi:
             "/api/ai/chat/stream",
             {"message": "hello"},
             headers,
-            buffered=True,
         )
 
         payloads = _extract_sse_payloads(response)
@@ -122,7 +119,6 @@ class TestAiDecisionRoutingApi:
             "/api/ai/chat/stream",
             {"message": "How do I recycle this plastic bottle?"},
             headers,
-            buffered=True,
         )
 
         payloads = _extract_sse_payloads(response)
@@ -166,7 +162,6 @@ class TestAiDecisionRoutingApi:
             "/api/ai/chat/stream",
             {"message": "Continue that recycling task"},
             headers,
-            buffered=True,
         )
 
         payloads = _extract_sse_payloads(response)
@@ -179,7 +174,7 @@ class TestAiDecisionRoutingApi:
             f"/api/ai/conversations/{conversation_id}/messages",
             headers=headers,
         )
-        history = history_response.get_json()["data"]
+        history = history_response.json()["data"]
         assert history["items"][0]["role"] == "user"
         assert history["items"][1]["message_type"] == "tool_result"
         assert history["items"][1]["content_json"]["stream_stage"] == "clarification"

@@ -39,7 +39,9 @@ USER carbonsnap
 
 EXPOSE 5000
 
-# run.py is the local dev entrypoint; the container serves through gunicorn.
-# Migrate first: nothing else creates the schema in a fresh volume (run.py's
-# create_all() never runs here). Once, before gunicorn forks its workers.
-CMD ["sh", "-c", "flask --app 'app:create_app()' db upgrade && exec gunicorn -c gunicorn.conf.py -b 0.0.0.0:5000 'app:create_app()'"]
+# run.py is the local dev entrypoint; the container serves the ASGI app
+# (FastAPI in front of Flask, see app/main.py) through uvicorn.
+# Migrate first: nothing else creates the schema in a fresh volume. Once,
+# before uvicorn starts its worker processes.
+ENV WEB_WORKERS=3
+CMD ["sh", "-c", "flask --app 'app:create_app()' db upgrade && exec uvicorn --factory app.main:create_api --host 0.0.0.0 --port 5000 --workers \"$WEB_WORKERS\" --timeout-graceful-shutdown 60"]

@@ -1,9 +1,8 @@
-import json
 from datetime import UTC, datetime, timedelta
 
 
 def _post_json(client, url, data, headers=None):
-    return client.post(url, data=json.dumps(data), content_type="application/json", headers=headers)
+    return client.post(url, json=data, headers=headers)
 
 
 def _future_deadline(days: int = 10) -> str:
@@ -20,13 +19,13 @@ def _create_project(client, headers, **overrides):
     payload.update(overrides)
     response = _post_json(client, "/api/projects", payload, headers)
     assert response.status_code == 201
-    return response.get_json()["data"]
+    return response.json()["data"]
 
 
 def _get_notifications(client, headers):
     response = client.get("/api/notifications", headers=headers)
     assert response.status_code == 200
-    return response.get_json()["data"]["items"]
+    return response.json()["data"]["items"]
 
 
 class TestProjectListApi:
@@ -37,7 +36,7 @@ class TestProjectListApi:
         response = client.get("/api/projects")
 
         assert response.status_code == 200
-        data = response.get_json()["data"]
+        data = response.json()["data"]
         assert data["total"] == 1
         assert data["summary"]["fundraising_count"] == 1
 
@@ -50,7 +49,7 @@ class TestProjectListApi:
         response = client.get("/api/projects", headers=creator_headers)
 
         assert response.status_code == 200
-        ids = [item["id"] for item in response.get_json()["data"]["items"]]
+        ids = [item["id"] for item in response.json()["data"]["items"]]
         assert ids[0] == own_project["id"]
         assert own_project["id"] in ids
         assert other_project["id"] in ids
@@ -73,7 +72,7 @@ class TestCreateProjectApi:
         )
 
         assert response.status_code == 201
-        data = response.get_json()["data"]
+        data = response.json()["data"]
         assert data["title"] == "Repair Cafe"
         assert data["points_target"] == 180
 
@@ -106,7 +105,7 @@ class TestProjectDetailApi:
         response = client.get(f"/api/projects/{project['id']}")
 
         assert response.status_code == 200
-        data = response.get_json()["data"]
+        data = response.json()["data"]
         assert data["id"] == project["id"]
         assert len(data["recent_contributions"]) == 1
         assert data["recent_contributions"][0]["points"] == 40
@@ -126,7 +125,7 @@ class TestProjectContributionApi:
         )
 
         assert response.status_code == 201
-        data = response.get_json()["data"]
+        data = response.json()["data"]
         assert data["project"]["points_raised"] == 50
         assert data["viewer_current_points"] == 250
 
@@ -207,7 +206,7 @@ class TestProjectContributionApi:
             finisher_headers,
         )
         assert final.status_code == 201
-        assert final.get_json()["data"]["project"]["status"] == "completed"
+        assert final.json()["data"]["project"]["status"] == "completed"
 
         creator_notifications = _get_notifications(client, creator_headers)
         supporter_notifications = _get_notifications(client, supporter_headers)

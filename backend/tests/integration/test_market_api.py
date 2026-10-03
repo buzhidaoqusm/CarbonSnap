@@ -1,7 +1,5 @@
 """Integration tests for C2C Marketplace API endpoints."""
 
-import json
-
 from flask_jwt_extended import create_access_token
 
 from app.extensions.db import db
@@ -13,11 +11,11 @@ from app.repositories.ledger.ledger_repository import earn_points
 
 
 def _post_json(client, url, data, headers=None):
-    return client.post(url, data=json.dumps(data), content_type="application/json", headers=headers)
+    return client.post(url, json=data, headers=headers)
 
 
 def _patch_json(client, url, headers=None):
-    return client.patch(url, content_type="application/json", headers=headers)
+    return client.patch(url, headers={**(headers or {}), "Content-Type": "application/json"})
 
 
 def _create_item(client, headers, title="Old Bike", price_points=100):
@@ -28,19 +26,19 @@ def _create_item(client, headers, title="Old Bike", price_points=100):
         headers,
     )
     assert resp.status_code == 201
-    return resp.get_json()["data"]
+    return resp.json()["data"]
 
 
 def _place_order(client, headers, item_id):
     resp = _post_json(client, "/api/market/orders", {"item_id": item_id}, headers)
     assert resp.status_code == 201
-    return resp.get_json()["data"]
+    return resp.json()["data"]
 
 
 def _get_notifications(client, headers):
     resp = client.get("/api/notifications", headers=headers)
     assert resp.status_code == 200
-    return resp.get_json()["data"]["items"]
+    return resp.json()["data"]["items"]
 
 
 # ---------------------------------------------------------------------------
@@ -58,7 +56,7 @@ class TestCreateItem:
             headers,
         )
         assert resp.status_code == 201
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["status"] == "active"
         assert data["price_points"] == 200
 
@@ -88,14 +86,14 @@ class TestListActiveItems:
         _create_item(client, headers)
         resp = client.get("/api/market/items")
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["total"] >= 1
+        assert resp.json()["data"]["total"] >= 1
 
     def test_pagination(self, client, make_auth_headers):
         _, headers = make_auth_headers()
         for i in range(5):
             _create_item(client, headers, title=f"Item {i}")
         resp = client.get("/api/market/items?page=1&per_page=3")
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["total"] == 5
         assert len(data["items"]) == 3
 
@@ -104,7 +102,7 @@ class TestListActiveItems:
         item = _create_item(client, headers)
         client.delete(f"/api/market/items/{item['id']}", headers=headers)
         resp = client.get("/api/market/items")
-        ids = [i["id"] for i in resp.get_json()["data"]["items"]]
+        ids = [i["id"] for i in resp.json()["data"]["items"]]
         assert item["id"] not in ids
 
     def test_authenticated_market_list_allows_personalized_path(self, client, make_auth_headers):
@@ -113,7 +111,7 @@ class TestListActiveItems:
         _create_item(client, seller_headers)
         resp = client.get("/api/market/items", headers=viewer_headers)
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["total"] >= 1
+        assert resp.json()["data"]["total"] >= 1
 
     def test_authenticated_market_list_excludes_own_items(self, client, make_auth_headers):
         _, seller_headers = make_auth_headers()
@@ -124,7 +122,7 @@ class TestListActiveItems:
         resp = client.get("/api/market/items", headers=seller_headers)
 
         assert resp.status_code == 200
-        ids = [item["id"] for item in resp.get_json()["data"]["items"]]
+        ids = [item["id"] for item in resp.json()["data"]["items"]]
         assert own_item["id"] not in ids
         assert other_item["id"] in ids
 
@@ -142,7 +140,7 @@ class TestListActiveItems:
         resp = client.get("/api/market/items", headers=buyer_headers)
 
         assert resp.status_code == 200
-        ids = [item["id"] for item in resp.get_json()["data"]["items"]]
+        ids = [item["id"] for item in resp.json()["data"]["items"]]
         assert bought_item["id"] not in ids
         assert visible_item["id"] in ids
 
@@ -160,7 +158,7 @@ class TestListActiveItems:
         )
 
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["total"] == 1
         assert data["items"][0]["id"] == item["id"]
 
@@ -178,8 +176,8 @@ class TestListMyItems:
         _create_item(client, h2, title="Theirs")
         resp = client.get("/api/market/items/mine", headers=h1)
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["total"] == 1
-        assert resp.get_json()["data"]["items"][0]["title"] == "Mine"
+        assert resp.json()["data"]["total"] == 1
+        assert resp.json()["data"]["items"][0]["title"] == "Mine"
 
 
 # ---------------------------------------------------------------------------
@@ -193,7 +191,7 @@ class TestGetItem:
         item = _create_item(client, headers)
         resp = client.get(f"/api/market/items/{item['id']}")
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["id"] == item["id"]
+        assert resp.json()["data"]["id"] == item["id"]
 
     def test_nonexistent_item_returns_404(self, client):
         assert client.get("/api/market/items/99999").status_code == 404
@@ -203,7 +201,7 @@ class TestGetItem:
         item = _create_item(client, headers)
         resp = client.get(f"/api/market/items/{item['id']}", headers=headers)
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["id"] == item["id"]
+        assert resp.json()["data"]["id"] == item["id"]
 
 
 class TestRecordItemLongView:
@@ -213,7 +211,7 @@ class TestRecordItemLongView:
         item = _create_item(client, seller_headers)
         resp = client.post(f"/api/market/items/{item['id']}/long-view", headers=viewer_headers)
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["tracked"] is True
+        assert resp.json()["data"]["tracked"] is True
 
     def test_unauthenticated_long_view_returns_401(self, client, make_auth_headers):
         _, seller_headers = make_auth_headers()
@@ -233,9 +231,7 @@ class TestRemoveItem:
         item = _create_item(client, headers)
         resp = client.delete(f"/api/market/items/{item['id']}", headers=headers)
         assert resp.status_code == 200
-        assert (
-            client.get(f"/api/market/items/{item['id']}").get_json()["data"]["status"] == "removed"
-        )
+        assert client.get(f"/api/market/items/{item['id']}").json()["data"]["status"] == "removed"
 
     def test_non_seller_gets_403(self, client, make_auth_headers):
         _, seller_headers = make_auth_headers()
@@ -257,7 +253,7 @@ class TestPlaceOrder:
         item = _create_item(client, seller_headers, price_points=100)
         resp = _post_json(client, "/api/market/orders", {"item_id": item["id"]}, buyer_headers)
         assert resp.status_code == 201
-        assert resp.get_json()["data"]["status"] == "paid"
+        assert resp.json()["data"]["status"] == "paid"
 
         seller_notifications = _get_notifications(client, seller_headers)
         buyer_notifications = _get_notifications(client, buyer_headers)
@@ -305,7 +301,7 @@ class TestShipOrder:
         order = _place_order(client, buyer_headers, item["id"])
         resp = _patch_json(client, f"/api/market/orders/{order['id']}/ship", seller_headers)
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["status"] == "shipped"
+        assert resp.json()["data"]["status"] == "shipped"
 
     def test_buyer_cannot_ship(self, client, make_auth_headers):
         _, seller_headers = make_auth_headers()
@@ -339,7 +335,7 @@ class TestConfirmReceipt:
         _patch_json(client, f"/api/market/orders/{order['id']}/ship", seller_headers)
         resp = _patch_json(client, f"/api/market/orders/{order['id']}/confirm", buyer_headers)
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["status"] == "completed"
+        assert resp.json()["data"]["status"] == "completed"
 
     def test_seller_cannot_confirm(self, client, make_auth_headers):
         _, seller_headers = make_auth_headers()
@@ -372,7 +368,7 @@ class TestCancelOrder:
         order = _place_order(client, buyer_headers, item["id"])
         resp = _patch_json(client, f"/api/market/orders/{order['id']}/cancel", buyer_headers)
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["status"] == "cancelled"
+        assert resp.json()["data"]["status"] == "cancelled"
 
     def test_seller_cannot_cancel(self, client, make_auth_headers):
         _, seller_headers = make_auth_headers()
@@ -406,7 +402,7 @@ class TestListMyOrders:
             _place_order(client, buyer_headers, item["id"])
         resp = client.get("/api/market/orders?role=buyer", headers=buyer_headers)
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["total"] == 2
+        assert resp.json()["data"]["total"] == 2
 
     def test_list_as_seller(self, client, make_auth_headers):
         _, seller_headers = make_auth_headers()
@@ -415,7 +411,7 @@ class TestListMyOrders:
             item = _create_item(client, seller_headers, price_points=100)
             _place_order(client, buyer_headers, item["id"])
         resp = client.get("/api/market/orders?role=seller", headers=seller_headers)
-        assert resp.get_json()["data"]["total"] == 3
+        assert resp.json()["data"]["total"] == 3
 
     def test_invalid_role_returns_400(self, client, make_auth_headers):
         _, headers = make_auth_headers()
@@ -434,7 +430,7 @@ class TestListMyOrders:
 def _get_data(client, url, headers):
     resp = client.get(url, headers=headers)
     assert resp.status_code == 200
-    return resp.get_json()["data"]
+    return resp.json()["data"]
 
 
 def _recycle_then_buy_and_cancel(app, client, make_auth_headers, *, times):

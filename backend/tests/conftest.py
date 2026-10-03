@@ -364,9 +364,22 @@ def db_session(app):
 # ---------------------------------------------------------------------------
 
 
+@pytest.fixture(scope="session")
+def api(app):
+    """The ASGI app as it runs in production: FastAPI in front of Flask."""
+    from app.main import create_api
+
+    return create_api(app)
+
+
 @pytest.fixture()
-def client(app):
-    return app.test_client()
+def client(api):
+    """Requests go through the whole ASGI stack, so a test does not care
+    whether its route has moved from Flask to FastAPI yet."""
+    from fastapi.testclient import TestClient
+
+    with TestClient(api) as test_client:
+        yield test_client
 
 
 # ---------------------------------------------------------------------------

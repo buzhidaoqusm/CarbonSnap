@@ -3,8 +3,6 @@
 Tests go through the full HTTP stack: Flask test client -> Blueprint -> Service -> Repository -> DB.
 """
 
-import json
-
 from flask_jwt_extended import create_access_token
 
 from app.extensions.db import db
@@ -17,17 +15,17 @@ from app.services.forum import forum_service
 
 
 def _post_json(client, url, data, headers=None):
-    return client.post(url, data=json.dumps(data), content_type="application/json", headers=headers)
+    return client.post(url, json=data, headers=headers)
 
 
 def _put_json(client, url, data, headers=None):
-    return client.put(url, data=json.dumps(data), content_type="application/json", headers=headers)
+    return client.put(url, json=data, headers=headers)
 
 
 def _create_post(client, headers, title="Hello", content="World"):
     resp = _post_json(client, "/api/forum/posts", {"title": title, "content": content}, headers)
     assert resp.status_code == 201
-    return resp.get_json()["data"]
+    return resp.json()["data"]
 
 
 def _create_comment(client, headers, post_id, content="Nice!", parent_comment_id=None):
@@ -36,13 +34,13 @@ def _create_comment(client, headers, post_id, content="Nice!", parent_comment_id
         body["parent_comment_id"] = parent_comment_id
     resp = _post_json(client, f"/api/forum/posts/{post_id}/comments", body, headers)
     assert resp.status_code == 201
-    return resp.get_json()["data"]
+    return resp.json()["data"]
 
 
 def _get_notifications(client, headers):
     resp = client.get("/api/notifications", headers=headers)
     assert resp.status_code == 200
-    return resp.get_json()["data"]["items"]
+    return resp.json()["data"]["items"]
 
 
 _ONE_PIXEL_PNG = (
@@ -61,7 +59,7 @@ class TestUploadForumImage:
         _, headers = make_auth_headers()
         resp = _post_json(client, "/api/forum/uploads", {"image": _ONE_PIXEL_PNG}, headers)
         assert resp.status_code == 201
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["url"].startswith("/api/uploads/forum/")
 
     def test_invalid_image_returns_400(self, client, make_auth_headers):
@@ -84,7 +82,7 @@ class TestCreatePost:
         user_id, headers = make_auth_headers()
         resp = _post_json(client, "/api/forum/posts", {"title": "T", "content": "C"}, headers)
         assert resp.status_code == 201
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["title"] == "T"
         assert data["author_id"] == user_id
 
@@ -115,7 +113,7 @@ class TestListPosts:
             _create_post(client, headers, title=f"T{i}", content="C")
         resp = client.get("/api/forum/posts?page=1&per_page=2")
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["total"] == 3
         assert len(data["items"]) == 2
 
@@ -129,7 +127,7 @@ class TestListPosts:
         _, headers = make_auth_headers()
         _create_post(client, headers)
         resp = client.get("/api/forum/posts", headers=headers)
-        item = resp.get_json()["data"]["items"][0]
+        item = resp.json()["data"]["items"][0]
         assert "liked_by_user" in item
 
     def test_list_posts_includes_author_profile_fields(self, client, make_auth_headers):
@@ -139,7 +137,7 @@ class TestListPosts:
         resp = client.get("/api/forum/posts")
 
         assert resp.status_code == 200
-        item = resp.get_json()["data"]["items"][0]
+        item = resp.json()["data"]["items"][0]
         assert item["author_username"] == "eco_writer"
         assert "author_avatar_url" in item
 
@@ -158,7 +156,7 @@ class TestListPosts:
 
         resp = client.get("/api/forum/posts", headers=headers)
         assert resp.status_code == 200
-        ids = [item["id"] for item in resp.get_json()["data"]["items"]]
+        ids = [item["id"] for item in resp.json()["data"]["items"]]
         assert ids[:2] == [first["id"], second["id"]]
 
     def test_authenticated_list_slices_after_global_ranking_for_later_pages(
@@ -179,7 +177,7 @@ class TestListPosts:
         resp = client.get("/api/forum/posts?page=2&per_page=3", headers=headers)
 
         assert resp.status_code == 200
-        ids = [item["id"] for item in resp.get_json()["data"]["items"]]
+        ids = [item["id"] for item in resp.json()["data"]["items"]]
         assert ids == [created_posts[3]["id"], created_posts[4]["id"], created_posts[5]["id"]]
 
     def test_authenticated_list_preserves_total_when_personalized_ranking_uses_bounded_candidate_window(
@@ -215,7 +213,7 @@ class TestListPosts:
         resp = client.get("/api/forum/posts?page=1&per_page=5", headers=headers)
 
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["total"] == 7
         assert len(data["items"]) == 5
 
@@ -232,7 +230,7 @@ class TestListPosts:
         )
 
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["total"] == 1
         assert data["items"][0]["id"] == created["id"]
         assert data["items"][0]["author_id"] == user_id
@@ -249,7 +247,7 @@ class TestGetPost:
         post = _create_post(client, headers)
         resp = client.get(f"/api/forum/posts/{post['id']}")
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["id"] == post["id"]
+        assert resp.json()["data"]["id"] == post["id"]
 
     def test_get_nonexistent_post_returns_404(self, client):
         resp = client.get("/api/forum/posts/99999")
@@ -264,7 +262,7 @@ class TestRecordPostLongView:
         resp = _post_json(client, f"/api/forum/posts/{post['id']}/long-view", {}, headers)
 
         assert resp.status_code == 201
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["tracked"] is True
 
     def test_long_view_requires_auth(self, client, make_auth_headers):
@@ -287,7 +285,7 @@ class TestUpdatePost:
         post = _create_post(client, headers, title="Old")
         resp = _put_json(client, f"/api/forum/posts/{post['id']}", {"title": "New"}, headers)
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["title"] == "New"
+        assert resp.json()["data"]["title"] == "New"
 
     def test_non_author_gets_403(self, client, make_auth_headers):
         _, author_headers = make_auth_headers()
@@ -335,7 +333,7 @@ class TestCreateComment:
             headers,
         )
         assert resp.status_code == 201
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["post_id"] == post["id"]
         assert data["parent_comment_id"] is None
 
@@ -354,7 +352,7 @@ class TestCreateComment:
         )
 
         assert resp.status_code == 201
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["author_username"] == "comment_writer"
         assert data["author_avatar_url"] == "/api/uploads/avatars/comment-writer.svg"
 
@@ -392,7 +390,7 @@ class TestListComments:
         _create_comment(client, headers, post["id"], "C2")
         resp = client.get(f"/api/forum/posts/{post['id']}/comments")
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["total"] == 2
+        assert resp.json()["data"]["total"] == 2
 
     def test_deleted_comments_excluded(self, client, make_auth_headers):
         _, headers = make_auth_headers()
@@ -401,7 +399,7 @@ class TestListComments:
         c2 = _create_comment(client, headers, post["id"], "Delete me")
         client.delete(f"/api/forum/comments/{c2['id']}", headers=headers)
         resp = client.get(f"/api/forum/posts/{post['id']}/comments")
-        ids = [c["id"] for c in resp.get_json()["data"]["items"]]
+        ids = [c["id"] for c in resp.json()["data"]["items"]]
         assert c1["id"] in ids
         assert c2["id"] not in ids
 
@@ -416,7 +414,7 @@ class TestListComments:
         resp = client.get(f"/api/forum/posts/{post['id']}/comments")
 
         assert resp.status_code == 200
-        item = resp.get_json()["data"]["items"][0]
+        item = resp.json()["data"]["items"][0]
         assert item["author_username"] == "comment_reader"
         assert item["author_avatar_url"] == "/api/uploads/avatars/comment-reader.svg"
 
@@ -459,7 +457,7 @@ class TestToggleLike:
             headers,
         )
         assert resp.status_code == 200
-        data = resp.get_json()["data"]
+        data = resp.json()["data"]
         assert data["liked"] is True
         assert data["like_count"] == 1
 
@@ -475,8 +473,8 @@ class TestToggleLike:
             {"target_type": "post", "target_id": post["id"]},
             headers,
         )
-        assert resp.get_json()["data"]["liked"] is False
-        assert resp.get_json()["data"]["like_count"] == 0
+        assert resp.json()["data"]["liked"] is False
+        assert resp.json()["data"]["like_count"] == 0
 
     def test_like_comment(self, client, make_auth_headers):
         _, headers = make_auth_headers()
@@ -489,7 +487,7 @@ class TestToggleLike:
             headers,
         )
         assert resp.status_code == 200
-        assert resp.get_json()["data"]["liked"] is True
+        assert resp.json()["data"]["liked"] is True
 
     def test_invalid_target_type_returns_400(self, client, make_auth_headers):
         _, headers = make_auth_headers()

@@ -45,18 +45,16 @@ def _fake_general_chat_decision(*, conversation_id=None, **kwargs):
     }
 
 
-def _post_json(client, url, data, headers=None, buffered=False):
+def _post_json(client, url, data, headers=None):
     return client.post(
         url,
-        data=json.dumps(data),
-        content_type="application/json",
+        json=data,
         headers=headers,
-        buffered=buffered,
     )
 
 
 def _extract_sse_payloads(response) -> list[dict]:
-    body = response.get_data(as_text=True)
+    body = response.text
     data_lines = [line for line in body.splitlines() if line.startswith("data: ")]
     return [json.loads(line.removeprefix("data: ")) for line in data_lines]
 
@@ -88,7 +86,7 @@ class TestChatPersistenceApi:
         response = _post_json(client, "/api/ai/chat", {"message": "Hello"}, headers)
 
         assert response.status_code == 200
-        data = response.get_json()["data"]
+        data = response.json()["data"]
         assert data["reply"] == "Persisted reply"
         assert isinstance(data["conversation_id"], int)
         assert isinstance(data["user_message_id"], int)
@@ -102,7 +100,7 @@ class TestChatPersistenceApi:
             headers=headers,
         )
         assert history_response.status_code == 200
-        history = history_response.get_json()["data"]
+        history = history_response.json()["data"]
         assert history["conversation"]["id"] == data["conversation_id"]
         assert [item["role"] for item in history["items"]] == ["user", "assistant"]
         assert history["items"][0]["content_text"] == "Hello"
@@ -135,13 +133,13 @@ class TestChatPersistenceApi:
             },
             headers,
         )
-        conversation_id = response.get_json()["data"]["conversation_id"]
+        conversation_id = response.json()["data"]["conversation_id"]
 
         history_response = client.get(
             f"/api/ai/conversations/{conversation_id}/messages",
             headers=headers,
         )
-        history = history_response.get_json()["data"]
+        history = history_response.json()["data"]
         image_url = history["items"][0]["image_url"]
 
         assert image_url.startswith("/api/uploads/chat/")
@@ -173,7 +171,7 @@ class TestChatPersistenceApi:
         )
 
         assert response.status_code == 200
-        data = response.get_json()["data"]
+        data = response.json()["data"]
         assert data["reply"] == "Image-only reply"
         assert captured_request["user_message"] == ""
         assert captured_request["image_data_url"] == _VALID_IMAGE_DATA_URL
@@ -182,7 +180,7 @@ class TestChatPersistenceApi:
             f"/api/ai/conversations/{data['conversation_id']}/messages",
             headers=headers,
         )
-        history = history_response.get_json()["data"]
+        history = history_response.json()["data"]
 
         # The title model is down, so this is the fallback title for an image.
         assert llm_unavailable.calls >= 1
@@ -213,7 +211,7 @@ class TestChatPersistenceApi:
             fake_stream_chat_with_openrouter,
         )
 
-        response = _post_json(client, "/api/ai/chat/stream", {"message": "Hi"}, buffered=True)
+        response = _post_json(client, "/api/ai/chat/stream", {"message": "Hi"})
 
         assert response.status_code == 401
 
@@ -237,9 +235,7 @@ class TestChatPersistenceApi:
         )
         monkeypatch.setattr(ai_decision_engine, "decide_message", _fake_general_chat_decision)
 
-        response = _post_json(
-            client, "/api/ai/chat/stream", {"message": "Hello"}, headers, buffered=True
-        )
+        response = _post_json(client, "/api/ai/chat/stream", {"message": "Hello"}, headers)
 
         assert response.status_code == 200
         payloads = _extract_sse_payloads(response)
@@ -266,7 +262,7 @@ class TestChatPersistenceApi:
             headers=headers,
         )
         assert history_response.status_code == 200
-        history = history_response.get_json()["data"]
+        history = history_response.json()["data"]
         assert [item["role"] for item in history["items"]] == ["user", "assistant"]
         assert history["items"][1]["content_text"] == "Streamed reply"
         assert history["items"][1]["trace"]["schema_version"] == "graph-agent-trace-v1"
@@ -298,15 +294,15 @@ class TestConversationListingApi:
             "/api/ai/conversations?page=1&per_page=20", headers=user1_headers
         )
         assert list_response.status_code == 200
-        payload = list_response.get_json()["data"]
+        payload = list_response.json()["data"]
 
         assert payload["total"] == 2
         assert len(payload["items"]) == 2
-        assert payload["items"][0]["id"] == second_response.get_json()["data"]["conversation_id"]
-        assert payload["items"][1]["id"] == first_response.get_json()["data"]["conversation_id"]
+        assert payload["items"][0]["id"] == second_response.json()["data"]["conversation_id"]
+        assert payload["items"][1]["id"] == first_response.json()["data"]["conversation_id"]
 
         other_list_response = client.get("/api/ai/conversations", headers=user2_headers)
-        other_payload = other_list_response.get_json()["data"]
+        other_payload = other_list_response.json()["data"]
         assert other_payload["total"] == 1
 
     def test_message_history_endpoint_requires_authentication(self, client):
@@ -328,7 +324,7 @@ class TestConversationListingApi:
         create_response = _post_json(
             client, "/api/ai/chat", {"message": "Delete this chat"}, headers
         )
-        conversation_id = create_response.get_json()["data"]["conversation_id"]
+        conversation_id = create_response.json()["data"]["conversation_id"]
         conversation = db.session.get(AIConversation, conversation_id)
 
         first_message = db.session.scalar(
@@ -351,11 +347,11 @@ class TestConversationListingApi:
         delete_response = client.delete(f"/api/ai/conversations/{conversation_id}", headers=headers)
 
         assert delete_response.status_code == 200
-        assert delete_response.get_json()["data"]["deleted_conversation_id"] == conversation_id
+        assert delete_response.json()["data"]["deleted_conversation_id"] == conversation_id
 
         list_response = client.get("/api/ai/conversations?page=1&per_page=20", headers=headers)
         assert list_response.status_code == 200
-        assert list_response.get_json()["data"]["total"] == 0
+        assert list_response.json()["data"]["total"] == 0
 
         history_response = client.get(
             f"/api/ai/conversations/{conversation_id}/messages",
@@ -409,7 +405,6 @@ class TestRecyclingPersistenceApi:
                 "image": _VALID_IMAGE_DATA_URL,
             },
             headers,
-            buffered=True,
         )
 
         assert response.status_code == 200
@@ -476,7 +471,6 @@ class TestRecyclingPersistenceApi:
                 "session_id": "integration-skip-session",
             },
             headers,
-            buffered=True,
         )
         analyze_payloads = _extract_sse_payloads(analyze_response)
         persisted_payload = [
@@ -501,7 +495,6 @@ class TestRecyclingPersistenceApi:
             "/api/ai/chat/resume",
             {"session_id": "integration-skip-session"},
             headers,
-            buffered=True,
         )
         assert resume_response.status_code == 200
         resume_payloads = _extract_sse_payloads(resume_response)
@@ -515,7 +508,7 @@ class TestRecyclingPersistenceApi:
             f"/api/ai/conversations/{conversation_id}/messages",
             headers=headers,
         )
-        history = history_response.get_json()["data"]
+        history = history_response.json()["data"]
         assert [item["message_type"] for item in history["items"]] == [
             "image",
             "analysis_result",

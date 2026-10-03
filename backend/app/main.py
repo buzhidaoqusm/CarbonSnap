@@ -1,0 +1,27 @@
+"""The ASGI application: FastAPI in front, the Flask app behind it.
+
+Routes move from Flask to FastAPI one module at a time (the strangler fig
+pattern). FastAPI answers the paths it has routes for, including /docs and
+/openapi.json; every other path falls through to the mounted Flask app, which
+a2wsgi runs on a thread pool. Run with:
+
+    uvicorn --factory app.main:create_api
+"""
+
+from a2wsgi import WSGIMiddleware
+from fastapi import FastAPI
+from flask import Flask
+
+from app import create_app
+from app.core.config import get_settings
+
+
+def create_api(flask_app: Flask | None = None) -> FastAPI:
+    api = FastAPI(title="CarbonSnap API", version="0.1.0")
+    legacy = flask_app if flask_app is not None else create_app()
+    # Mounted last so routes registered on api take precedence.
+    # The WSGI/ASGI type stubs of Flask, a2wsgi and Starlette do not line up,
+    # though the objects are compatible at runtime.
+    wsgi = WSGIMiddleware(legacy, workers=get_settings().wsgi_threads)  # type: ignore[arg-type]
+    api.mount("/", wsgi)  # type: ignore[arg-type]
+    return api
