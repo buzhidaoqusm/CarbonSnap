@@ -66,7 +66,19 @@ node tools/frontend/metrics.mjs http://localhost:4173/                # 传输�
 node tools/frontend/metrics.mjs http://localhost:4173/ --down 10 --rtt 40 --detail   # 限速 + 逐个资源
 ```
 
-LCP 受外部 CDN 的网络波动影响很大（同一构建连跑 5 次在 3.4–6.0 秒之间），对比时各跑 5 次取中位数。
+首屏不再依赖第三方之后，首页 LCP 连跑 5 次在 0.65–0.77 秒之间（以前受外部 CDN 影响，在 2.2–6.0 秒之间）。对比时仍然各跑 5 次取中位数。
+
+别的域名全部挂起（或用 `--fail` 立即失败）时页面还能不能出来，出不来退出码为 1：
+
+```bash
+node tools/frontend/third-party.mjs http://localhost:4173/
+```
+
+改 CSS 前后两个构建逐元素比计算样式、逐屏比截图像素，计划文件的格式写在脚本开头。先拿同一个构建和自己比一次，看页面本身的噪声：
+
+```bash
+node tools/frontend/style-diff.mjs plan.json
+```
 
 截图（滚动过程、手机宽度、减少动态效果），计划文件的格式写在脚本开头：
 

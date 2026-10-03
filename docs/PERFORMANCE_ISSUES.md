@@ -35,6 +35,7 @@ docker compose -f docker-compose.yml -f docker-compose.bench.yml --profile bench
 | 5 | 用户关掉页面，服务端不停 | 继续占用 worker **8.5 s**，打满 4 次 LLM 调用，留下没有回复的会话 | P1 | 断开后 < 1 s 释放 |
 | 6 | ~~LLM 调用实际没有超时~~ ✅ 已修 | provider 卡住时：600 s 后 worker 被强杀 → **105 s 后返回错误事件** | 已修（2026-09-26） | 配置值生效 |
 | 7 | 每个并发会话约 115 MB | 3 个 worker 共 320 MB，12 个共 1.04 GB | P1 | 内存不随并发线性增长 |
+| 8 | ~~第三方资源卡住，整站白屏~~ ✅ 已修 | 第三方请求挂起时：**30 s 后仍白屏 → 0.7 s 出现**；首页 LCP 中位数 **3.0 s → 0.68 s** | 已修（2026-10-03） | 首屏不依赖任何第三方 |
 
 ---
 
@@ -185,6 +186,57 @@ uv run --no-project --with requests python tools/load_test/probe.py slow
 
 ```bash
 docker stats --no-stream carbonsnap-api-1
+```
+
+## 8. 第三方资源卡住，整站白屏 ✅ 已修复
+
+**原来的问题**：`index.html` 的 `<head>` 里同步加载了 Google Fonts 的两个样式表和 Tailwind 的
+Play CDN 脚本，全站样式都是这个脚本在浏览器里现场编译出来的。样式表会阻塞渲染；普通 `<script>`
+会阻塞解析，而且要等它前面的样式表下载完才执行。所以只要任何一个第三方请求挂住（防火墙丢包时就是
+这样，请求既不成功也不失败），解析器就停在 `<head>` 里，`<body>` 和应用代码永远加载不到。
+
+实测（生产构建，真实网络，两个构建交替各跑 5 次取中位数）：
+
+| | 修复前 | 修复后 |
+|---|---|---|
+| 第三方请求全部挂起 | 30 s 后仍白屏：`readyState` 停在 `loading`，没有 `<body>`，一帧都没画 | 首页 0.70 s、市场页 0.57 s 出现 |
+| 只挂起字体 CSS / 只挂起 Tailwind | 都是白屏，任何一个都是单点故障 | 不再请求它们 |
+| 第三方请求立即失败 | 0.56 s 出现，但完全没有样式，图标显示成英文单词 | 和正常一样 |
+| 首页 LCP | 3044 ms（2.2–4.2 s） | 676 ms（0.65–0.77 s） |
+| 市场页 LCP | 3504 ms（2.1–5.8 s） | 424 ms（0.36–0.50 s） |
+| 每页传输量 | Tailwind 脚本 127 KB（gzip） | 少约 120 KB：脚本没了，构建出的 CSS 多 8 KB |
+
+同一天网络差的时候，修复前的首页 9.7 s 才出现，市场页一次 LCP 到了 44.5 s（Tailwind 脚本下了 24 s）。
+
+**修复方式**：
+- Tailwind 改成构建时编译：装 CDN 实际提供的版本（3.4.17、forms 0.5.10、container-queries
+  0.1.1，固定版本号），作为 Vite 的 PostCSS 插件运行，只为源码里出现的 class 生成规则。
+- 字体用 fontsource 的包自托管。9 个正文字体文件和 Google 发的逐字节相同；图标字体差 456 字节，
+  但用 fonttools 比过，两个文件能画的 4299 个图标完全一样。`legacy-fonts.css` 沿用 Google 的
+  字体名和它实际提供的字重范围，别处不用改。
+- CSS 的 import 顺序就是层叠顺序：字体放最前（原来 Google 样式表的位置），Tailwind 放最后
+  （原来 CDN 的 `<style>` 插在我们的 CSS 之后、路由懒加载的 CSS 之前）。
+
+**修复过程中发现的问题**：
+- **index.html 里的 Tailwind 主题从来没生效过**：它在 CDN 脚本加载前写了
+  `window.tailwind.config`，脚本加载时替换了整个 `window.tailwind`，配置就丢了。模板里的
+  `bg-primary`、`font-headline` 等 class 一直没有任何样式。为了不改变用户看到的样子，构建用的是
+  CDN 实际生效的配置（默认配置加两个插件），这些页面在重新设计时会被替换。
+- Google 是按 300、400……800 逐个字重声明的，`font-weight: 650` 会就近画成 700；自托管的
+  可变字体按范围声明，会真的画成 650。`home-view.css` 里 5 处这样的值改成了以前实际画出来的值。
+- CDN 在浏览器里还跑了 autoprefixer。旧版 Safari 需要的前缀（`-webkit-backdrop-filter`、
+  `-webkit-user-select`）由 Vite 的 esbuild 按默认目标浏览器补上了，只差 `transition-property`
+  列表里一个多余的 `-webkit-text-decoration-color`。
+
+**怎么验证"看起来没变"**：`style-diff.mjs` 把修复前后两个构建的 18 个路由、桌面和手机两种宽度、
+登录前后各加载一遍，逐个元素比较全部计算样式，逐屏比较截图像素。修复前的构建用的是"CDN 文件
+放在本机"的副本，排除网络抖动。先拿同一个构建和自己比（A/A），噪声是：大照片每次缩放出来的像素
+不完全一样、取景框的淡入动画。A/B 剩下的差异都在这个范围内，或者是上面说的刻意改动；头像圆角有
+16 个像素差 1 个色阶（满分 255），计算样式相同。
+
+```bash
+node tools/frontend/third-party.mjs http://localhost:4173/          # 别的域名全部挂起：修复前退出码 1
+node tools/frontend/third-party.mjs http://localhost:4173/ --fail   # 别的域名立即失败
 ```
 
 ---
