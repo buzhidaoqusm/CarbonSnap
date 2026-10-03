@@ -113,7 +113,7 @@
   margin: 12px 0 0;
   color: var(--cs-text-muted);
   font-size: clamp(1rem, 1.18vw, 1.22rem);
-  font-weight: 650;
+  font-weight: 700;
   line-height: 1.35;
 }
 
@@ -799,7 +799,7 @@
   color: #17191a;
   font-family: var(--cs-font-heading);
   font-size: clamp(2.45rem, 3.7vw, 4.15rem);
-  font-weight: 560;
+  font-weight: 600;
   letter-spacing: 0;
   line-height: 0.93;
 }
@@ -820,7 +820,7 @@
   margin: 12px 0 0;
   color: rgba(25, 27, 28, 0.62);
   font-size: 1rem;
-  font-weight: 650;
+  font-weight: 700;
   line-height: 1.5;
 }
 
@@ -1002,7 +1002,7 @@
   margin: 0;
   color: rgba(24, 27, 26, 0.7);
   font-size: 0.76rem;
-  font-weight: 750;
+  font-weight: 800;
 }
 
 .map-card__locations strong {
@@ -1181,7 +1181,7 @@
   background: rgba(255, 255, 255, 0.58);
   color: rgba(24, 27, 26, 0.74);
   padding: 14px 18px 14px 48px;
-  font-weight: 750;
+  font-weight: 800;
   line-height: 1.45;
 }
 

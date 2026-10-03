@@ -1,0 +1,6 @@
+/* Compiled at build time from tailwind.config.js. main.js imports this last: the
+   CDN used to append its <style> after our own CSS, and among rules of equal
+   specificity the later one wins, so the order has to stay the same. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
