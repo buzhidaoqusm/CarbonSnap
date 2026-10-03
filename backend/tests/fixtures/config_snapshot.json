@@ -92,6 +92,11 @@
     "QWEN_BASE_URL": "https://dashscope.aliyuncs.com/compatible-mode/v1",
     "QWEN_MODEL": "qwen-plus",
     "SQLALCHEMY_DATABASE_URI": "postgresql+psycopg://carbonsnap:carbonsnap@127.0.0.1:5432/carbonsnap",
+    "SQLALCHEMY_ENGINE_OPTIONS": {
+      "max_overflow": 5,
+      "pool_pre_ping": true,
+      "pool_size": 40
+    },
     "SQLALCHEMY_TRACK_MODIFICATIONS": false,
     "UPLOAD_ROOT": "<repo>/data/uploads",
     "UPLOAD_URL_PREFIX": "/api/uploads"
@@ -189,6 +194,11 @@
     "QWEN_BASE_URL": "https://dashscope.aliyuncs.com/compatible-mode/v1",
     "QWEN_MODEL": "qwen-plus",
     "SQLALCHEMY_DATABASE_URI": "postgresql+psycopg://carbonsnap:carbonsnap@127.0.0.1:5432/carbonsnap",
+    "SQLALCHEMY_ENGINE_OPTIONS": {
+      "max_overflow": 5,
+      "pool_pre_ping": true,
+      "pool_size": 40
+    },
     "SQLALCHEMY_TRACK_MODIFICATIONS": false,
     "UPLOAD_ROOT": "<repo>/data/uploads",
     "UPLOAD_URL_PREFIX": "/api/uploads"
@@ -286,6 +296,11 @@
     "QWEN_BASE_URL": "https://dashscope.aliyuncs.com/compatible-mode/v1",
     "QWEN_MODEL": "qwen-plus",
     "SQLALCHEMY_DATABASE_URI": "postgresql+psycopg://carbonsnap:carbonsnap@127.0.0.1:5432/carbonsnap",
+    "SQLALCHEMY_ENGINE_OPTIONS": {
+      "max_overflow": 5,
+      "pool_pre_ping": true,
+      "pool_size": 40
+    },
     "SQLALCHEMY_TRACK_MODIFICATIONS": false,
     "UPLOAD_ROOT": "<repo>/data/uploads",
     "UPLOAD_URL_PREFIX": "/api/uploads"
@@ -358,6 +373,11 @@
     "QWEN_BASE_URL": "https://qwen.example/v1",
     "QWEN_MODEL": "qwen-max",
     "SQLALCHEMY_DATABASE_URI": "postgresql+psycopg://u:p@db:5432/app",
+    "SQLALCHEMY_ENGINE_OPTIONS": {
+      "max_overflow": 5,
+      "pool_pre_ping": true,
+      "pool_size": 40
+    },
     "SQLALCHEMY_TRACK_MODIFICATIONS": false,
     "UPLOAD_ROOT": "<tmp>/uploads",
     "UPLOAD_URL_PREFIX": "/files"

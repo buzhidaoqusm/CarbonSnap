@@ -23,6 +23,15 @@ def load_app_settings(app: Flask) -> None:
     app.config.update(
         SQLALCHEMY_DATABASE_URI=settings.database_url,
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        # One connection per thread serving Flask: a chat turn keeps its
+        # transaction, and so its connection, open across the LLM calls. A
+        # smaller pool makes the extra threads wait 30 s and fail. The
+        # overflow is headroom for background jobs.
+        SQLALCHEMY_ENGINE_OPTIONS={
+            "pool_size": settings.wsgi_threads,
+            "max_overflow": 5,
+            "pool_pre_ping": True,
+        },
         JWT_SECRET_KEY=settings.jwt_secret_key,
         JWT_ACCESS_TOKEN_EXPIRES=timedelta(days=7),
     )

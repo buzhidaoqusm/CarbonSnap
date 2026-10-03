@@ -77,8 +77,9 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://carbonsnap:carbonsnap@127.0.0.1:5432/carbonsnap"
     # Threads per process that run the Flask app behind the ASGI server, i.e.
     # how many not-yet-migrated requests (a chat stream holds one throughout)
-    # one process serves at once.
-    wsgi_threads: int = Field(10, ge=1)
+    # one process serves at once. The database pool is sized to match. See
+    # docs/benchmarks.md for why one process with 40 threads beat three.
+    wsgi_threads: int = Field(40, ge=1)
     jwt_secret_key: str = "dev-secret-change-in-production"
 
     # --- LLM provider ----------------------------------------------------------
