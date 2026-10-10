@@ -34,7 +34,7 @@ import pytest
 from flask_sqlalchemy.session import _app_ctx_id
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm import Session, scoped_session, sessionmaker
 
 # --- Pinned before importing the app: settings read os.environ at import/boot.
 _TEST_TMP_ROOT = Path(mkdtemp(prefix="carbonsnap-tests-"))
@@ -60,7 +60,7 @@ os.environ.update(
         "DATABASE_URL": _TEST_DATABASE_URL.render_as_string(hide_password=False),
         "UPLOAD_ROOT": str(_TEST_TMP_ROOT / "uploads"),
         "UPLOAD_URL_PREFIX": "/api/uploads",
-        "JWT_SECRET_KEY": "test-secret",
+        "JWT_SECRET_KEY": "test-secret-at-least-32-bytes-long",
         # Placeholder credentials: non-empty so provider config checks pass,
         # never valid so an un-mocked call fails instead of billing anyone.
         "OPENROUTER_API_KEY": "test-key",
@@ -140,10 +140,9 @@ def _recreate_test_database() -> None:
 def app():
     _recreate_test_database()
     flask_app = create_app()
-    flask_app.config.update(
-        TESTING=True,
-        JWT_ACCESS_TOKEN_EXPIRES=False,
-    )
+    # Tokens keep the production 7-day expiry: the FastAPI routes reject a
+    # token without "exp", as no deployed instance issues one.
+    flask_app.config.update(TESTING=True)
     with flask_app.app_context():
         # Fail loudly rather than writing to a real database.
         bound = _db.engine.url.database
@@ -327,8 +326,22 @@ def override_settings(app, monkeypatch):
 # ---------------------------------------------------------------------------
 
 
+@pytest.fixture()
+def db_connection(app):
+    """The one connection a test runs on, inside a transaction rolled back at
+    the end. Flask's db.session and FastAPI's get_db both bind to it."""
+    with app.app_context():
+        connection = _db.engine.connect()
+    outer = connection.begin()
+    try:
+        yield connection
+    finally:
+        outer.rollback()
+        connection.close()
+
+
 @pytest.fixture(autouse=True)
-def db_session(app):
+def db_session(app, db_connection):
     """Run the test inside a transaction that is rolled back when it ends.
 
     The code under test commits freely. With join_transaction_mode
@@ -342,10 +355,8 @@ def db_session(app):
     stays per app context, as in Flask-SQLAlchemy.
     """
     with app.app_context():
-        connection = _db.engine.connect()
-        outer = connection.begin()
         session = scoped_session(
-            sessionmaker(bind=connection, join_transaction_mode="create_savepoint"),
+            sessionmaker(bind=db_connection, join_transaction_mode="create_savepoint"),
             scopefunc=_app_ctx_id,
         )
         original = _db.session
@@ -355,8 +366,6 @@ def db_session(app):
         finally:
             session.remove()
             _db.session = original
-            outer.rollback()
-            connection.close()
 
 
 # ---------------------------------------------------------------------------
@@ -373,13 +382,25 @@ def api(app):
 
 
 @pytest.fixture()
-def client(api):
+def client(api, db_connection):
     """Requests go through the whole ASGI stack, so a test does not care
     whether its route has moved from Flask to FastAPI yet."""
     from fastapi.testclient import TestClient
 
-    with TestClient(api) as test_client:
-        yield test_client
+    from app.db.session import get_db
+
+    # FastAPI routes get a session on the test's connection, so they see what
+    # the test (and Flask) wrote, and their commits are rolled back with it.
+    def _test_db():
+        with Session(bind=db_connection, join_transaction_mode="create_savepoint") as session:
+            yield session
+
+    api.dependency_overrides[get_db] = _test_db
+    try:
+        with TestClient(api) as test_client:
+            yield test_client
+    finally:
+        api.dependency_overrides.pop(get_db, None)
 
 
 # ---------------------------------------------------------------------------

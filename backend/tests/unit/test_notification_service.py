@@ -35,7 +35,7 @@ class TestDispatch:
             source_id=1,
             title="Someone liked your post.",
         )
-        result = notification_service.list_notifications(user.id, page=1, per_page=10)
+        result = notification_service.list_notifications(db.session, user.id, page=1, per_page=10)
         assert result["total"] == 1
         assert result["items"][0]["event_type"] == "post_liked"
 
@@ -56,7 +56,7 @@ class TestDomainShortcuts:
         notification_service.on_post_liked(
             recipient_user_id=user.id, post_id=42, liker_username="bob"
         )
-        result = notification_service.list_notifications(user.id, 1, 10)
+        result = notification_service.list_notifications(db.session, user.id, 1, 10)
         assert result["total"] == 1
         n = result["items"][0]
         assert n["event_type"] == "post_liked"
@@ -69,7 +69,7 @@ class TestDomainShortcuts:
         notification_service.on_post_commented(
             recipient_user_id=user.id, post_id=7, commenter_username="carol"
         )
-        result = notification_service.list_notifications(user.id, 1, 10)
+        result = notification_service.list_notifications(db.session, user.id, 1, 10)
         n = result["items"][0]
         assert n["event_type"] == "post_commented"
         assert "carol" in n["title"]
@@ -79,7 +79,7 @@ class TestDomainShortcuts:
         notification_service.on_comment_replied(
             recipient_user_id=user.id, comment_id=5, replier_username="dave"
         )
-        result = notification_service.list_notifications(user.id, 1, 10)
+        result = notification_service.list_notifications(db.session, user.id, 1, 10)
         n = result["items"][0]
         assert n["event_type"] == "comment_replied"
         assert n["source_type"] == "forum_comment"
@@ -87,7 +87,7 @@ class TestDomainShortcuts:
     def test_on_order_shipped(self):
         user = _make_user()
         notification_service.on_order_shipped(recipient_user_id=user.id, order_id=10)
-        result = notification_service.list_notifications(user.id, 1, 10)
+        result = notification_service.list_notifications(db.session, user.id, 1, 10)
         n = result["items"][0]
         assert n["event_type"] == "order_shipped"
         assert n["source_type"] == "order"
@@ -95,7 +95,7 @@ class TestDomainShortcuts:
     def test_on_order_completed(self):
         user = _make_user()
         notification_service.on_order_completed(recipient_user_id=user.id, order_id=11)
-        result = notification_service.list_notifications(user.id, 1, 10)
+        result = notification_service.list_notifications(db.session, user.id, 1, 10)
         n = result["items"][0]
         assert n["event_type"] == "order_completed"
 
@@ -104,7 +104,7 @@ class TestDomainShortcuts:
         notification_service.on_project_completed(
             recipient_user_id=user.id, project_id=3, project_title="Green Earth"
         )
-        result = notification_service.list_notifications(user.id, 1, 10)
+        result = notification_service.list_notifications(db.session, user.id, 1, 10)
         n = result["items"][0]
         assert n["event_type"] == "project_completed"
         assert "Green Earth" in n["title"]
@@ -126,7 +126,7 @@ class TestListNotifications:
                 source_id=i,
                 title=f"Notification {i}",
             )
-        result = notification_service.list_notifications(user.id, page=1, per_page=3)
+        result = notification_service.list_notifications(db.session, user.id, page=1, per_page=3)
         assert result["total"] == 5
         assert len(result["items"]) == 3
 
@@ -141,11 +141,13 @@ class TestListNotifications:
                 title=f"N{i}",
             )
         # Mark one as read.
-        all_notifs = notification_service.list_notifications(user.id, 1, 10)
+        all_notifs = notification_service.list_notifications(db.session, user.id, 1, 10)
         first_id = all_notifs["items"][0]["id"]
-        notification_service.mark_as_read(first_id, user_id=user.id)
+        notification_service.mark_as_read(db.session, first_id, user_id=user.id)
 
-        unread = notification_service.list_notifications(user.id, 1, 10, unread_only=True)
+        unread = notification_service.list_notifications(
+            db.session, user.id, 1, 10, unread_only=True
+        )
         assert unread["total"] == 2
 
     def test_unread_count_in_response(self):
@@ -158,14 +160,14 @@ class TestListNotifications:
                 source_id=i,
                 title=f"N{i}",
             )
-        result = notification_service.list_notifications(user.id, 1, 10)
+        result = notification_service.list_notifications(db.session, user.id, 1, 10)
         assert result["unread_count"] == 4
 
 
 class TestGetUnreadCount:
     def test_zero_when_no_notifications(self):
         user = _make_user()
-        assert notification_service.get_unread_count(user.id)["unread_count"] == 0
+        assert notification_service.get_unread_count(db.session, user.id)["unread_count"] == 0
 
     def test_decrements_after_mark_all_read(self):
         user = _make_user()
@@ -177,8 +179,8 @@ class TestGetUnreadCount:
                 source_id=i,
                 title=f"N{i}",
             )
-        notification_service.mark_all_as_read(user.id)
-        assert notification_service.get_unread_count(user.id)["unread_count"] == 0
+        notification_service.mark_all_as_read(db.session, user.id)
+        assert notification_service.get_unread_count(db.session, user.id)["unread_count"] == 0
 
 
 class TestMarkAsRead:
@@ -191,9 +193,9 @@ class TestMarkAsRead:
             source_id=1,
             title="Hi",
         )
-        notifs = notification_service.list_notifications(user.id, 1, 10)
+        notifs = notification_service.list_notifications(db.session, user.id, 1, 10)
         nid = notifs["items"][0]["id"]
-        result = notification_service.mark_as_read(nid, user_id=user.id)
+        result = notification_service.mark_as_read(db.session, nid, user_id=user.id)
         assert result["is_read"] is True
 
     def test_cannot_mark_other_users_notification(self):
@@ -206,10 +208,10 @@ class TestMarkAsRead:
             source_id=1,
             title="Hi",
         )
-        notifs = notification_service.list_notifications(u1.id, 1, 10)
+        notifs = notification_service.list_notifications(db.session, u1.id, 1, 10)
         nid = notifs["items"][0]["id"]
         with pytest.raises(NotificationError) as exc_info:
-            notification_service.mark_as_read(nid, user_id=u2.id)
+            notification_service.mark_as_read(db.session, nid, user_id=u2.id)
         assert exc_info.value.http_status == 404
 
 
@@ -224,7 +226,7 @@ class TestMarkAllAsRead:
                 source_id=i,
                 title=f"N{i}",
             )
-        result = notification_service.mark_all_as_read(user.id)
+        result = notification_service.mark_all_as_read(db.session, user.id)
         assert result["updated"] == 3
 
     def test_idempotent_second_call(self):
@@ -236,6 +238,6 @@ class TestMarkAllAsRead:
             source_id=1,
             title="Hi",
         )
-        notification_service.mark_all_as_read(user.id)
-        result = notification_service.mark_all_as_read(user.id)
+        notification_service.mark_all_as_read(db.session, user.id)
+        result = notification_service.mark_all_as_read(db.session, user.id)
         assert result["updated"] == 0

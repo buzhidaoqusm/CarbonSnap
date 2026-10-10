@@ -10,14 +10,27 @@ a2wsgi runs on a thread pool. Run with:
 
 from a2wsgi import WSGIMiddleware
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from flask import Flask
 
 from app import create_app
+from app.api import health
+from app.api.errors import install_error_handlers
+from app.api.notification import routes as notification
 from app.core.config import get_settings
 
 
 def create_api(flask_app: Flask | None = None) -> FastAPI:
     api = FastAPI(title="CarbonSnap API", version="0.1.0")
+    # Wraps the Flask mount too; it answers preflights itself and its headers
+    # replace the ones flask_cors adds, so each response carries one set.
+    api.add_middleware(
+        CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
+    )
+    install_error_handlers(api)
+    api.include_router(health.router)
+    api.include_router(notification.router)
+
     legacy = flask_app if flask_app is not None else create_app()
     # Mounted last so routes registered on api take precedence.
     # The WSGI/ASGI type stubs of Flask, a2wsgi and Starlette do not line up,

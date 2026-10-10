@@ -1,14 +1,16 @@
-from flask import Blueprint, jsonify
+from fastapi import APIRouter
+from pydantic import BaseModel
 
-health_bp = Blueprint("health", __name__)
+router = APIRouter(tags=["health"])
 
 
-@health_bp.get("/health")
-def health_check():
-    return jsonify(
-        {
-            "service": "carbonsnap-backend",
-            "status": "ok",
-            "message": "Backend is running.",
-        }
-    )
+class Health(BaseModel):
+    service: str
+    status: str
+    message: str
+
+
+@router.get("/api/health", response_model=Health)
+def health_check() -> Health:
+    # No envelope: monitors and the compose healthcheck read "status" directly.
+    return Health(service="carbonsnap-backend", status="ok", message="Backend is running.")

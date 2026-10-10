@@ -11,6 +11,8 @@ Design:
 import logging
 from datetime import UTC
 
+from sqlalchemy.orm import Session
+
 from app.extensions.db import db
 from app.repositories.forum import forum_repository
 from app.repositories.notification import notification_repository
@@ -68,7 +70,7 @@ def _build_body(n) -> str:
     return title or "You have a new notification."
 
 
-def _build_source_url(n) -> str:
+def _build_source_url(session: Session, n) -> str:
     source_type = str(getattr(n, "source_type", "") or "").strip().lower()
     source_id = getattr(n, "source_id", None)
     event_type = str(getattr(n, "event_type", "") or "").strip().lower()
@@ -81,7 +83,7 @@ def _build_source_url(n) -> str:
     if source_type == "forum_comment":
         if source_id is None:
             return "/notification"
-        context = forum_repository.get_comment_notification_context(db.session, int(source_id))
+        context = forum_repository.get_comment_notification_context(session, int(source_id))
         if context is None:
             return "/notification"
         post_id = context.get("post_id")
@@ -103,7 +105,7 @@ def _build_source_url(n) -> str:
     return "/notification"
 
 
-def _serialize(n) -> dict:
+def _serialize(session: Session, n) -> dict:
     return {
         "id": n.id,
         "event_type": n.event_type,
@@ -111,7 +113,7 @@ def _serialize(n) -> dict:
         "source_id": n.source_id,
         "title": n.title,
         "body": _build_body(n),
-        "source_url": _build_source_url(n),
+        "source_url": _build_source_url(session, n),
         "is_read": n.is_read,
         "created_at": _serialize_datetime_utc(n.created_at),
     }
@@ -261,32 +263,32 @@ def on_project_completed(*, recipient_user_id: int, project_id: int, project_tit
 
 
 def list_notifications(
-    user_id: int, page: int, per_page: int, *, unread_only: bool = False
+    session: Session, user_id: int, page: int, per_page: int, *, unread_only: bool = False
 ) -> dict:
     items, total = notification_repository.list_notifications_page(
-        db.session, user_id, page, per_page, unread_only=unread_only
+        session, user_id, page, per_page, unread_only=unread_only
     )
     return {
-        "items": [_serialize(n) for n in items],
+        "items": [_serialize(session, n) for n in items],
         "total": total,
         "page": page,
         "per_page": per_page,
-        "unread_count": notification_repository.count_unread(db.session, user_id),
+        "unread_count": notification_repository.count_unread(session, user_id),
     }
 
 
-def get_unread_count(user_id: int) -> dict:
-    return {"unread_count": notification_repository.count_unread(db.session, user_id)}
+def get_unread_count(session: Session, user_id: int) -> dict:
+    return {"unread_count": notification_repository.count_unread(session, user_id)}
 
 
-def mark_as_read(notification_id: int, *, user_id: int) -> dict:
-    n = notification_repository.get_notification_by_id(db.session, notification_id, user_id=user_id)
+def mark_as_read(session: Session, notification_id: int, *, user_id: int) -> dict:
+    n = notification_repository.get_notification_by_id(session, notification_id, user_id=user_id)
     if n is None:
         raise NotificationError("Notification not found.", code=40400, http_status=404)
-    n = notification_repository.mark_as_read(db.session, n)
-    return _serialize(n)
+    n = notification_repository.mark_as_read(session, n)
+    return _serialize(session, n)
 
 
-def mark_all_as_read(user_id: int) -> dict:
-    updated = notification_repository.mark_all_as_read(db.session, user_id)
+def mark_all_as_read(session: Session, user_id: int) -> dict:
+    updated = notification_repository.mark_all_as_read(session, user_id)
     return {"updated": updated}

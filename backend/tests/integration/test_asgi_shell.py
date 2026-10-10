@@ -4,10 +4,42 @@ from __future__ import annotations
 
 
 def test_unmigrated_paths_reach_flask(client):
-    response = client.get("/api/health")
+    response = client.get("/api/forum/posts")
+
+    assert response.status_code == 200
+    assert response.json()["code"] == 0
+
+
+def test_fastapi_routes_take_precedence_over_flask():
+    # A Flask app that still has its own /api/health: FastAPI must answer.
+    from fastapi.testclient import TestClient
+    from flask import Flask
+
+    from app.main import create_api
+
+    legacy = Flask(__name__)
+    legacy.add_url_rule("/api/health", "health", lambda: {"served_by": "flask"})
+
+    with TestClient(create_api(legacy)) as client:
+        response = client.get("/api/health")
 
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
+    assert "served_by" not in response.json()
+
+
+def test_cors_preflight_is_answered_for_fastapi_routes(client):
+    response = client.options(
+        "/api/notifications",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "authorization",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "*"
 
 
 def test_fastapi_serves_its_own_docs(client):
