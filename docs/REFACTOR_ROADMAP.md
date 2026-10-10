@@ -192,7 +192,19 @@ docs/adr/
 >   所有测试改走 ASGI 链路。还没迁任何路由，并发问题 #1、#2、#7 已经修好：20 个用户时 ttft p50 51 s → 11 s，
 >   吞吐 0.18 → 1.17 轮/秒。默认配置是单进程 40 线程，选型过程见 `docs/benchmarks.md`。
 > - 过程中发现问题 #9：一轮对话全程占着一个数据库连接，暂时用"连接池和线程数一样大"兜住，根治放在 P2。
-> - 下一步：第 2 段（health、notification），把迁移模式定下来。
+> - **第 2 段 ✅（2026-10-10）**：health 和 notification 迁到 FastAPI，Flask 路由 56 → 51，统一模式定下来了：
+>   - `APIRouter` 加同步 `def` 路由，DB 是同步的，所以跑在线程池里；
+>   - `Envelope[T]` 响应模型，`/docs` 里能看到每个接口 `data` 的结构；
+>   - `Depends(get_db)` 和 `CurrentUserId` 依赖；
+>   - `app/api/errors.py` 统一错误响应，401 和校验失败都返回 envelope。
+>
+>   PyJWT 签发的 token 和 flask_jwt_extended 双向兼容，所以原计划第 2 步的 JWT 部分已经提前完成，那一步只剩迁 auth 接口。
+>   测试里用 `dependency_overrides[get_db]` 绑定到测试连接，路由代码不用改。
+>   顺手修掉的问题：
+>   - `sub` 是用户名的老 token 访问 notification 会返回 500；
+>   - flask_jwt_extended 对坏 token 返回 422 加 `{"msg"}`，前端只能显示 "Request failed"。
+> - 下一步：第 3 段，按 profile/auth → ledger → project → market → forum → uploads → ai/memory 的顺序迁移。
+>   迁 forum 和 market 时，要把 `notification_service.dispatch` 和 `auth_identity` 剩下的 Flask 依赖一起去掉。
 
 从简单到复杂，每迁一个模块开一个 PR：
 
