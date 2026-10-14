@@ -284,6 +284,33 @@ def llm_unavailable(guard_llm_client, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
+# Password hashing
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="session", autouse=True)
+def cheap_password_hashing():
+    """Hash passwords with one PBKDF2 round instead of scrypt.
+
+    scrypt is slow on purpose: 426 hashes took 117 s of a 162 s run. Callers
+    import the function by name, so patching the module attribute would miss
+    them; its defaults live on the one function object they all share.
+    check_password_hash reads the method from the hash, so verification needs
+    no change, and scrypt hashes still verify.
+    """
+    from werkzeug import security
+
+    hash_function = security.generate_password_hash
+    original = hash_function.__defaults__
+    # Fails loudly if werkzeug changes the signature, rather than silently
+    # setting the wrong parameter.
+    assert original == ("scrypt", 16), original
+    hash_function.__defaults__ = ("pbkdf2:sha256:1", 16)
+    yield
+    hash_function.__defaults__ = original
+
+
+# ---------------------------------------------------------------------------
 # Config isolation  (the app fixture is session-scoped, so feature flags a test
 # flips with app.config.update() would otherwise leak into every later test)
 # ---------------------------------------------------------------------------

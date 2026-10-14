@@ -13,7 +13,7 @@ uv sync                       # 首次 / 依赖变了之后
 uv run ruff check .           # lint
 uv run ruff format --check .  # 格式（去掉 --check 就是自动格式化）
 uv run mypy                   # 类型检查
-uv run pytest -q              # 全量测试，本机约 5–7 分钟
+uv run pytest -q              # 全量测试，本机约 40 秒
 ```
 
 提交前一条跑完：
@@ -35,6 +35,10 @@ uv run pytest -x --lf -q                                      # 只重跑上次�
 并拦截外网请求；不会碰开发库 `carbonsnap`，也不需要 `.env`。换一个库：`TEST_DATABASE_URL=postgresql+psycopg://...`。
 
 **不要同时跑两个 pytest**：第二个会把第一个正在用的测试库删掉重建。
+
+测试里的密码用 1 轮 PBKDF2 哈希，见 conftest 的 `cheap_password_hashing`；应用本身仍然用 scrypt。
+scrypt 是故意设计得很慢的算法：改之前 426 次哈希占了 117 秒（全量共 162 秒），改之后全量从 153 秒降到 38 秒。
+新写测试时直接调用 `generate_password_hash(...)` 就行，不要传 `method`，否则会绕过这个设置。
 
 本机连 PG 一律用 `127.0.0.1`，不要用 `localhost`：Windows 上 `localhost` 先试 IPv6 `::1`，
 compose 只绑定了 IPv4，每个新连接都会卡到 TCP 超时（实测 130 秒以上）才回落。
