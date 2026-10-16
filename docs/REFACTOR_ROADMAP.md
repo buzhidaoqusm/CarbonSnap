@@ -208,7 +208,13 @@ docs/adr/
 >     所以先对着 Flask 写了 24 个特征测试，把状态码、错误码和错误信息原样固定下来，迁移后一行没改，全部通过。
 >     签发 token 改用 PyJWT，从此不再依赖 Flask；老 token 访问 `/me` 原来会返回 500，现在正常。
 >     Flask 路由 51 → 46。
-> - 下一步：按 ledger → project → market → forum → uploads → ai/memory 的顺序继续迁移。
+>   - ledger ✅（2026-10-16）。补了 6 个特征测试，覆盖列表的返回结构、分页截断、空账本和已删除用户；
+>     抽出 `Pagination` 依赖，notification 和 ledger 共用。Flask 路由 46 → 41。
+>     还顺手修了一个第 2 段引入的回归：已迁移的路径收到不支持的方法时，原来会落到 Flask，返回 HTML 404；
+>     现在 Flask 是 `router.default` 而不是挂在 `/` 上，所以返回 405 envelope。
+>     另外还有一处没处理，代码里能确认但没有实测：周排行榜会把窗口期内所有有积分的用户都查出来，
+>     再在 Python 里截取前 5 名，查询量随用户数线性增长。
+> - 下一步：按 project → market → forum → uploads → ai/memory 的顺序继续迁移。
 >   迁 forum 和 market 时，要把 `notification_service.dispatch` 和 `auth_identity` 剩下的 Flask 依赖一起去掉。
 
 从简单到复杂，每迁一个模块开一个 PR：

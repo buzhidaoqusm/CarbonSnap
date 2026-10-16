@@ -1,4 +1,5 @@
-from app.extensions.db import db
+from sqlalchemy.orm import Session
+
 from app.repositories.ledger import ledger_repository
 from app.repositories.profile import user_repository
 
@@ -7,8 +8,8 @@ _SEGMENT = 200
 _MAX_LEVEL = 50
 
 
-def get_waste_records(user_id: int, page: int, per_page: int) -> dict:
-    records, total = ledger_repository.get_waste_records_page(db.session, user_id, page, per_page)
+def get_waste_records(session: Session, user_id: int, page: int, per_page: int) -> dict:
+    records, total = ledger_repository.get_waste_records_page(session, user_id, page, per_page)
     return {
         "items": [
             {
@@ -27,8 +28,8 @@ def get_waste_records(user_id: int, page: int, per_page: int) -> dict:
     }
 
 
-def get_transactions(user_id: int, page: int, per_page: int) -> dict:
-    txns, total = ledger_repository.get_transactions_page(db.session, user_id, page, per_page)
+def get_transactions(session: Session, user_id: int, page: int, per_page: int) -> dict:
+    txns, total = ledger_repository.get_transactions_page(session, user_id, page, per_page)
     return {
         "items": [
             {
@@ -48,11 +49,11 @@ def get_transactions(user_id: int, page: int, per_page: int) -> dict:
     }
 
 
-def get_summary(user_id: int) -> dict | None:
-    user = user_repository.get_by_id(db.session, user_id)
+def get_summary(session: Session, user_id: int) -> dict | None:
+    user = user_repository.get_by_id(session, user_id)
     if not user:
         return None
-    total_points_earned = ledger_repository.sum_earned_points(db.session, user_id)
+    total_points_earned = ledger_repository.sum_earned_points(session, user_id)
     return {
         "total_carbon_amount": user.total_carbon_amount,
         "current_points": user.current_points,
@@ -60,15 +61,15 @@ def get_summary(user_id: int) -> dict | None:
     }
 
 
-def get_gamification(user_id: int) -> dict | None:
+def get_gamification(session: Session, user_id: int) -> dict | None:
     """Derive level, XP bar, and unlocked badges from ledger totals (no extra tables)."""
-    user = user_repository.get_by_id(db.session, user_id)
+    user = user_repository.get_by_id(session, user_id)
     if not user:
         return None
 
     total_carbon = float(user.total_carbon_amount or 0.0)
     current_points = int(user.current_points or 0)
-    total_points_earned = ledger_repository.sum_earned_points(db.session, user_id)
+    total_points_earned = ledger_repository.sum_earned_points(session, user_id)
     contribution_points = max(total_points_earned, current_points)
     score = contribution_points + int(round(total_carbon * 10.0))
 
@@ -95,12 +96,13 @@ def get_gamification(user_id: int) -> dict | None:
 
 
 def get_weekly_leaderboard(
+    session: Session,
     user_id: int,
     *,
     window_days: int = 7,
     limit: int = 5,
 ) -> dict:
-    rows = ledger_repository.get_weekly_points_gains(db.session, window_days)
+    rows = ledger_repository.get_weekly_points_gains(session, window_days)
     ranked_rows = []
     current_user_rank = None
 

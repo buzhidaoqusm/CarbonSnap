@@ -1,83 +1,57 @@
-from flask import Blueprint, request
-from flask_jwt_extended import get_jwt_identity, jwt_required
+"""Points ledger: recycling records, transactions, totals and the leaderboard.
 
+Read-only. Records and transactions are written only when a recycling audit
+passes (recycling_audit_service), never from a request body.
+"""
+
+from fastapi import APIRouter
+
+from app.api.deps import CurrentUserId, DbSession, PageParams
+from app.api.errors import ApiError
+from app.schemas.common import Envelope, ok
+from app.schemas.ledger import (
+    Gamification,
+    LedgerSummary,
+    TransactionPage,
+    WasteRecordPage,
+    WeeklyLeaderboard,
+)
 from app.services.ledger import ledger_service
-from app.utils.response import fail, ok
 
-ledger_bp = Blueprint("ledger", __name__)
-
-
-def _parse_pagination() -> tuple[int, int]:
-    """Extract and clamp page / per_page from query string."""
-    try:
-        page = max(1, int(request.args.get("page", 1)))
-    except (TypeError, ValueError):
-        page = 1
-    try:
-        per_page = min(100, max(1, int(request.args.get("per_page", 20))))
-    except (TypeError, ValueError):
-        per_page = 20
-    return page, per_page
+router = APIRouter(prefix="/api/ledger", tags=["ledger"])
 
 
-# ---------------------------------------------------------------------------
-# GET /api/ledger/records
-# List the current user's waste analysis history. Records are written only
-# when a recycling audit passes (recycling_audit_service), never from a
-# request body, so this resource is read-only.
-# ---------------------------------------------------------------------------
+def _user_not_found() -> ApiError:
+    # A valid token whose user has since been deleted.
+    return ApiError(40400, "User not found.", 404)
 
 
-@ledger_bp.get("/ledger/records")
-@jwt_required()
-def list_records():
-    user_id = int(get_jwt_identity())
-    page, per_page = _parse_pagination()
-    return ok(ledger_service.get_waste_records(user_id, page, per_page))
+@router.get("/records", response_model=Envelope[WasteRecordPage])
+def list_records(user_id: CurrentUserId, session: DbSession, paging: PageParams):
+    return ok(ledger_service.get_waste_records(session, user_id, paging.page, paging.per_page))
 
 
-# ---------------------------------------------------------------------------
-# GET /api/ledger/transactions
-# List the current user's point transaction history.
-# ---------------------------------------------------------------------------
+@router.get("/transactions", response_model=Envelope[TransactionPage])
+def list_transactions(user_id: CurrentUserId, session: DbSession, paging: PageParams):
+    return ok(ledger_service.get_transactions(session, user_id, paging.page, paging.per_page))
 
 
-@ledger_bp.get("/ledger/transactions")
-@jwt_required()
-def list_transactions():
-    user_id = int(get_jwt_identity())
-    page, per_page = _parse_pagination()
-    return ok(ledger_service.get_transactions(user_id, page, per_page))
-
-
-# ---------------------------------------------------------------------------
-# GET /api/ledger/summary
-# Return carbon total and current points for the current user.
-# ---------------------------------------------------------------------------
-
-
-@ledger_bp.get("/ledger/summary")
-@jwt_required()
-def summary():
-    user_id = int(get_jwt_identity())
-    data = ledger_service.get_summary(user_id)
+@router.get("/summary", response_model=Envelope[LedgerSummary])
+def summary(user_id: CurrentUserId, session: DbSession):
+    data = ledger_service.get_summary(session, user_id)
     if data is None:
-        return fail(40400, "User not found.", 404)
+        raise _user_not_found()
     return ok(data)
 
 
-@ledger_bp.get("/ledger/gamification")
-@jwt_required()
-def gamification():
-    user_id = int(get_jwt_identity())
-    data = ledger_service.get_gamification(user_id)
+@router.get("/gamification", response_model=Envelope[Gamification])
+def gamification(user_id: CurrentUserId, session: DbSession):
+    data = ledger_service.get_gamification(session, user_id)
     if data is None:
-        return fail(40400, "User not found.", 404)
+        raise _user_not_found()
     return ok(data)
 
 
-@ledger_bp.get("/ledger/leaderboard/weekly")
-@jwt_required()
-def weekly_leaderboard():
-    user_id = int(get_jwt_identity())
-    return ok(ledger_service.get_weekly_leaderboard(user_id))
+@router.get("/leaderboard/weekly", response_model=Envelope[WeeklyLeaderboard])
+def weekly_leaderboard(user_id: CurrentUserId, session: DbSession):
+    return ok(ledger_service.get_weekly_leaderboard(session, user_id))

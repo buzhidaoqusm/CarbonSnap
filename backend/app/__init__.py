@@ -7,7 +7,6 @@ import app.models  # noqa: F401
 from app.api.ai.chat import ai_bp
 from app.api.ai.memory import ai_memory_bp
 from app.api.forum.routes import forum_bp
-from app.api.ledger.routes import ledger_bp
 from app.api.market.routes import market_bp
 from app.api.project.routes import project_bp
 from app.api.uploads.routes import uploads_bp
@@ -29,7 +28,6 @@ def create_app() -> Flask:
 
     flask_app.register_blueprint(ai_bp, url_prefix="/api")
     flask_app.register_blueprint(ai_memory_bp, url_prefix="/api")
-    flask_app.register_blueprint(ledger_bp, url_prefix="/api")
     flask_app.register_blueprint(forum_bp, url_prefix="/api")
     flask_app.register_blueprint(market_bp, url_prefix="/api")
     flask_app.register_blueprint(project_bp, url_prefix="/api")

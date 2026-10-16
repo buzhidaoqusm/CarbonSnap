@@ -9,7 +9,7 @@ Endpoints:
 
 from fastapi import APIRouter
 
-from app.api.deps import CurrentUserId, DbSession
+from app.api.deps import CurrentUserId, DbSession, PageParams
 from app.api.errors import ApiError
 from app.schemas.common import Envelope, ok
 from app.schemas.notification import (
@@ -30,15 +30,11 @@ router = APIRouter(prefix="/api/notifications", tags=["notification"])
 def list_notifications(
     user_id: CurrentUserId,
     session: DbSession,
-    page: int = 1,
-    per_page: int = 20,
+    paging: PageParams,
     unread_only: bool = False,
 ):
-    # Out-of-range values are clamped, as the Flask route did.
-    page = max(1, page)
-    per_page = min(100, max(1, per_page))
     result = notification_service.list_notifications(
-        session, user_id, page, per_page, unread_only=unread_only
+        session, user_id, paging.page, paging.per_page, unread_only=unread_only
     )
     return ok(result)
 

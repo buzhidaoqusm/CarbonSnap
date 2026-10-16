@@ -37,3 +37,15 @@ def get_current_user_id(
 
 
 CurrentUserId = Annotated[int, Depends(get_current_user_id)]
+
+
+class Pagination:
+    """?page=&per_page= for list endpoints; out-of-range values are clamped,
+    as the Flask routes did, and a non-integer is a 400."""
+
+    def __init__(self, page: int = 1, per_page: int = 20):
+        self.page = max(1, page)
+        self.per_page = min(100, max(1, per_page))
+
+
+PageParams = Annotated[Pagination, Depends()]

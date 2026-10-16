@@ -141,3 +141,165 @@ class TestLedgerRecordsApi:
         records = client.get("/api/ledger/records", headers=headers).json()["data"]
         assert records["total"] == 0
         assert response.status_code == 405
+
+
+# ---------------------------------------------------------------------------
+# Response shapes and paging, pinned before the routes moved to FastAPI.
+# ---------------------------------------------------------------------------
+
+_NAIVE_ISO = r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?"
+
+
+def _seed_record(*, user_id: int, waste_type: str, points: int, days_ago: int = 0) -> None:
+    from app.models.ai import WasteAnalysisRecord
+
+    db.session.add(
+        WasteAnalysisRecord(
+            user_id=user_id,
+            waste_type=waste_type,
+            co2_saved_kg=points / 10,
+            carbon_points=points,
+            image_url=f"/api/uploads/ai/{waste_type}.png",
+            created_at=datetime.now(UTC) - timedelta(days=days_ago),
+        )
+    )
+
+
+class TestLedgerListsApi:
+    def test_records_newest_first_with_paging(self, app, client, make_auth_headers):
+        import re
+
+        user_id, headers = make_auth_headers()
+        other_id, _ = make_auth_headers()
+        with app.app_context():
+            _seed_record(user_id=user_id, waste_type="glass", points=5, days_ago=2)
+            _seed_record(user_id=user_id, waste_type="paper", points=3, days_ago=1)
+            _seed_record(user_id=user_id, waste_type="plastic", points=8)
+            _seed_record(user_id=other_id, waste_type="metal", points=9)
+            db.session.commit()
+
+        response = client.get("/api/ledger/records?page=1&per_page=2", headers=headers)
+
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert (data["total"], data["page"], data["per_page"]) == (3, 1, 2)
+        assert [item["waste_type"] for item in data["items"]] == ["plastic", "paper"]
+        item = data["items"][0]
+        assert set(item) == {
+            "id",
+            "waste_type",
+            "co2_saved_kg",
+            "carbon_points",
+            "image_url",
+            "created_at",
+        }
+        assert (item["co2_saved_kg"], item["carbon_points"]) == (0.8, 8)
+        assert item["image_url"] == "/api/uploads/ai/plastic.png"
+        assert re.fullmatch(_NAIVE_ISO, item["created_at"])
+
+        page_two = client.get("/api/ledger/records?page=2&per_page=2", headers=headers)
+        assert [i["waste_type"] for i in page_two.json()["data"]["items"]] == ["glass"]
+
+    def test_transactions_newest_first(self, app, client, make_auth_headers):
+        user_id, headers = make_auth_headers()
+        with app.app_context():
+            _seed_transaction(user_id=user_id, points_delta=10, days_ago=1)
+            _seed_transaction(user_id=user_id, points_delta=4, txn_type="spend")
+            db.session.commit()
+
+        response = client.get("/api/ledger/transactions", headers=headers)
+
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert (data["total"], data["page"], data["per_page"]) == (2, 1, 20)
+        assert [(t["type"], t["points_delta"]) for t in data["items"]] == [
+            ("spend", 4),
+            ("earn", 10),
+        ]
+        assert set(data["items"][0]) == {
+            "id",
+            "type",
+            "points_delta",
+            "co2_delta_kg",
+            "source_type",
+            "source_id",
+            "created_at",
+        }
+        assert data["items"][0]["source_type"] == "test_seed"
+        assert data["items"][0]["source_id"] is None
+
+    def test_out_of_range_paging_is_clamped(self, client, make_auth_headers):
+        _, headers = make_auth_headers()
+
+        response = client.get("/api/ledger/transactions?page=0&per_page=500", headers=headers)
+
+        data = response.json()["data"]
+        assert (data["page"], data["per_page"]) == (1, 100)
+
+    def test_empty_ledger(self, client, make_auth_headers):
+        _, headers = make_auth_headers()
+
+        summary = client.get("/api/ledger/summary", headers=headers).json()["data"]
+        gamification = client.get("/api/ledger/gamification", headers=headers).json()["data"]
+        leaderboard = client.get("/api/ledger/leaderboard/weekly", headers=headers).json()["data"]
+
+        assert summary == {
+            "total_carbon_amount": 0.0,
+            "current_points": 0,
+            "total_points_earned": 0,
+        }
+        assert gamification == {
+            "level": 1,
+            "level_title": "Carbon sprout",
+            "xp_in_level": 0,
+            "xp_to_next": 200,
+            "total_carbon_amount": 0.0,
+            "current_points": 0,
+            "total_points_earned": 0,
+            "score": 0,
+            "badges": [],
+        }
+        assert leaderboard == {"window_days": 7, "top_users": [], "current_user_rank": None}
+
+    def test_badge_fields(self, app, client, make_auth_headers):
+        user_id, headers = make_auth_headers()
+        with app.app_context():
+            db.session.get(User, user_id).total_carbon_amount = 12.5
+            db.session.commit()
+
+        badges = client.get("/api/ledger/gamification", headers=headers).json()["data"]["badges"]
+
+        assert badges == [
+            {
+                "id": "first_carbon",
+                "name": "First step",
+                "description": "Saved over 0.01 kg CO₂ (total)",
+            },
+            {
+                "id": "carbon_10",
+                "name": "Ten kilo club",
+                "description": "Reached 10 kg CO₂ saved (total)",
+            },
+        ]
+
+    def test_summary_for_a_deleted_user(self, make_user, client):
+        # A valid token whose user no longer exists.
+        from app.core.security import create_access_token
+
+        headers = {"Authorization": f"Bearer {create_access_token(999_999)}"}
+
+        for path in ("/api/ledger/summary", "/api/ledger/gamification"):
+            response = client.get(path, headers=headers)
+            assert response.status_code == 404
+            assert response.json() == {"code": 40400, "message": "User not found.", "data": {}}
+
+    def test_legacy_token_with_username_subject(self, app, client, make_user):
+        from flask_jwt_extended import create_access_token
+
+        make_user(username="legacy", email="legacy@example.com")
+        with app.app_context():
+            token = create_access_token(identity="legacy")
+
+        response = client.get("/api/ledger/summary", headers={"Authorization": f"Bearer {token}"})
+
+        assert response.status_code == 200
