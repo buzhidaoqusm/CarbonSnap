@@ -71,3 +71,20 @@ def test_db_pool_covers_every_flask_thread(monkeypatch):
         clear_settings_cache()
 
     assert capacity >= 40
+
+
+def test_wrong_method_on_a_fastapi_path_is_405(client):
+    # The path belongs to FastAPI; Flask, which no longer has it, must not
+    # answer with its HTML 404.
+    for method, path in [("POST", "/api/notifications/read-all"), ("DELETE", "/api/auth/me")]:
+        response = client.request(method, path)
+
+        assert response.status_code == 405, (method, path)
+        assert response.json() == {"code": 40500, "message": "Method Not Allowed", "data": {}}
+
+
+def test_unknown_paths_still_reach_flask(client):
+    response = client.get("/api/no-such-route")
+
+    assert response.status_code == 404
+    assert response.headers["content-type"].startswith("text/html")

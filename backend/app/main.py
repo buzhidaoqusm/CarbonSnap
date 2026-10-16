@@ -2,8 +2,8 @@
 
 Routes move from Flask to FastAPI one module at a time (the strangler fig
 pattern). FastAPI answers the paths it has routes for, including /docs and
-/openapi.json; every other path falls through to the mounted Flask app, which
-a2wsgi runs on a thread pool. Run with:
+/openapi.json; every other path falls through to the Flask app, which a2wsgi
+runs on a thread pool. Run with:
 
     uvicorn --factory app.main:create_api
 """
@@ -23,7 +23,7 @@ from app.core.config import get_settings
 
 def create_api(flask_app: Flask | None = None) -> FastAPI:
     api = FastAPI(title="CarbonSnap API", version="0.1.0")
-    # Wraps the Flask mount too; it answers preflights itself and its headers
+    # Wraps the Flask fallback too; it answers preflights itself and its headers
     # replace the ones flask_cors adds, so each response carries one set.
     api.add_middleware(
         CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
@@ -34,9 +34,12 @@ def create_api(flask_app: Flask | None = None) -> FastAPI:
     api.include_router(auth.router)
 
     legacy = flask_app if flask_app is not None else create_app()
-    # Mounted last so routes registered on api take precedence.
+    # Flask is the router's default, not a mount at "/": a mount matches every
+    # path, so a FastAPI path called with the wrong method went to Flask and
+    # came back as its HTML 404. The router answers that case with a 405 before
+    # it falls back to the default.
     # The WSGI/ASGI type stubs of Flask, a2wsgi and Starlette do not line up,
     # though the objects are compatible at runtime.
     wsgi = WSGIMiddleware(legacy, workers=get_settings().wsgi_threads)  # type: ignore[arg-type]
-    api.mount("/", wsgi)  # type: ignore[arg-type]
+    api.router.default = wsgi  # type: ignore[assignment]
     return api
