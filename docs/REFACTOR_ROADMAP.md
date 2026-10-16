@@ -226,7 +226,9 @@ docs/adr/
 >     原来带坏 token 会返回 422 或 500，现在统一返回 401 envelope。
 >     `pagination(default_per_page)` 改成工厂函数，project 每页默认 12 条。Flask 路由 41 → 36。
 >     另外还有一处没处理，代码里能确认但没有实测：已登录用户请求列表时，会把所有项目都查出来，排完序再在 Python 里分页。
-> - 下一步：先修 #11（并发扣积分），再按 market → forum → uploads → ai/memory 的顺序继续迁移。
+>   - #11 并发扣积分 ✅（2026-10-16）。给用户、项目、商品、订单的读取加上行锁，4 个并发场景都从十几次出错降到 0/20，详见 PERFORMANCE_ISSUES #11。
+> - 下一步：按 market → forum → uploads → ai/memory 的顺序继续迁移。
+>   迁 market 和 forum 时，要逐个处理剩下的 `except Exception: pass`：异常吞掉后 session 仍处于失败状态，后面的查询会返回 500。
 >   迁 forum 和 market 时，要把 `notification_service.dispatch` 和 `auth_identity` 剩下的 Flask 依赖一起去掉。
 
 从简单到复杂，每迁一个模块开一个 PR：

@@ -33,6 +33,17 @@ def get_project_by_id(session: Session, project_id: int) -> Project | None:
     return session.get(Project, project_id)
 
 
+def get_project_for_update(session: Session, project_id: int) -> Project | None:
+    """Read the project and lock its row until the transaction ends, so two
+    contributions cannot both pass the remaining-target check."""
+    return session.scalar(
+        select(Project)
+        .where(Project.id == project_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+
+
 def list_projects_page(session: Session, page: int, per_page: int) -> tuple[list[Project], int]:
     fundraising_first = case((Project.status == "fundraising", 0), else_=1)
     base = select(Project)

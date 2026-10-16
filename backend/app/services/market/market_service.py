@@ -243,13 +243,14 @@ def place_order(*, buyer_id: int, item_id: int) -> dict:
     """Buyer purchases an item.
 
     Atomically:
-    1. Lock item (check active).
+    1. Lock the item row (check active).
     2. Deduct buyer points (spend transaction).
     3. Mark item as sold_out.
     4. Create order with status='paid'.
     5. Commit.
     """
-    item = market_repository.get_item_by_id(db.session, item_id)
+    # Locked until commit, so a second buyer waits and then sees sold_out.
+    item = market_repository.get_item_for_update(db.session, item_id)
     if item is None:
         raise MarketError("Item not found.", code=40400, http_status=404)
     if item.status != "active":
@@ -308,7 +309,8 @@ def place_order(*, buyer_id: int, item_id: int) -> dict:
 
 def ship_order(order_id: int, *, operator_user_id: int) -> dict:
     """Seller marks the order as shipped."""
-    order = market_repository.get_order_by_id(db.session, order_id)
+    # Locked until commit: ship, confirm and cancel each check the status first.
+    order = market_repository.get_order_for_update(db.session, order_id)
     if order is None:
         raise MarketError("Order not found.", code=40400, http_status=404)
     if order.seller_id != operator_user_id:
@@ -339,7 +341,8 @@ def confirm_receipt(order_id: int, *, operator_user_id: int) -> dict:
     3. Mark order 'completed'.
     4. Commit.
     """
-    order = market_repository.get_order_by_id(db.session, order_id)
+    # Locked until commit: ship, confirm and cancel each check the status first.
+    order = market_repository.get_order_for_update(db.session, order_id)
     if order is None:
         raise MarketError("Order not found.", code=40400, http_status=404)
     if order.buyer_id != operator_user_id:
@@ -384,7 +387,8 @@ def cancel_order(order_id: int, *, operator_user_id: int) -> dict:
 
     Only the buyer may cancel, and only before shipment.
     """
-    order = market_repository.get_order_by_id(db.session, order_id)
+    # Locked until commit: ship, confirm and cancel each check the status first.
+    order = market_repository.get_order_for_update(db.session, order_id)
     if order is None:
         raise MarketError("Order not found.", code=40400, http_status=404)
     if order.buyer_id != operator_user_id:

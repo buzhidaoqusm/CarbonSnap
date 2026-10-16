@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.models.ai import RecyclingAuditAttempt, RecyclingCase, WasteAnalysisRecord
 from app.models.ledger import Transaction
 from app.models.user import User
+from app.repositories.profile import user_repository
 
 
 def finalize_approved_recycling_case_and_earn(
@@ -25,7 +26,7 @@ def finalize_approved_recycling_case_and_earn(
 ) -> tuple[WasteAnalysisRecord, Transaction, User]:
     """Finalize a recycling case after audit approval and earn points atomically."""
     try:
-        user = session.get(User, user_id)
+        user = user_repository.get_for_update(session, user_id)
         if user is None:
             raise ValueError(f"User {user_id} not found.")
 
@@ -225,9 +226,13 @@ def spend_points(
     """Deduct *points* from user balance and write a 'spend' transaction.
 
     Raises InsufficientPointsError if the user's current_points < points.
+    Locks the user's row until the caller's transaction ends, so concurrent
+    spends see each other's deductions. Lock the resource being paid for
+    (project, item) before calling, never after, so locks are always taken
+    in the same order.
     Does NOT commit; caller must commit after all related writes.
     """
-    user = session.get(User, user_id)
+    user = user_repository.get_for_update(session, user_id)
     if user is None:
         raise ValueError(f"User {user_id} not found.")
     if user.current_points < points:
@@ -262,7 +267,7 @@ def earn_points(
     counts as earned points.
     Does NOT commit; caller must commit after all related writes.
     """
-    user = session.get(User, user_id)
+    user = user_repository.get_for_update(session, user_id)
     if user is None:
         raise ValueError(f"User {user_id} not found.")
     user.current_points += points

@@ -8,6 +8,22 @@ def get_by_id(session: Session, user_id: int) -> User | None:
     return session.get(User, user_id)
 
 
+def get_for_update(session: Session, user_id: int) -> User | None:
+    """Read the user and lock the row until the transaction ends.
+
+    For read-check-write on the balance: a concurrent transaction asking for
+    the same row waits for this one to commit, then reads the new value.
+    populate_existing refreshes an object the session already holds, which
+    would otherwise keep the value read before the lock.
+    """
+    return session.scalar(
+        select(User)
+        .where(User.id == user_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+
+
 def get_by_email(session: Session, email: str) -> User | None:
     return session.scalar(select(User).where(User.email == email))
 

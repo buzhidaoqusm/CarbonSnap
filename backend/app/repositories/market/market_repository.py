@@ -33,6 +33,17 @@ def get_item_by_id(session: Session, item_id: int) -> MarketItem | None:
     return session.get(MarketItem, item_id)
 
 
+def get_item_for_update(session: Session, item_id: int) -> MarketItem | None:
+    """Read the item and lock its row until the transaction ends, so two
+    buyers cannot both see it active."""
+    return session.scalar(
+        select(MarketItem)
+        .where(MarketItem.id == item_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+
+
 def list_active_items_page(
     session: Session, page: int, per_page: int
 ) -> tuple[list[MarketItem], int]:
@@ -113,6 +124,17 @@ def create_order(
 
 def get_order_by_id(session: Session, order_id: int) -> Order | None:
     return session.get(Order, order_id)
+
+
+def get_order_for_update(session: Session, order_id: int) -> Order | None:
+    """Read the order and lock its row until the transaction ends, so ship,
+    confirm and cancel cannot both pass the status check."""
+    return session.scalar(
+        select(Order)
+        .where(Order.id == order_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
 
 
 def update_order_status(order: Order, status: str) -> Order:

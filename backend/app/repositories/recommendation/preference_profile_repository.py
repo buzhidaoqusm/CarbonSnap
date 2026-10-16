@@ -8,6 +8,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.models.recommendation import ContentTopicAssignment, UserPreferenceProfile
+from app.repositories.profile import user_repository
 
 
 def _ensure_aware_utc(value: datetime | None) -> datetime | None:
@@ -156,6 +157,10 @@ def replace_user_preference_profiles(
     user_id: int,
     profiles: list[dict[str, Any]],
 ) -> list[UserPreferenceProfile]:
+    # Delete-then-insert, so two rebuilds for one user must not overlap: the
+    # second one's delete could not see rows the first had just inserted, and
+    # its inserts then hit the unique key. Locking the user row serialises them.
+    user_repository.get_for_update(session, user_id)
     session.execute(delete(UserPreferenceProfile).where(UserPreferenceProfile.user_id == user_id))
 
     rows: list[UserPreferenceProfile] = []
