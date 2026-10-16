@@ -83,6 +83,8 @@ files = [
     "app/api/errors.py",
     "app/api/health.py",
     "app/api/notification",
+    "app/api/profile",
+    "app/services/profile/auth_service.py",
     "app/schemas",
     "app/config/settings.py",
     "app/db",

@@ -17,6 +17,7 @@ from app import create_app
 from app.api import health
 from app.api.errors import install_error_handlers
 from app.api.notification import routes as notification
+from app.api.profile import auth
 from app.core.config import get_settings
 
 
@@ -30,6 +31,7 @@ def create_api(flask_app: Flask | None = None) -> FastAPI:
     install_error_handlers(api)
     api.include_router(health.router)
     api.include_router(notification.router)
+    api.include_router(auth.router)
 
     legacy = flask_app if flask_app is not None else create_app()
     # Mounted last so routes registered on api take precedence.

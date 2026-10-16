@@ -1,9 +1,9 @@
 import re
 
-from flask_jwt_extended import create_access_token
+from sqlalchemy.orm import Session
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from app.extensions.db import db
+from app.core.security import create_access_token
 from app.models.user import User
 from app.repositories.profile import user_repository
 from app.services.ai.image_storage_service import ImageStorageError, store_data_url_image
@@ -30,41 +30,41 @@ def _validate_password_strength(password: str) -> str | None:
     return None
 
 
-def register(username: str, email: str, password: str) -> tuple[User, str]:
+def register(session: Session, username: str, email: str, password: str) -> tuple[User, str]:
     """Create a new user and return (user, access_token).
     Raises AuthError on duplicate or invalid input.
     """
     strength_error = _validate_password_strength(password)
     if strength_error:
         raise AuthError(strength_error)
-    if user_repository.get_by_email(db.session, email):
+    if user_repository.get_by_email(session, email):
         raise AuthError("Email already registered.", code=40900, http_status=409)
-    if user_repository.get_by_username(db.session, username):
+    if user_repository.get_by_username(session, username):
         raise AuthError("Username already taken.", code=40900, http_status=409)
 
     user = user_repository.create(
-        db.session,
+        session,
         username=username,
         email=email,
         password_hash=generate_password_hash(password),
     )
-    token = create_access_token(identity=str(user.id))
+    token = create_access_token(user.id)
     return user, token
 
 
-def login(email: str, password: str) -> tuple[User, str]:
+def login(session: Session, email: str, password: str) -> tuple[User, str]:
     """Verify credentials and return (user, access_token).
     Raises AuthError on wrong credentials.
     """
-    user = user_repository.get_by_email(db.session, email)
+    user = user_repository.get_by_email(session, email)
     if not user or not check_password_hash(user.password_hash, password):
         raise AuthError("Invalid email or password.", code=40100, http_status=401)
 
-    token = create_access_token(identity=str(user.id))
+    token = create_access_token(user.id)
     return user, token
 
 
-def update_avatar(user_id: int, image_data: str) -> User:
+def update_avatar(session: Session, user_id: int, image_data: str) -> User:
     """Decode a base64 data URL, persist it to disk, and update the user's avatar_url.
     Raises AuthError if the image is invalid or the user is not found.
     """
@@ -73,19 +73,19 @@ def update_avatar(user_id: int, image_data: str) -> User:
     except ImageStorageError as exc:
         raise AuthError(str(exc), code=40001, http_status=400) from exc
 
-    user = user_repository.update_avatar_url(db.session, user_id, avatar_url)
+    user = user_repository.update_avatar_url(session, user_id, avatar_url)
     if not user:
         raise AuthError("User not found.", code=40400, http_status=404)
 
     return user
 
 
-def update_profile(user_id: int, *, bio: str | None = None) -> User:
+def update_profile(session: Session, user_id: int, *, bio: str | None = None) -> User:
     normalized_bio = None if bio is None else str(bio).strip()
     if normalized_bio is not None and len(normalized_bio) > 500:
         raise AuthError("Bio must be 500 characters or fewer.")
 
-    user = user_repository.update_profile(db.session, user_id, bio=normalized_bio)
+    user = user_repository.update_profile(session, user_id, bio=normalized_bio)
     if not user:
         raise AuthError("User not found.", code=40400, http_status=404)
 
