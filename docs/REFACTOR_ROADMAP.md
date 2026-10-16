@@ -220,7 +220,13 @@ docs/adr/
 >     变异测试证实了这一点：让行为事件写入失败后，原有的 10 个 project 测试全部照样通过。
 >     先补了 4 个副作用测试，再用 AST 脚本给 6 个模块里的 59 个函数加上 `session` 参数，`db.session` 从 44 处降到 0，
 >     这 6 个模块也加进了 mypy 检查。
-> - 下一步：按 project → market → forum → uploads → ai/memory 的顺序继续迁移。
+>   - project ✅（2026-10-16）。迁移前补了 24 个特征测试，覆盖创建和贡献时的各种校验错误、上传图片、分页和返回结构，
+>     迁移后一行没改，全部通过。之前补的副作用测试在 FastAPI 上也通过了，行为事件和通知都正常写入。
+>     新增 `OptionalUserId` 依赖，用于可选登录的接口：不带 token 当作匿名，带了 token 就必须有效。
+>     原来带坏 token 会返回 422 或 500，现在统一返回 401 envelope。
+>     `pagination(default_per_page)` 改成工厂函数，project 每页默认 12 条。Flask 路由 41 → 36。
+>     另外还有一处没处理，代码里能确认但没有实测：已登录用户请求列表时，会把所有项目都查出来，排完序再在 Python 里分页。
+> - 下一步：先修 #11（并发扣积分），再按 market → forum → uploads → ai/memory 的顺序继续迁移。
 >   迁 forum 和 market 时，要把 `notification_service.dispatch` 和 `auth_identity` 剩下的 Flask 依赖一起去掉。
 
 从简单到复杂，每迁一个模块开一个 PR：

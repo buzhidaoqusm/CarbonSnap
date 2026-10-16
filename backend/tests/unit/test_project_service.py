@@ -20,6 +20,7 @@ def test_create_project_returns_serialized_project(app, make_user):
 
     with app.app_context():
         result = project_service.create_project(
+            db.session,
             creator_user_id=creator_id,
             title="Neighborhood Compost Corner",
             description="A small shared composting station for our block.",
@@ -41,6 +42,7 @@ def test_contribute_to_project_deducts_points_and_marks_completed(app, make_user
 
     with app.app_context():
         created = project_service.create_project(
+            db.session,
             creator_user_id=creator_id,
             title="Park Tool Library",
             description="Shared repair tools for the neighborhood.",
@@ -50,6 +52,7 @@ def test_contribute_to_project_deducts_points_and_marks_completed(app, make_user
         )
 
         contribution = project_service.contribute_to_project(
+            db.session,
             project_id=created["id"],
             user_id=supporter_id,
             points=120,
@@ -93,6 +96,7 @@ def test_contribute_to_project_rejects_expired_project(app, make_user):
 
         with pytest.raises(ProjectError, match="passed its deadline"):
             project_service.contribute_to_project(
+                db.session,
                 project_id=project.id,
                 user_id=supporter_id,
                 points=20,
@@ -111,6 +115,7 @@ def test_contribute_to_project_rejects_points_above_remaining(app, make_user):
 
     with app.app_context():
         created = project_service.create_project(
+            db.session,
             creator_user_id=creator_id,
             title="Bike Fix Day",
             description="Community repair workshop.",
@@ -123,6 +128,7 @@ def test_contribute_to_project_rejects_points_above_remaining(app, make_user):
 
         with pytest.raises(ProjectError, match="Maximum allowed is 20"):
             project_service.contribute_to_project(
+                db.session,
                 project_id=created["id"],
                 user_id=supporter_id,
                 points=30,

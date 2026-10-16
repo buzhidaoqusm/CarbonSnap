@@ -350,11 +350,14 @@ def _find_nearby_recycling_places(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _recommend_project(payload: dict[str, Any]) -> dict[str, Any]:
+    from app.extensions.db import db
     from app.services.project import project_service
 
     user_id = int(payload["user_id"])
     limit = min(max(int(payload.get("limit") or 5), 1), 20)
-    result = project_service.list_projects(page=1, per_page=limit, viewer_user_id=user_id)
+    result = project_service.list_projects(
+        db.session(), page=1, per_page=limit, viewer_user_id=user_id
+    )
     return {
         "items": result.get("items", []),
         "total": result.get("total", 0),

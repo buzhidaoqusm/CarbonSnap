@@ -85,6 +85,8 @@ files = [
     "app/api/notification",
     "app/api/profile",
     "app/api/ledger",
+    "app/api/project",
+    "app/services/project",
     "app/services/ledger",
     "app/services/recommendation/topic_mapping_service.py",
     "app/services/recommendation/preference_profile_service.py",

@@ -1,112 +1,100 @@
-from flask import Blueprint, request
-from flask_jwt_extended import get_jwt_identity, jwt_required
+"""Community projects funded with points."""
 
+from typing import Annotated
+
+from fastapi import APIRouter
+
+from app.api.deps import CurrentUserId, DbSession, OptionalUserId, Pagination, pagination
+from app.api.errors import ApiError
+from app.schemas.common import Envelope, ok
+from app.schemas.project import (
+    ContributionIn,
+    ContributionResult,
+    ProjectDetail,
+    ProjectIn,
+    ProjectOut,
+    ProjectPage,
+    UploadIn,
+    UploadResult,
+)
 from app.services.ai.image_storage_service import ImageStorageError, store_data_url_image
 from app.services.project import project_service
 from app.services.project.project_service import ProjectError
-from app.utils.response import fail, ok
 
-project_bp = Blueprint("project", __name__)
+router = APIRouter(prefix="/api/projects", tags=["project"])
 
-
-def _current_user_id() -> int:
-    return int(get_jwt_identity())
+# Twelve cards fill the project grid.
+ProjectPaging = Annotated[Pagination, pagination(default_per_page=12)]
 
 
-def _optional_current_user_id() -> int | None:
-    identity = get_jwt_identity()
-    if identity is None:
-        return None
-    return int(identity)
+def _api_error(exc: ProjectError) -> ApiError:
+    return ApiError(exc.code, exc.message, exc.http_status)
 
 
-def _parse_pagination() -> tuple[int, int]:
+def _as_int(value: int | str, field: str) -> int:
     try:
-        page = max(1, int(request.args.get("page", 1)))
-    except (TypeError, ValueError):
-        page = 1
+        return int(value)
+    except (TypeError, ValueError) as exc:
+        raise ApiError(40001, f"'{field}' must be an integer.") from exc
+
+
+@router.post("/uploads", status_code=201, response_model=Envelope[UploadResult])
+def upload_project_image(_: CurrentUserId, body: UploadIn | None = None):
+    image = (body or UploadIn()).image
+    if not isinstance(image, str):
+        raise ApiError(40001, "Field 'image' must be a base64 data URL string.")
     try:
-        per_page = min(100, max(1, int(request.args.get("per_page", 12))))
-    except (TypeError, ValueError):
-        per_page = 12
-    return page, per_page
-
-
-@project_bp.post("/projects/uploads")
-@jwt_required()
-def upload_project_image():
-    body = request.get_json(silent=True) or {}
-    image_data_url = body.get("image")
-
-    if image_data_url is None or not isinstance(image_data_url, str):
-        return fail(40001, "Field 'image' must be a base64 data URL string.")
-
-    try:
-        image_url = store_data_url_image(image_data_url, namespace="project")
+        url = store_data_url_image(image, namespace="project")
     except ImageStorageError as exc:
-        return fail(40001, str(exc))
+        raise ApiError(40001, str(exc)) from exc
+    return ok(UploadResult(url=url))
 
-    return ok({"url": image_url}, status=201)
 
-
-@project_bp.get("/projects")
-@jwt_required(optional=True)
-def list_projects():
-    page, per_page = _parse_pagination()
+@router.get("", response_model=Envelope[ProjectPage])
+def list_projects(session: DbSession, viewer: OptionalUserId, paging: ProjectPaging):
     return ok(
-        project_service.list_projects(page, per_page, viewer_user_id=_optional_current_user_id())
+        project_service.list_projects(session, paging.page, paging.per_page, viewer_user_id=viewer)
     )
 
 
-@project_bp.post("/projects")
-@jwt_required()
-def create_project():
-    body = request.get_json(silent=True) or {}
-    title = str(body.get("title", "")).strip()
-    deadline_at = body.get("deadline_at")
-    try:
-        points_target = int(body.get("points_target", 0))
-    except (TypeError, ValueError):
-        return fail(40001, "'points_target' must be an integer.")
+@router.post("", status_code=201, response_model=Envelope[ProjectOut])
+def create_project(user_id: CurrentUserId, session: DbSession, body: ProjectIn | None = None):
+    body = body or ProjectIn()
+    points_target = _as_int(body.points_target, "points_target")
     try:
         result = project_service.create_project(
-            creator_user_id=_current_user_id(),
-            title=title,
-            description=body.get("description") or None,
-            cover_image_url=body.get("cover_image_url") or None,
+            session,
+            creator_user_id=user_id,
+            title=body.title.strip(),
+            description=body.description or None,
+            cover_image_url=body.cover_image_url or None,
             points_target=points_target,
-            deadline_at=deadline_at,
+            deadline_at=body.deadline_at,
         )
     except ProjectError as exc:
-        return fail(exc.code, exc.message, exc.http_status)
-    return ok(result, status=201)
+        raise _api_error(exc) from exc
+    return ok(result)
 
 
-@project_bp.get("/projects/<int:project_id>")
-@jwt_required(optional=True)
-def get_project(project_id: int):
+@router.get("/{project_id}", response_model=Envelope[ProjectDetail])
+def get_project(project_id: int, session: DbSession, viewer: OptionalUserId):
     try:
-        return ok(
-            project_service.get_project(project_id, viewer_user_id=_optional_current_user_id())
-        )
+        return ok(project_service.get_project(session, project_id, viewer_user_id=viewer))
     except ProjectError as exc:
-        return fail(exc.code, exc.message, exc.http_status)
+        raise _api_error(exc) from exc
 
 
-@project_bp.post("/projects/<int:project_id>/contributions")
-@jwt_required()
-def contribute_to_project(project_id: int):
-    body = request.get_json(silent=True) or {}
-    try:
-        points = int(body.get("points", 0))
-    except (TypeError, ValueError):
-        return fail(40001, "'points' must be an integer.")
+@router.post(
+    "/{project_id}/contributions", status_code=201, response_model=Envelope[ContributionResult]
+)
+def contribute_to_project(
+    project_id: int, user_id: CurrentUserId, session: DbSession, body: ContributionIn | None = None
+):
+    points = _as_int((body or ContributionIn()).points, "points")
     try:
         result = project_service.contribute_to_project(
-            project_id=project_id,
-            user_id=_current_user_id(),
-            points=points,
+            session, project_id=project_id, user_id=user_id, points=points
         )
     except ProjectError as exc:
-        return fail(exc.code, exc.message, exc.http_status)
-    return ok(result, status=201)
+        raise _api_error(exc) from exc
+    return ok(result)

@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from math import ceil
+from typing import overload
 
-from app.extensions.db import db
+from sqlalchemy.orm import Session
+
 from app.models.user import User
 from app.repositories.ledger.ledger_repository import InsufficientPointsError, spend_points
 from app.repositories.project import project_repository
@@ -29,6 +31,10 @@ def _utc_now() -> datetime:
     return datetime.now(UTC)
 
 
+@overload
+def _ensure_aware_utc(value: datetime) -> datetime: ...
+@overload
+def _ensure_aware_utc(value: None) -> None: ...
 def _ensure_aware_utc(value: datetime | None) -> datetime | None:
     if value is None:
         return None
@@ -77,6 +83,7 @@ def _serialize_contribution(contribution, contributor_username: str) -> dict:
 
 
 def _serialize_project(
+    session: Session,
     project,
     *,
     creator_username: str | None = None,
@@ -110,25 +117,26 @@ def _serialize_project(
         payload["recent_contributions"] = [
             _serialize_contribution(contribution, username)
             for contribution, username in project_repository.list_recent_contributions(
-                db.session, project.id, limit=12
+                session, project.id, limit=12
             )
         ]
     return payload
 
 
-def _refresh_recommendation_state(user_id: int) -> None:
-    preference_profile_service.recompute_user_preference_profiles(db.session, user_id)
-    memory_service.rebuild_user_preferences_summary(db.session, user_id)
+def _refresh_recommendation_state(session: Session, user_id: int) -> None:
+    preference_profile_service.recompute_user_preference_profiles(session, user_id)
+    memory_service.rebuild_user_preferences_summary(session, user_id)
 
 
 def create_project(
+    session: Session,
     *,
     creator_user_id: int,
     title: str,
     description: str | None,
     cover_image_url: str | None,
     points_target: int,
-    deadline_at: str,
+    deadline_at: str | None,
 ) -> dict:
     normalized_title = str(title or "").strip()
     if not normalized_title:
@@ -142,7 +150,7 @@ def create_project(
     normalized_cover = (str(cover_image_url).strip() or None) if cover_image_url else None
 
     project = project_repository.create_project(
-        db.session,
+        session,
         creator_user_id=creator_user_id,
         title=normalized_title,
         description=(str(description).strip() or None) if description is not None else None,
@@ -150,22 +158,23 @@ def create_project(
         points_target=int(points_target),
         deadline_at=parsed_deadline,
     )
-    db.session.commit()
+    session.commit()
     topic_mapping_service.refresh_project_topics(
-        db.session,
+        session,
         project_id=project.id,
         title=project.title,
         description=project.description,
     )
     try:
         behavior_event_service.record_project_create(
-            db.session, user_id=creator_user_id, project_id=project.id
+            session, user_id=creator_user_id, project_id=project.id
         )
-        _refresh_recommendation_state(creator_user_id)
+        _refresh_recommendation_state(session, creator_user_id)
     except Exception:
         pass
-    creator_map = project_repository.list_creator_usernames(db.session, [creator_user_id])
+    creator_map = project_repository.list_creator_usernames(session, [creator_user_id])
     return _serialize_project(
+        session,
         project,
         creator_username=creator_map.get(creator_user_id),
         contribution_count=0,
@@ -173,9 +182,11 @@ def create_project(
     )
 
 
-def list_projects(page: int, per_page: int, *, viewer_user_id: int | None = None) -> dict:
+def list_projects(
+    session: Session, page: int, per_page: int, *, viewer_user_id: int | None = None
+) -> dict:
     if viewer_user_id is not None:
-        all_items = project_repository.list_all_projects(db.session)
+        all_items = project_repository.list_all_projects(session)
         total = len(all_items)
         own_items = [item for item in all_items if int(item.creator_user_id) == int(viewer_user_id)]
         candidate_items = [
@@ -183,7 +194,7 @@ def list_projects(page: int, per_page: int, *, viewer_user_id: int | None = None
         ]
         try:
             ranked_candidate_items = rank_projects_for_user(
-                db.session, projects=candidate_items, user_id=viewer_user_id
+                session, projects=candidate_items, user_id=viewer_user_id
             )
         except Exception:
             ranked_candidate_items = candidate_items
@@ -191,18 +202,19 @@ def list_projects(page: int, per_page: int, *, viewer_user_id: int | None = None
         start = max((page - 1) * per_page, 0)
         items = ordered_items[start : start + per_page]
     else:
-        items, total = project_repository.list_projects_page(db.session, page, per_page)
+        items, total = project_repository.list_projects_page(session, page, per_page)
     creator_map = project_repository.list_creator_usernames(
-        db.session, [item.creator_user_id for item in items]
+        session, [item.creator_user_id for item in items]
     )
     contribution_counts = project_repository.list_contribution_counts_for_project_ids(
-        db.session, [item.id for item in items]
+        session, [item.id for item in items]
     )
     contributor_counts = project_repository.list_unique_contributor_counts_for_project_ids(
-        db.session, [item.id for item in items]
+        session, [item.id for item in items]
     )
     serialized_items = [
         _serialize_project(
+            session,
             item,
             creator_username=creator_map.get(item.creator_user_id),
             contribution_count=contribution_counts.get(item.id, 0),
@@ -217,38 +229,39 @@ def list_projects(page: int, per_page: int, *, viewer_user_id: int | None = None
         "per_page": per_page,
         "summary": {
             "fundraising_count": project_repository.count_projects_by_status(
-                db.session, "fundraising"
+                session, "fundraising"
             ),
-            "completed_count": project_repository.count_projects_by_status(db.session, "completed"),
-            "points_raised_total": project_repository.sum_points_raised(db.session),
+            "completed_count": project_repository.count_projects_by_status(session, "completed"),
+            "points_raised_total": project_repository.sum_points_raised(session),
         },
     }
 
 
-def get_project(project_id: int, *, viewer_user_id: int | None = None) -> dict:
-    project = project_repository.get_project_by_id(db.session, project_id)
+def get_project(session: Session, project_id: int, *, viewer_user_id: int | None = None) -> dict:
+    project = project_repository.get_project_by_id(session, project_id)
     if project is None:
         raise ProjectError("Project not found.", code=40400, http_status=404)
     if viewer_user_id is not None and viewer_user_id != project.creator_user_id:
         try:
             behavior_event_service.record_project_view(
-                db.session, user_id=viewer_user_id, project_id=project.id
+                session, user_id=viewer_user_id, project_id=project.id
             )
-            _refresh_recommendation_state(viewer_user_id)
+            _refresh_recommendation_state(session, viewer_user_id)
         except Exception:
             pass
-    creator_map = project_repository.list_creator_usernames(db.session, [project.creator_user_id])
+    creator_map = project_repository.list_creator_usernames(session, [project.creator_user_id])
     return _serialize_project(
+        session,
         project,
         creator_username=creator_map.get(project.creator_user_id),
         include_recent_contributions=True,
-        contribution_count=project_repository.count_contributions(db.session, project.id),
-        contributor_count=project_repository.count_unique_contributors(db.session, project.id),
+        contribution_count=project_repository.count_contributions(session, project.id),
+        contributor_count=project_repository.count_unique_contributors(session, project.id),
     )
 
 
-def contribute_to_project(*, project_id: int, user_id: int, points: int) -> dict:
-    project = project_repository.get_project_by_id(db.session, project_id)
+def contribute_to_project(session: Session, *, project_id: int, user_id: int, points: int) -> dict:
+    project = project_repository.get_project_by_id(session, project_id)
     if project is None:
         raise ProjectError("Project not found.", code=40400, http_status=404)
     if int(points or 0) <= 0:
@@ -261,7 +274,7 @@ def contribute_to_project(*, project_id: int, user_id: int, points: int) -> dict
     points_remaining = max(int(project.points_target or 0) - int(project.points_raised or 0), 0)
     if points_remaining <= 0:
         project.status = "completed"
-        db.session.commit()
+        session.commit()
         raise ProjectError("This project is already fully funded.", code=40901, http_status=409)
     if int(points) > points_remaining:
         raise ProjectError(
@@ -272,7 +285,7 @@ def contribute_to_project(*, project_id: int, user_id: int, points: int) -> dict
 
     try:
         spend_txn = spend_points(
-            db.session,
+            session,
             user_id=user_id,
             points=int(points),
             source_type="project",
@@ -283,12 +296,12 @@ def contribute_to_project(*, project_id: int, user_id: int, points: int) -> dict
         ) from exc
 
     contribution = project_repository.create_contribution(
-        db.session,
+        session,
         project_id=project.id,
         user_id=user_id,
         points=int(points),
     )
-    db.session.flush()
+    session.flush()
     spend_txn.source_id = contribution.id
     project.points_raised = int(project.points_raised or 0) + int(points)
     just_completed = False
@@ -297,16 +310,16 @@ def contribute_to_project(*, project_id: int, user_id: int, points: int) -> dict
         if project.status != "completed":
             just_completed = True
         project.status = "completed"
-    db.session.commit()
+    session.commit()
 
     if just_completed:
         recipient_ids = {
             int(project.creator_user_id),
-            *project_repository.list_distinct_contributor_user_ids(db.session, project.id),
+            *project_repository.list_distinct_contributor_user_ids(session, project.id),
         }
         for recipient_user_id in recipient_ids:
             notification_service.on_project_completed(
-                db.session,
+                session,
                 recipient_user_id=recipient_user_id,
                 project_id=project.id,
                 project_title=project.title,
@@ -314,27 +327,28 @@ def contribute_to_project(*, project_id: int, user_id: int, points: int) -> dict
 
     try:
         behavior_event_service.record_project_contribute(
-            db.session,
+            session,
             user_id=user_id,
             project_id=project.id,
             contribution_id=contribution.id,
         )
-        _refresh_recommendation_state(user_id)
+        _refresh_recommendation_state(session, user_id)
     except Exception:
         pass
 
-    creator_map = project_repository.list_creator_usernames(db.session, [project.creator_user_id])
-    contribution_username = project_repository.list_creator_usernames(db.session, [user_id]).get(
+    creator_map = project_repository.list_creator_usernames(session, [project.creator_user_id])
+    contribution_username = project_repository.list_creator_usernames(session, [user_id]).get(
         user_id, f"User {user_id}"
     )
-    viewer = db.session.get(User, user_id)
+    viewer = session.get(User, user_id)
     return {
         "project": _serialize_project(
+            session,
             project,
             creator_username=creator_map.get(project.creator_user_id),
             include_recent_contributions=True,
-            contribution_count=project_repository.count_contributions(db.session, project.id),
-            contributor_count=project_repository.count_unique_contributors(db.session, project.id),
+            contribution_count=project_repository.count_contributions(session, project.id),
+            contributor_count=project_repository.count_unique_contributors(session, project.id),
         ),
         "contribution": _serialize_contribution(contribution, contribution_username),
         "viewer_current_points": int(viewer.current_points if viewer is not None else 0),
