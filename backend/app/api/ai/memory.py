@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
+from app.extensions.db import db
 from app.services.ai.memory_service import (
     create_manual_memory_item,
     delete_memory_item,
@@ -40,7 +41,7 @@ def _parse_memory_payload():
 @jwt_required()
 def get_ai_memory():
     user_id = int(get_jwt_identity())
-    return jsonify({"code": 0, "message": "ok", "data": list_memory_payload(user_id)})
+    return jsonify({"code": 0, "message": "ok", "data": list_memory_payload(db.session, user_id)})
 
 
 @ai_memory_bp.post("/ai/memory")
@@ -52,7 +53,7 @@ def create_ai_memory():
 
     user_id = int(get_jwt_identity())
     try:
-        item = create_manual_memory_item(user_id=user_id, **parsed)
+        item = create_manual_memory_item(db.session, user_id=user_id, **parsed)
     except ValueError as exc:
         return _error_response(40001, str(exc), 400)
 
@@ -62,7 +63,7 @@ def create_ai_memory():
             "message": "ok",
             "data": {
                 "item": serialize_memory_item(item),
-                "summary": list_memory_payload(user_id)["summary"],
+                "summary": list_memory_payload(db.session, user_id)["summary"],
             },
         }
     )
@@ -76,6 +77,7 @@ def update_ai_memory(item_id: int):
 
     try:
         item = update_manual_memory_item(
+            db.session,
             item_id=item_id,
             user_id=user_id,
             memory_type=str(payload["memory_type"]).strip() if "memory_type" in payload else None,
@@ -93,7 +95,7 @@ def update_ai_memory(item_id: int):
             "message": "ok",
             "data": {
                 "item": serialize_memory_item(item),
-                "summary": list_memory_payload(user_id)["summary"],
+                "summary": list_memory_payload(db.session, user_id)["summary"],
             },
         }
     )
@@ -104,7 +106,7 @@ def update_ai_memory(item_id: int):
 def delete_ai_memory(item_id: int):
     user_id = int(get_jwt_identity())
     try:
-        item = delete_memory_item(item_id=item_id, user_id=user_id)
+        item = delete_memory_item(db.session, item_id=item_id, user_id=user_id)
     except ValueError as exc:
         return _error_response(40400, str(exc), 404)
 
@@ -114,7 +116,7 @@ def delete_ai_memory(item_id: int):
             "message": "ok",
             "data": {
                 "item": serialize_memory_item(item),
-                "summary": list_memory_payload(user_id)["summary"],
+                "summary": list_memory_payload(db.session, user_id)["summary"],
             },
         }
     )

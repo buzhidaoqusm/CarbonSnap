@@ -363,9 +363,10 @@ def _recommend_project(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _read_user_memory(payload: dict[str, Any]) -> dict[str, Any]:
+    from app.extensions.db import db
     from app.services.ai.memory_service import get_prompt_memory_summary
 
-    return {"summary": get_prompt_memory_summary(int(payload["user_id"]))}
+    return {"summary": get_prompt_memory_summary(db.session(), int(payload["user_id"]))}
 
 
 def _blocked_business_write(payload: dict[str, Any]) -> dict[str, Any]:

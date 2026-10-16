@@ -13,7 +13,6 @@ from datetime import UTC
 
 from sqlalchemy.orm import Session
 
-from app.extensions.db import db
 from app.repositories.forum import forum_repository
 from app.repositories.notification import notification_repository
 
@@ -125,6 +124,7 @@ def _serialize(session: Session, n) -> dict:
 
 
 def dispatch(
+    session: Session,
     *,
     recipient_user_id: int,
     event_type: str,
@@ -137,7 +137,7 @@ def dispatch(
     """
     try:
         notification_repository.create_notification(
-            db.session,
+            session,
             recipient_user_id=recipient_user_id,
             event_type=event_type,
             source_type=source_type,
@@ -160,9 +160,12 @@ def dispatch(
 # ---------------------------------------------------------------------------
 
 
-def on_post_liked(*, recipient_user_id: int, post_id: int, liker_username: str) -> None:
+def on_post_liked(
+    session: Session, *, recipient_user_id: int, post_id: int, liker_username: str
+) -> None:
     """Called by forum service after a post is liked."""
     dispatch(
+        session,
         recipient_user_id=recipient_user_id,
         event_type="post_liked",
         source_type="forum_post",
@@ -171,9 +174,12 @@ def on_post_liked(*, recipient_user_id: int, post_id: int, liker_username: str) 
     )
 
 
-def on_post_commented(*, recipient_user_id: int, post_id: int, commenter_username: str) -> None:
+def on_post_commented(
+    session: Session, *, recipient_user_id: int, post_id: int, commenter_username: str
+) -> None:
     """Called by forum service after a new top-level comment is created."""
     dispatch(
+        session,
         recipient_user_id=recipient_user_id,
         event_type="post_commented",
         source_type="forum_post",
@@ -182,9 +188,12 @@ def on_post_commented(*, recipient_user_id: int, post_id: int, commenter_usernam
     )
 
 
-def on_comment_replied(*, recipient_user_id: int, comment_id: int, replier_username: str) -> None:
+def on_comment_replied(
+    session: Session, *, recipient_user_id: int, comment_id: int, replier_username: str
+) -> None:
     """Called by forum service after a reply-to-comment is created."""
     dispatch(
+        session,
         recipient_user_id=recipient_user_id,
         event_type="comment_replied",
         source_type="forum_comment",
@@ -193,9 +202,12 @@ def on_comment_replied(*, recipient_user_id: int, comment_id: int, replier_usern
     )
 
 
-def on_comment_liked(*, recipient_user_id: int, comment_id: int, liker_username: str) -> None:
+def on_comment_liked(
+    session: Session, *, recipient_user_id: int, comment_id: int, liker_username: str
+) -> None:
     """Called by forum service after a comment is liked."""
     dispatch(
+        session,
         recipient_user_id=recipient_user_id,
         event_type="comment_liked",
         source_type="forum_comment",
@@ -204,9 +216,10 @@ def on_comment_liked(*, recipient_user_id: int, comment_id: int, liker_username:
     )
 
 
-def on_order_shipped(*, recipient_user_id: int, order_id: int) -> None:
+def on_order_shipped(session: Session, *, recipient_user_id: int, order_id: int) -> None:
     """Called by market service after the seller marks an order as shipped."""
     dispatch(
+        session,
         recipient_user_id=recipient_user_id,
         event_type="order_shipped",
         source_type="order",
@@ -215,9 +228,10 @@ def on_order_shipped(*, recipient_user_id: int, order_id: int) -> None:
     )
 
 
-def on_order_completed(*, recipient_user_id: int, order_id: int) -> None:
+def on_order_completed(session: Session, *, recipient_user_id: int, order_id: int) -> None:
     """Called by market service after the buyer confirms receipt."""
     dispatch(
+        session,
         recipient_user_id=recipient_user_id,
         event_type="order_completed",
         source_type="order",
@@ -227,6 +241,7 @@ def on_order_completed(*, recipient_user_id: int, order_id: int) -> None:
 
 
 def on_item_purchased(
+    session: Session,
     *,
     recipient_user_id: int,
     order_id: int,
@@ -234,6 +249,7 @@ def on_item_purchased(
 ) -> None:
     """Called by market service after a buyer places an order."""
     dispatch(
+        session,
         recipient_user_id=recipient_user_id,
         event_type="item_purchased",
         source_type="order",
@@ -246,9 +262,12 @@ def on_item_purchased(
     )
 
 
-def on_project_completed(*, recipient_user_id: int, project_id: int, project_title: str) -> None:
+def on_project_completed(
+    session: Session, *, recipient_user_id: int, project_id: int, project_title: str
+) -> None:
     """Called by project service when a project reaches its points target."""
     dispatch(
+        session,
         recipient_user_id=recipient_user_id,
         event_type="project_completed",
         source_type="project",

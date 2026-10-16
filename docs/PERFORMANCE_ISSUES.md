@@ -38,6 +38,7 @@ docker compose -f docker-compose.yml -f docker-compose.bench.yml --profile bench
 | 8 | ~~第三方资源卡住，整站白屏~~ ✅ 已修 | 第三方请求挂起时：**30 s 后仍白屏 → 0.7 s 出现**；首页 LCP 中位数 **3.0 s → 0.68 s** | 已修（2026-10-03） | 首屏不依赖任何第三方 |
 | 9 | 一轮对话全程占着一个数据库连接 | 20 个用户时 **11–20 个连接 "idle in transaction"**；线程多于连接池时 **34% 的对话失败** | P2（第 1 段先把连接池调到和线程数一样大） | 调用 LLM 前结束事务 |
 | 10 | 上传接口不限请求体大小 | 未实测：读代码确认没有任何上限 | 待定 | 头像等接口有大小上限，超出返回 413 |
+| 11 | 并发扣积分可能重复扣款 | 未实测：读代码确认，扣积分时没有加行锁 | 待定 | 同一用户并发扣款，最终余额正确，项目不会被超额筹款 |
 
 ---
 
@@ -281,6 +282,18 @@ docker compose -f docker-compose.yml -f docker-compose.bench.yml exec postgres p
 
 这是 P1 第 3 段迁移 auth 时读代码发现的，还没有实测。修的时候先测一下：上传 50 MB 的 data URL，
 看进程内存涨了多少、请求花了多久，以及磁盘上多出了什么。
+
+## 11. 并发扣积分可能重复扣款
+
+`ledger_repository.spend_points` 的做法是：先用 `session.get(User)` 读出余额，在 Python 里判断够不够、算出新余额，
+提交时再写回去，全程没有加锁。项目贡献对 `project.points_raised` 的处理也一样，整个代码库没有一处 `with_for_update`。
+
+PG 默认的隔离级别是 READ COMMITTED。两个并发请求可能读到同一个余额，各自在内存里扣减后先后写回，
+后提交的会覆盖先提交的（lost update）。按代码推断，用户可能花两份积分却只扣了一份，项目也可能被超额筹款。
+
+这是 P1 第 3 段迁移 project 前读代码发现的，**还没有实测**。修之前先写一个用 barrier 让两个线程同时扣款的测试，
+确认问题能复现；修法候选是 `SELECT ... FOR UPDATE`，或者用条件更新
+`UPDATE users SET current_points = current_points - :p WHERE id = :id AND current_points >= :p`。
 
 ## 查过但没有发现问题的
 

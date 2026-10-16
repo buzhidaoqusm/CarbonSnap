@@ -795,6 +795,7 @@ def _persist_seed_memory_updates(
 
         try:
             item = upsert_memory_item(
+                db.session,
                 user_id=user_id,
                 memory_type=memory_type,
                 memory_key=memory_key,

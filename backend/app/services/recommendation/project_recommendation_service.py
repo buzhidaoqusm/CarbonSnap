@@ -3,7 +3,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from math import exp
 
-from app.extensions.db import db
+from sqlalchemy.orm import Session
+
 from app.models.project import Project
 from app.repositories.project import project_repository
 from app.repositories.recommendation import behavior_event_repository, preference_profile_repository
@@ -330,46 +331,46 @@ def merge_ranked_projects(
     return merged_projects
 
 
-def build_ranking_context(*, user_id: int, projects: list[Project]) -> dict:
+def build_ranking_context(session: Session, *, user_id: int, projects: list[Project]) -> dict:
     project_ids = [
         int(project.id) for project in projects if project is not None and project.id is not None
     ]
-    has_history = preference_profile_service.has_sufficient_history(user_id)
+    has_history = preference_profile_service.has_sufficient_history(session, user_id)
     profile_snapshot = (
-        preference_profile_service.get_profile_snapshot(user_id) if has_history else {}
+        preference_profile_service.get_profile_snapshot(session, user_id) if has_history else {}
     )
     topic_assignments_by_project_id = (
         preference_profile_repository.list_content_topic_assignments_for_content_ids(
-            db.session,
+            session,
             domain="project",
             content_type="project",
             content_ids=project_ids,
         )
     )
     viewed_project_ids = behavior_event_repository.list_behavior_target_ids_for_user(
-        db.session,
+        session,
         user_id,
         domain="project",
         target_type="project",
         action_types=["view"],
     )
     contributed_project_ids = behavior_event_repository.list_behavior_target_ids_for_user(
-        db.session,
+        session,
         user_id,
         domain="project",
         target_type="project",
         action_types=["project_contribute"],
     )
     recent_topic_exposure = behavior_event_repository.list_recent_topic_exposure_counts_for_user(
-        db.session,
+        session,
         user_id,
         domain="project",
     )
     contribution_counts_by_project_id = project_repository.list_contribution_counts_for_project_ids(
-        db.session, project_ids
+        session, project_ids
     )
     contributor_counts_by_project_id = (
-        project_repository.list_unique_contributor_counts_for_project_ids(db.session, project_ids)
+        project_repository.list_unique_contributor_counts_for_project_ids(session, project_ids)
     )
     return {
         "has_history": has_history,
@@ -383,11 +384,13 @@ def build_ranking_context(*, user_id: int, projects: list[Project]) -> dict:
     }
 
 
-def rank_projects_for_user(*, projects: list[Project], user_id: int) -> list[Project]:
+def rank_projects_for_user(
+    session: Session, *, projects: list[Project], user_id: int
+) -> list[Project]:
     if not projects:
         return []
 
-    ranking_context = build_ranking_context(user_id=user_id, projects=projects)
+    ranking_context = build_ranking_context(session, user_id=user_id, projects=projects)
     if not ranking_context["has_history"]:
         return sorted(
             projects,

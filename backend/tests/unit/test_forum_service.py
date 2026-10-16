@@ -105,12 +105,12 @@ class TestRecordPostLongView:
         monkeypatch.setattr(
             forum_service.behavior_event_service,
             "record_forum_long_view",
-            lambda **kwargs: captured.update(kwargs) or object(),
+            lambda _session, **kwargs: captured.update(kwargs) or object(),
         )
         monkeypatch.setattr(
             forum_service.preference_profile_service,
             "recompute_user_preference_profiles",
-            lambda user_id: recomputed.append(user_id),
+            lambda _session, user_id: recomputed.append(user_id),
         )
 
         result = forum_service.record_post_long_view(created["id"], viewer_user_id=user.id)
@@ -140,7 +140,7 @@ class TestRecordPostLongView:
         monkeypatch.setattr(
             forum_service.behavior_event_service,
             "record_forum_long_view",
-            lambda **kwargs: pytest.fail("should not record duplicate long-view"),
+            lambda _session, **kwargs: pytest.fail("should not record duplicate long-view"),
         )
 
         result = forum_service.record_post_long_view(created["id"], viewer_user_id=user.id)
@@ -169,7 +169,7 @@ class TestRecordPostLongView:
         monkeypatch.setattr(
             forum_service.behavior_event_service,
             "record_forum_long_view",
-            lambda **kwargs: pytest.fail(
+            lambda _session, **kwargs: pytest.fail(
                 "should not record duplicate long-view for naive timestamps"
             ),
         )
@@ -497,12 +497,12 @@ class TestToggleLike:
         monkeypatch.setattr(
             forum_service.behavior_event_service,
             "record_forum_unlike",
-            lambda **kwargs: captured.update(kwargs) or object(),
+            lambda _session, **kwargs: captured.update(kwargs) or object(),
         )
         monkeypatch.setattr(
             forum_service.preference_profile_service,
             "recompute_user_preference_profiles",
-            lambda user_id: recomputed.append(user_id),
+            lambda _session, user_id: recomputed.append(user_id),
         )
 
         result = forum_service.toggle_like(

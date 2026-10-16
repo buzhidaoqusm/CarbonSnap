@@ -111,7 +111,9 @@ class TestDecisionModes:
         override_settings(ai_decision_engine_mode="llm_first")
 
         captured: dict[str, bool] = {}
-        monkeypatch.setattr(ai_decision_engine, "get_prompt_memory_summary", lambda user_id: {})
+        monkeypatch.setattr(
+            ai_decision_engine, "get_prompt_memory_summary", lambda _session, user_id: {}
+        )
         monkeypatch.setattr(
             ai_decision_engine,
             "build_context_bundle",
@@ -167,7 +169,9 @@ class TestDecisionModes:
         override_settings(ai_decision_engine_mode="compat")
 
         captured: dict[str, bool] = {}
-        monkeypatch.setattr(ai_decision_engine, "get_prompt_memory_summary", lambda user_id: {})
+        monkeypatch.setattr(
+            ai_decision_engine, "get_prompt_memory_summary", lambda _session, user_id: {}
+        )
         monkeypatch.setattr(
             ai_decision_engine,
             "build_context_bundle",
@@ -244,7 +248,9 @@ class TestDecisionModes:
     ):
         override_settings(ai_decision_engine_mode="shadow")
 
-        monkeypatch.setattr(ai_decision_engine, "get_prompt_memory_summary", lambda user_id: {})
+        monkeypatch.setattr(
+            ai_decision_engine, "get_prompt_memory_summary", lambda _session, user_id: {}
+        )
         monkeypatch.setattr(
             ai_decision_engine,
             "build_context_bundle",
@@ -305,7 +311,9 @@ class TestDecisionPipeline:
         override_settings(ai_decision_engine_mode="llm_first")
         override_settings(ai_decision_confidence_threshold=0.65)
 
-        monkeypatch.setattr(ai_decision_engine, "get_prompt_memory_summary", lambda user_id: {})
+        monkeypatch.setattr(
+            ai_decision_engine, "get_prompt_memory_summary", lambda _session, user_id: {}
+        )
         monkeypatch.setattr(
             ai_decision_engine,
             "build_context_bundle",
@@ -354,7 +362,9 @@ class TestDecisionPipeline:
     ):
         override_settings(ai_decision_engine_mode="llm_first")
 
-        monkeypatch.setattr(ai_decision_engine, "get_prompt_memory_summary", lambda user_id: {})
+        monkeypatch.setattr(
+            ai_decision_engine, "get_prompt_memory_summary", lambda _session, user_id: {}
+        )
         monkeypatch.setattr(
             ai_decision_engine,
             "build_context_bundle",
@@ -421,7 +431,9 @@ class TestDecisionPipeline:
         override_settings(ai_decision_confidence_threshold=0.7)
         override_settings(ai_decision_engine_version="decision-engine-test")
 
-        monkeypatch.setattr(ai_decision_engine, "get_prompt_memory_summary", lambda user_id: {})
+        monkeypatch.setattr(
+            ai_decision_engine, "get_prompt_memory_summary", lambda _session, user_id: {}
+        )
         monkeypatch.setattr(
             ai_decision_engine,
             "build_context_bundle",
@@ -470,7 +482,9 @@ class TestDecisionPipeline:
         override_settings(ai_decision_engine_mode="llm_first")
         override_settings(ai_decision_confidence_threshold=0.65)
 
-        monkeypatch.setattr(ai_decision_engine, "get_prompt_memory_summary", lambda user_id: {})
+        monkeypatch.setattr(
+            ai_decision_engine, "get_prompt_memory_summary", lambda _session, user_id: {}
+        )
         monkeypatch.setattr(
             ai_decision_engine,
             "build_context_bundle",
@@ -516,7 +530,9 @@ class TestForumRetrieval:
     def test_recycling_intents_enable_forum_retrieval(self, monkeypatch, app, override_settings):
         override_settings(ai_decision_engine_mode="llm_first")
 
-        monkeypatch.setattr(ai_decision_engine, "get_prompt_memory_summary", lambda user_id: {})
+        monkeypatch.setattr(
+            ai_decision_engine, "get_prompt_memory_summary", lambda _session, user_id: {}
+        )
         monkeypatch.setattr(
             ai_decision_engine,
             "build_context_bundle",
@@ -551,7 +567,9 @@ class TestForumRetrieval:
         assert decision["trace"]["prompt_versions"]["decision_engine"] == decision["engine_version"]
 
     def test_general_chat_query_hint_triggers_forum_retrieval(self, monkeypatch, app):
-        monkeypatch.setattr(ai_decision_engine, "get_prompt_memory_summary", lambda user_id: {})
+        monkeypatch.setattr(
+            ai_decision_engine, "get_prompt_memory_summary", lambda _session, user_id: {}
+        )
         monkeypatch.setattr(
             ai_decision_engine,
             "build_context_bundle",
@@ -580,7 +598,9 @@ class TestForumRetrieval:
         assert decision["forum_retrieval_reason"] == "general_chat_hint"
 
     def test_general_chat_people_question_triggers_forum_retrieval(self, monkeypatch, app):
-        monkeypatch.setattr(ai_decision_engine, "get_prompt_memory_summary", lambda user_id: {})
+        monkeypatch.setattr(
+            ai_decision_engine, "get_prompt_memory_summary", lambda _session, user_id: {}
+        )
         monkeypatch.setattr(
             ai_decision_engine,
             "build_context_bundle",
@@ -608,7 +628,9 @@ class TestForumRetrieval:
         assert decision["forum_retrieval_reason"] == "general_chat_hint"
 
     def test_image_with_relevant_history_triggers_forum_retrieval(self, monkeypatch, app):
-        monkeypatch.setattr(ai_decision_engine, "get_prompt_memory_summary", lambda user_id: {})
+        monkeypatch.setattr(
+            ai_decision_engine, "get_prompt_memory_summary", lambda _session, user_id: {}
+        )
         monkeypatch.setattr(
             ai_decision_engine,
             "build_context_bundle",
@@ -643,7 +665,9 @@ class TestForumRetrieval:
         assert decision["forum_retrieval_reason"] == "general_chat_hint"
 
     def test_general_chat_without_signals_does_not_trigger_forum_retrieval(self, monkeypatch, app):
-        monkeypatch.setattr(ai_decision_engine, "get_prompt_memory_summary", lambda user_id: {})
+        monkeypatch.setattr(
+            ai_decision_engine, "get_prompt_memory_summary", lambda _session, user_id: {}
+        )
         monkeypatch.setattr(
             ai_decision_engine,
             "build_context_bundle",

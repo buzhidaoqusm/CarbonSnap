@@ -72,11 +72,11 @@ class TestMarketRecommendationService:
 
         monkeypatch.setattr(
             "app.services.recommendation.preference_profile_service.has_sufficient_history",
-            lambda user_id: True,
+            lambda _session, user_id: True,
         )
         monkeypatch.setattr(
             "app.services.recommendation.preference_profile_service.get_profile_snapshot",
-            lambda user_id: {"battery-recycling": 0.9, "plastic-recycling": 0.1},
+            lambda _session, user_id: {"battery-recycling": 0.9, "plastic-recycling": 0.1},
         )
         monkeypatch.setattr(
             market_recommendation_service.preference_profile_repository,
@@ -127,7 +127,7 @@ class TestMarketRecommendationService:
 
         monkeypatch.setattr(
             "app.services.recommendation.preference_profile_service.has_sufficient_history",
-            lambda user_id: False,
+            lambda _session, user_id: False,
         )
         monkeypatch.setattr(
             market_recommendation_service,
@@ -171,11 +171,11 @@ class TestMarketRecommendationService:
 
         monkeypatch.setattr(
             "app.services.recommendation.preference_profile_service.has_sufficient_history",
-            lambda user_id: True,
+            lambda _session, user_id: True,
         )
         monkeypatch.setattr(
             "app.services.recommendation.preference_profile_service.get_profile_snapshot",
-            lambda user_id: {"upcycling": 0.8, "battery-recycling": 0.1},
+            lambda _session, user_id: {"upcycling": 0.8, "battery-recycling": 0.1},
         )
         monkeypatch.setattr(
             market_recommendation_service.preference_profile_repository,

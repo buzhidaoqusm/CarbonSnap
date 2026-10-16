@@ -102,7 +102,7 @@ def _run_decision_pipeline(
     label: str,
 ) -> dict[str, Any]:
     max_turns = get_settings().ai_short_term_memory_turns
-    prompt_memory = get_prompt_memory_summary(user_id)
+    prompt_memory = get_prompt_memory_summary(db.session, user_id)
     context = build_context_bundle(
         conversation_id=conversation_id,
         supplied_history=supplied_history,

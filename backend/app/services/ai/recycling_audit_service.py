@@ -287,13 +287,14 @@ def stream_recycling_audit(
         finalized_record_id = record.id
         try:
             behavior_event_service.record_ai_recycling_case_passed_audit(
+                db.session,
                 user_id=user_id,
                 recycling_case_id=case.id,
             )
-            preference_profile_service.recompute_user_preference_profiles(user_id)
+            preference_profile_service.recompute_user_preference_profiles(db.session, user_id)
         except Exception:
             pass
-        rebuild_user_preferences_summary(user_id)
+        rebuild_user_preferences_summary(db.session, user_id)
         assistant_text = (
             f"Audit passed. Your recycling case has been verified, and {record.carbon_points} "
             f"points were awarded."
@@ -312,13 +313,14 @@ def stream_recycling_audit(
     else:
         try:
             behavior_event_service.record_ai_recycling_case_failed_audit(
+                db.session,
                 user_id=user_id,
                 recycling_case_id=case.id,
             )
-            preference_profile_service.recompute_user_preference_profiles(user_id)
+            preference_profile_service.recompute_user_preference_profiles(db.session, user_id)
         except Exception:
             pass
-        rebuild_user_preferences_summary(user_id)
+        rebuild_user_preferences_summary(db.session, user_id)
         assistant_text = f"Audit {audit_payload['audit_result']}. {audit_payload['audit_reason']}"
         assistant_payload = {
             "audit_result": audit_payload,

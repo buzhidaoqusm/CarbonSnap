@@ -45,11 +45,11 @@ class TestProjectRecommendationService:
 
         monkeypatch.setattr(
             "app.services.recommendation.preference_profile_service.has_sufficient_history",
-            lambda user_id: True,
+            lambda _session, user_id: True,
         )
         monkeypatch.setattr(
             "app.services.recommendation.preference_profile_service.get_profile_snapshot",
-            lambda user_id: {"community-cleanup": 0.9, "battery-recycling": 0.1},
+            lambda _session, user_id: {"community-cleanup": 0.9, "battery-recycling": 0.1},
         )
         monkeypatch.setattr(
             project_recommendation_service.preference_profile_repository,
@@ -83,6 +83,7 @@ class TestProjectRecommendationService:
         )
 
         ranked = project_recommendation_service.rank_projects_for_user(
+            db.session,
             projects=[non_matching, matching],
             user_id=user.id,
         )
@@ -101,11 +102,11 @@ class TestProjectRecommendationService:
 
         monkeypatch.setattr(
             "app.services.recommendation.preference_profile_service.has_sufficient_history",
-            lambda user_id: True,
+            lambda _session, user_id: True,
         )
         monkeypatch.setattr(
             "app.services.recommendation.preference_profile_service.get_profile_snapshot",
-            lambda user_id: {"community-cleanup": 0.8, "battery-recycling": 0.1},
+            lambda _session, user_id: {"community-cleanup": 0.8, "battery-recycling": 0.1},
         )
         monkeypatch.setattr(
             project_recommendation_service.preference_profile_repository,
@@ -141,6 +142,7 @@ class TestProjectRecommendationService:
         )
 
         ranked = project_recommendation_service.rank_projects_for_user(
+            db.session,
             projects=[cleanup_3, alternate, cleanup_2, cleanup_1],
             user_id=viewer.id,
         )

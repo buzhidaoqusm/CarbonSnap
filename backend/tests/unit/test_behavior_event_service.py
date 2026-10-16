@@ -116,6 +116,7 @@ class TestBehaviorEventService:
         db.session.commit()
 
         event = behavior_event_service.record_forum_like(
+            db.session,
             user_id=user.id,
             target_type="post",
             target_id=post.id,
@@ -135,6 +136,7 @@ class TestBehaviorEventService:
         db.session.commit()
 
         event = behavior_event_service.record_forum_unlike(
+            db.session,
             user_id=user.id,
             target_type="post",
             target_id=post.id,
@@ -154,6 +156,7 @@ class TestBehaviorEventService:
         db.session.commit()
 
         event = behavior_event_service.record_forum_comment_or_reply(
+            db.session,
             user_id=user.id,
             post_id=post.id,
         )
@@ -168,6 +171,7 @@ class TestBehaviorEventService:
         db.session.commit()
 
         event = behavior_event_service.record_forum_long_view(
+            db.session,
             user_id=user.id,
             post_id=post.id,
         )
@@ -185,6 +189,7 @@ class TestBehaviorEventService:
         db.session.commit()
 
         event = behavior_event_service.record_ai_recycling_case_passed_audit(
+            db.session,
             user_id=user.id,
             recycling_case_id=case.id,
         )
@@ -199,7 +204,7 @@ class TestBehaviorEventService:
     def test_record_ai_accept_creates_behavior_event(self):
         user = _make_user("acceptor", "acceptor@example.com")
 
-        event = behavior_event_service.record_ai_accept(user_id=user.id, target_id=1234)
+        event = behavior_event_service.record_ai_accept(db.session, user_id=user.id, target_id=1234)
 
         assert event.domain == "ai"
         assert event.action_type == "ai_accept"
@@ -217,7 +222,9 @@ class TestBehaviorEventService:
             topics=[{"topic_id": "upcycling", "confidence_score": 0.8}],
         )
 
-        event = behavior_event_service.record_market_view(user_id=buyer.id, item_id=item.id)
+        event = behavior_event_service.record_market_view(
+            db.session, user_id=buyer.id, item_id=item.id
+        )
 
         persisted = db.session.get(UserBehaviorEvent, event.id)
         assert persisted is not None
@@ -235,7 +242,9 @@ class TestBehaviorEventService:
         viewer = _make_user("longviewer", "longviewer@example.com")
         item = _make_market_item(seller, title="No topic item")
 
-        event = behavior_event_service.record_market_long_view(user_id=viewer.id, item_id=item.id)
+        event = behavior_event_service.record_market_long_view(
+            db.session, user_id=viewer.id, item_id=item.id
+        )
 
         persisted = db.session.get(UserBehaviorEvent, event.id)
         assert persisted is not None
@@ -261,6 +270,7 @@ class TestBehaviorEventService:
         )
 
         event = behavior_event_service.record_market_order(
+            db.session,
             user_id=buyer.id,
             order_id=order.id,
             item_id=item.id,
@@ -282,7 +292,9 @@ class TestBehaviorEventService:
         seller = _make_user("creator", "creator@example.com")
         item = _make_market_item(seller)
 
-        event = behavior_event_service.record_market_item_create(user_id=seller.id, item_id=item.id)
+        event = behavior_event_service.record_market_item_create(
+            db.session, user_id=seller.id, item_id=item.id
+        )
 
         persisted = db.session.get(UserBehaviorEvent, event.id)
         assert persisted is not None
@@ -302,6 +314,7 @@ class TestBehaviorEventService:
         order = _make_market_order(item, buyer)
 
         event = behavior_event_service.record_market_order_completed_as_seller(
+            db.session,
             user_id=seller.id,
             order_id=order.id,
             item_id=item.id,
@@ -332,9 +345,10 @@ class TestBehaviorEventService:
         )
 
         view_event = behavior_event_service.record_project_view(
-            user_id=supporter.id, project_id=project.id
+            db.session, user_id=supporter.id, project_id=project.id
         )
         contribute_event = behavior_event_service.record_project_contribute(
+            db.session,
             user_id=supporter.id,
             project_id=project.id,
             contribution_id=77,

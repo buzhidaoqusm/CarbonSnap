@@ -117,8 +117,8 @@ def _serialize_project(
 
 
 def _refresh_recommendation_state(user_id: int) -> None:
-    preference_profile_service.recompute_user_preference_profiles(user_id)
-    memory_service.rebuild_user_preferences_summary(user_id)
+    preference_profile_service.recompute_user_preference_profiles(db.session, user_id)
+    memory_service.rebuild_user_preferences_summary(db.session, user_id)
 
 
 def create_project(
@@ -152,12 +152,15 @@ def create_project(
     )
     db.session.commit()
     topic_mapping_service.refresh_project_topics(
+        db.session,
         project_id=project.id,
         title=project.title,
         description=project.description,
     )
     try:
-        behavior_event_service.record_project_create(user_id=creator_user_id, project_id=project.id)
+        behavior_event_service.record_project_create(
+            db.session, user_id=creator_user_id, project_id=project.id
+        )
         _refresh_recommendation_state(creator_user_id)
     except Exception:
         pass
@@ -180,7 +183,7 @@ def list_projects(page: int, per_page: int, *, viewer_user_id: int | None = None
         ]
         try:
             ranked_candidate_items = rank_projects_for_user(
-                projects=candidate_items, user_id=viewer_user_id
+                db.session, projects=candidate_items, user_id=viewer_user_id
             )
         except Exception:
             ranked_candidate_items = candidate_items
@@ -229,7 +232,7 @@ def get_project(project_id: int, *, viewer_user_id: int | None = None) -> dict:
     if viewer_user_id is not None and viewer_user_id != project.creator_user_id:
         try:
             behavior_event_service.record_project_view(
-                user_id=viewer_user_id, project_id=project.id
+                db.session, user_id=viewer_user_id, project_id=project.id
             )
             _refresh_recommendation_state(viewer_user_id)
         except Exception:
@@ -303,6 +306,7 @@ def contribute_to_project(*, project_id: int, user_id: int, points: int) -> dict
         }
         for recipient_user_id in recipient_ids:
             notification_service.on_project_completed(
+                db.session,
                 recipient_user_id=recipient_user_id,
                 project_id=project.id,
                 project_title=project.title,
@@ -310,6 +314,7 @@ def contribute_to_project(*, project_id: int, user_id: int, points: int) -> dict
 
     try:
         behavior_event_service.record_project_contribute(
+            db.session,
             user_id=user_id,
             project_id=project.id,
             contribution_id=contribution.id,

@@ -52,6 +52,7 @@ def _notify_post_liked(*, post_id: int, recipient_user_id: int | None, liker_use
     if recipient_user_id is None or recipient_user_id == liker_user_id:
         return
     notification_service.on_post_liked(
+        db.session,
         recipient_user_id=recipient_user_id,
         post_id=post_id,
         liker_username=_username_for_user(liker_user_id),
@@ -64,6 +65,7 @@ def _notify_post_commented(
     if recipient_user_id is None or recipient_user_id == commenter_user_id:
         return
     notification_service.on_post_commented(
+        db.session,
         recipient_user_id=recipient_user_id,
         post_id=post_id,
         commenter_username=_username_for_user(commenter_user_id),
@@ -76,6 +78,7 @@ def _notify_comment_replied(
     if recipient_user_id is None or recipient_user_id == replier_user_id:
         return
     notification_service.on_comment_replied(
+        db.session,
         recipient_user_id=recipient_user_id,
         comment_id=comment_id,
         replier_username=_username_for_user(replier_user_id),
@@ -88,6 +91,7 @@ def _notify_comment_liked(
     if recipient_user_id is None or recipient_user_id == liker_user_id:
         return
     notification_service.on_comment_liked(
+        db.session,
         recipient_user_id=recipient_user_id,
         comment_id=comment_id,
         liker_username=_username_for_user(liker_user_id),
@@ -179,8 +183,12 @@ def get_post(post_id: int, *, viewer_user_id: int | None = None) -> dict:
         raise ForumError("Post not found.", code=40400, http_status=404)
     if viewer_user_id is not None:
         try:
-            behavior_event_service.record_forum_view(user_id=viewer_user_id, post_id=post.id)
-            preference_profile_service.recompute_user_preference_profiles(viewer_user_id)
+            behavior_event_service.record_forum_view(
+                db.session, user_id=viewer_user_id, post_id=post.id
+            )
+            preference_profile_service.recompute_user_preference_profiles(
+                db.session, viewer_user_id
+            )
         except Exception:
             pass
     like_count = forum_repository.count_likes(db.session, "post", post_id)
@@ -217,8 +225,10 @@ def record_post_long_view(post_id: int, *, viewer_user_id: int) -> dict:
             return {"tracked": False, "reason": "deduplicated"}
 
     try:
-        behavior_event_service.record_forum_long_view(user_id=viewer_user_id, post_id=post.id)
-        preference_profile_service.recompute_user_preference_profiles(viewer_user_id)
+        behavior_event_service.record_forum_long_view(
+            db.session, user_id=viewer_user_id, post_id=post.id
+        )
+        preference_profile_service.recompute_user_preference_profiles(db.session, viewer_user_id)
     except Exception:
         return {"tracked": False, "reason": "skipped"}
 
@@ -346,8 +356,10 @@ def create_comment(
             replier_user_id=user_id,
         )
     try:
-        behavior_event_service.record_forum_comment_or_reply(user_id=user_id, post_id=post_id)
-        preference_profile_service.recompute_user_preference_profiles(user_id)
+        behavior_event_service.record_forum_comment_or_reply(
+            db.session, user_id=user_id, post_id=post_id
+        )
+        preference_profile_service.recompute_user_preference_profiles(db.session, user_id)
     except Exception:
         pass
     return _serialize_comment(comment, like_count=0, liked_by_user=False)
@@ -405,17 +417,19 @@ def toggle_like(*, user_id: int, target_type: str, target_id: int) -> dict:
     try:
         if liked:
             behavior_event_service.record_forum_like(
+                db.session,
                 user_id=user_id,
                 target_type=target_type,
                 target_id=target_id,
             )
         else:
             behavior_event_service.record_forum_unlike(
+                db.session,
                 user_id=user_id,
                 target_type=target_type,
                 target_id=target_id,
             )
-        preference_profile_service.recompute_user_preference_profiles(user_id)
+        preference_profile_service.recompute_user_preference_profiles(db.session, user_id)
     except Exception:
         pass
     if liked and target_type == "post":

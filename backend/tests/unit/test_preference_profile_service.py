@@ -150,10 +150,12 @@ class TestPreferenceProfileAggregation:
             ],
         )
         behavior_event_service.record_forum_like(
-            user_id=user.id, target_type="post", target_id=post.id
+            db.session, user_id=user.id, target_type="post", target_id=post.id
         )
 
-        profiles = preference_profile_service.recompute_user_preference_profiles(user.id)
+        profiles = preference_profile_service.recompute_user_preference_profiles(
+            db.session, user.id
+        )
         rows = {row.profile_key: row for row in profiles}
 
         assert rows["plastic-recycling"].raw_score > rows["upcycling"].raw_score
@@ -179,16 +181,22 @@ class TestPreferenceProfileAggregation:
         )
 
         behavior_event_service.record_forum_like(
-            user_id=user.id, target_type="post", target_id=post.id
+            db.session, user_id=user.id, target_type="post", target_id=post.id
         )
-        first_profiles = preference_profile_service.recompute_user_preference_profiles(user.id)
+        first_profiles = preference_profile_service.recompute_user_preference_profiles(
+            db.session, user.id
+        )
         first_score = next(
             row.normalized_score for row in first_profiles if row.profile_key == "plastic-recycling"
         )
 
-        behavior_event_service.record_forum_long_view(user_id=user.id, post_id=post.id)
-        behavior_event_service.record_forum_comment_or_reply(user_id=user.id, post_id=post.id)
-        second_profiles = preference_profile_service.recompute_user_preference_profiles(user.id)
+        behavior_event_service.record_forum_long_view(db.session, user_id=user.id, post_id=post.id)
+        behavior_event_service.record_forum_comment_or_reply(
+            db.session, user_id=user.id, post_id=post.id
+        )
+        second_profiles = preference_profile_service.recompute_user_preference_profiles(
+            db.session, user.id
+        )
         second_score = next(
             row.normalized_score
             for row in second_profiles
@@ -217,9 +225,11 @@ class TestPreferenceProfileAggregation:
         )
 
         behavior_event_service.record_forum_like(
-            user_id=user.id, target_type="post", target_id=post.id
+            db.session, user_id=user.id, target_type="post", target_id=post.id
         )
-        first_profiles = preference_profile_service.recompute_user_preference_profiles(user.id)
+        first_profiles = preference_profile_service.recompute_user_preference_profiles(
+            db.session, user.id
+        )
         first_profile = next(
             row for row in first_profiles if row.profile_key == "plastic-recycling"
         )
@@ -233,16 +243,18 @@ class TestPreferenceProfileAggregation:
         )
 
         behavior_event_service.record_forum_unlike(
-            user_id=user.id, target_type="post", target_id=post.id
+            db.session, user_id=user.id, target_type="post", target_id=post.id
         )
         after_unlike_profiles = preference_profile_service.recompute_user_preference_profiles(
-            user.id
+            db.session, user.id
         )
 
         behavior_event_service.record_forum_like(
-            user_id=user.id, target_type="post", target_id=post.id
+            db.session, user_id=user.id, target_type="post", target_id=post.id
         )
-        second_profiles = preference_profile_service.recompute_user_preference_profiles(user.id)
+        second_profiles = preference_profile_service.recompute_user_preference_profiles(
+            db.session, user.id
+        )
         second_profile = next(
             row for row in second_profiles if row.profile_key == "plastic-recycling"
         )
@@ -260,23 +272,26 @@ class TestPreferenceProfileAggregation:
         case = _make_recycling_case(user, waste_type_predicted="battery")
 
         behavior_event_service.record_ai_recycling_case_pending_audit(
+            db.session,
             user_id=user.id,
             recycling_case_id=case.id,
             created_at=datetime.now(UTC) - timedelta(days=2),
         )
         behavior_event_service.record_ai_recycling_case_failed_audit(
+            db.session,
             user_id=user.id,
             recycling_case_id=case.id,
             created_at=datetime.now(UTC) - timedelta(days=1),
         )
         behavior_event_service.record_ai_recycling_case_passed_audit(
+            db.session,
             user_id=user.id,
             recycling_case_id=case.id,
         )
 
-        preference_profile_service.recompute_user_preference_profiles(user.id)
-        promotable_topics = preference_profile_service.list_promotable_topics(user.id)
-        snapshot = preference_profile_service.build_user_preference_snapshot(user.id)
+        preference_profile_service.recompute_user_preference_profiles(db.session, user.id)
+        promotable_topics = preference_profile_service.list_promotable_topics(db.session, user.id)
+        snapshot = preference_profile_service.build_user_preference_snapshot(db.session, user.id)
 
         assert promotable_topics
         assert promotable_topics[0]["topic_id"] == "battery-recycling"
@@ -300,16 +315,20 @@ class TestPreferenceProfileAggregation:
             topics=[{"topic_id": "upcycling", "confidence_score": 1.0, "source": "ai_constrained"}],
         )
 
-        behavior_event_service.record_market_view(user_id=buyer.id, item_id=item.id)
-        first_profiles = preference_profile_service.recompute_user_preference_profiles(buyer.id)
+        behavior_event_service.record_market_view(db.session, user_id=buyer.id, item_id=item.id)
+        first_profiles = preference_profile_service.recompute_user_preference_profiles(
+            db.session, buyer.id
+        )
         first_profile = next(row for row in first_profiles if row.profile_key == "upcycling")
         first_raw_score = float(first_profile.raw_score)
         first_normalized_score = float(first_profile.normalized_score)
 
         behavior_event_service.record_market_order(
-            user_id=buyer.id, order_id=order.id, item_id=item.id
+            db.session, user_id=buyer.id, order_id=order.id, item_id=item.id
         )
-        second_profiles = preference_profile_service.recompute_user_preference_profiles(buyer.id)
+        second_profiles = preference_profile_service.recompute_user_preference_profiles(
+            db.session, buyer.id
+        )
         second_profile = next(row for row in second_profiles if row.profile_key == "upcycling")
 
         assert second_profile.raw_score > first_raw_score
@@ -327,8 +346,12 @@ class TestPreferenceProfileAggregation:
             topics=[{"topic_id": "upcycling", "confidence_score": 1.0, "source": "ai_constrained"}],
         )
 
-        behavior_event_service.record_market_item_create(user_id=seller.id, item_id=item.id)
-        profiles = preference_profile_service.recompute_user_preference_profiles(seller.id)
+        behavior_event_service.record_market_item_create(
+            db.session, user_id=seller.id, item_id=item.id
+        )
+        profiles = preference_profile_service.recompute_user_preference_profiles(
+            db.session, seller.id
+        )
 
         assert any(row.profile_key == "upcycling" for row in profiles)
         row = next(row for row in profiles if row.profile_key == "upcycling")
@@ -354,8 +377,12 @@ class TestPreferenceProfileAggregation:
             ],
         )
 
-        behavior_event_service.record_project_view(user_id=supporter.id, project_id=project.id)
-        first_profiles = preference_profile_service.recompute_user_preference_profiles(supporter.id)
+        behavior_event_service.record_project_view(
+            db.session, user_id=supporter.id, project_id=project.id
+        )
+        first_profiles = preference_profile_service.recompute_user_preference_profiles(
+            db.session, supporter.id
+        )
         first_profile = next(
             row for row in first_profiles if row.profile_key == "community-cleanup"
         )
@@ -363,12 +390,13 @@ class TestPreferenceProfileAggregation:
         first_normalized_score = float(first_profile.normalized_score)
 
         behavior_event_service.record_project_contribute(
+            db.session,
             user_id=supporter.id,
             project_id=project.id,
             contribution_id=101,
         )
         second_profiles = preference_profile_service.recompute_user_preference_profiles(
-            supporter.id
+            db.session, supporter.id
         )
         second_profile = next(
             row for row in second_profiles if row.profile_key == "community-cleanup"

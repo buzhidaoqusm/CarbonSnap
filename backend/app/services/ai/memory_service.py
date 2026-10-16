@@ -4,7 +4,8 @@ import json
 from datetime import UTC, datetime
 from typing import Any
 
-from app.extensions.db import db
+from sqlalchemy.orm import Session
+
 from app.models.memory import UserMemoryItem
 from app.models.user import User
 from app.repositories.ai import memory_repository
@@ -160,6 +161,7 @@ def _merge_explicit_topics(
 
 
 def build_preferences_summary(
+    session: Session,
     items: list[UserMemoryItem],
     *,
     user_id: int | None = None,
@@ -167,7 +169,7 @@ def build_preferences_summary(
     summary = _empty_summary()
     explicit_topics: list[dict[str, Any]] = []
     profile_snapshot = (
-        preference_profile_service.build_user_preference_snapshot(user_id)
+        preference_profile_service.build_user_preference_snapshot(session, user_id)
         if user_id
         else _empty_summary()
     )
@@ -234,12 +236,13 @@ def build_preferences_summary(
 
 
 def build_current_preferences_summary(
+    session: Session,
     user_id: int,
     *,
     include_stored_fallback: bool = True,
 ) -> dict[str, Any]:
-    items = memory_repository.list_active_memory_items(db.session, user_id)
-    summary = build_preferences_summary(items, user_id=user_id)
+    items = memory_repository.list_active_memory_items(session, user_id)
+    summary = build_preferences_summary(session, items, user_id=user_id)
     if summary["content_interest_preferences"]["topics"] or any(
         value not in (None, [], {}) for value in summary["action_preferences"].values()
     ):
@@ -248,33 +251,34 @@ def build_current_preferences_summary(
     if not include_stored_fallback:
         return summary
 
-    user = db.session.get(User, user_id)
+    user = session.get(User, user_id)
     if user is None:
         return summary
     fallback = _parse_summary_json(user.preferences_json)
     return fallback or summary
 
 
-def rebuild_user_preferences_summary(user_id: int) -> dict[str, Any]:
-    summary = build_current_preferences_summary(user_id, include_stored_fallback=False)
-    user = db.session.get(User, user_id)
+def rebuild_user_preferences_summary(session: Session, user_id: int) -> dict[str, Any]:
+    summary = build_current_preferences_summary(session, user_id, include_stored_fallback=False)
+    user = session.get(User, user_id)
     if user is None:
         return summary
     user.preferences_json = json.dumps(summary, ensure_ascii=False)
-    db.session.commit()
+    session.commit()
     return summary
 
 
-def get_prompt_memory_summary(user_id: int | None) -> dict[str, Any]:
+def get_prompt_memory_summary(session: Session, user_id: int | None) -> dict[str, Any]:
     if user_id is None:
         return {}
-    user = db.session.get(User, user_id)
+    user = session.get(User, user_id)
     if user is None:
         return {}
-    return build_current_preferences_summary(user_id)
+    return build_current_preferences_summary(session, user_id)
 
 
 def upsert_memory_item(
+    session: Session,
     *,
     user_id: int,
     memory_type: str,
@@ -291,7 +295,7 @@ def upsert_memory_item(
         source_type=source_type,
     )
     item = memory_repository.replace_memory_item(
-        db.session,
+        session,
         user_id=user_id,
         memory_type=memory_type,
         memory_key=memory_key,
@@ -300,11 +304,12 @@ def upsert_memory_item(
         source_message_id=source_message_id,
         conversation_id=conversation_id,
     )
-    rebuild_user_preferences_summary(user_id)
+    rebuild_user_preferences_summary(session, user_id)
     return item
 
 
 def create_manual_memory_item(
+    session: Session,
     *,
     user_id: int,
     memory_type: str,
@@ -312,6 +317,7 @@ def create_manual_memory_item(
     value: dict[str, Any],
 ) -> UserMemoryItem:
     return upsert_memory_item(
+        session,
         user_id=user_id,
         memory_type=memory_type,
         memory_key=memory_key,
@@ -321,6 +327,7 @@ def create_manual_memory_item(
 
 
 def update_manual_memory_item(
+    session: Session,
     *,
     item_id: int,
     user_id: int,
@@ -328,7 +335,7 @@ def update_manual_memory_item(
     memory_key: str | None = None,
     value: dict[str, Any] | None = None,
 ) -> UserMemoryItem:
-    item = memory_repository.get_memory_item(db.session, item_id, user_id)
+    item = memory_repository.get_memory_item(session, item_id, user_id)
     if item is None:
         raise ValueError("Memory item not found.")
     if item.status != "active":
@@ -345,7 +352,7 @@ def update_manual_memory_item(
     )
 
     updated = memory_repository.update_memory_item(
-        db.session,
+        session,
         item_id,
         user_id,
         memory_type=next_type,
@@ -355,21 +362,21 @@ def update_manual_memory_item(
     if updated is None:
         raise ValueError("Memory item not found.")
 
-    rebuild_user_preferences_summary(user_id)
+    rebuild_user_preferences_summary(session, user_id)
     return updated
 
 
-def delete_memory_item(*, item_id: int, user_id: int) -> UserMemoryItem:
-    item = memory_repository.soft_delete_memory_item(db.session, item_id, user_id)
+def delete_memory_item(session: Session, *, item_id: int, user_id: int) -> UserMemoryItem:
+    item = memory_repository.soft_delete_memory_item(session, item_id, user_id)
     if item is None:
         raise ValueError("Memory item not found.")
-    rebuild_user_preferences_summary(user_id)
+    rebuild_user_preferences_summary(session, user_id)
     return item
 
 
-def list_memory_payload(user_id: int) -> dict[str, Any]:
-    items = memory_repository.list_active_memory_items(db.session, user_id)
-    summary = rebuild_user_preferences_summary(user_id)
+def list_memory_payload(session: Session, user_id: int) -> dict[str, Any]:
+    items = memory_repository.list_active_memory_items(session, user_id)
+    summary = rebuild_user_preferences_summary(session, user_id)
     return {
         "summary": summary,
         "items": [serialize_memory_item(item) for item in items],

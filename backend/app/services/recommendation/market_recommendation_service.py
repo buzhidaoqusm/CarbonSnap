@@ -313,9 +313,9 @@ def merge_ranked_items(
 
 def build_ranking_context(*, user_id: int, items: list[MarketItem]) -> dict:
     item_ids = [int(item.id) for item in items if item is not None and item.id is not None]
-    has_history = preference_profile_service.has_sufficient_history(user_id)
+    has_history = preference_profile_service.has_sufficient_history(db.session, user_id)
     profile_snapshot = (
-        preference_profile_service.get_profile_snapshot(user_id) if has_history else {}
+        preference_profile_service.get_profile_snapshot(db.session, user_id) if has_history else {}
     )
     topic_assignments_by_item_id = (
         preference_profile_repository.list_content_topic_assignments_for_content_ids(

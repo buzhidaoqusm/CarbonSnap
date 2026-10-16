@@ -24,7 +24,7 @@ def test_enqueue_post_refresh_runs_inline_in_tests(monkeypatch, app):
     monkeypatch.setattr(
         forum_background_job_service.topic_mapping_service,
         "refresh_forum_post_topics",
-        lambda **kwargs: mapped.update(kwargs) or [],
+        lambda _session, **kwargs: mapped.update(kwargs) or [],
     )
 
     with app.app_context():

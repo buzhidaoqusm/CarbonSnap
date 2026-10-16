@@ -411,6 +411,7 @@ def _persist_explicit_memory_candidates(
     for candidate in candidates:
         try:
             item = upsert_memory_item(
+                db.session,
                 user_id=user_id,
                 memory_type=candidate["memory_type"],
                 memory_key=candidate["memory_key"],
@@ -729,9 +730,13 @@ def complete_chat_message(
             decision=decision,
         )
     effective_prompt_memory = (
-        get_prompt_memory_summary(user_id)
+        get_prompt_memory_summary(db.session, user_id)
         if memory_updates
-        else (prompt_memory if prompt_memory is not None else get_prompt_memory_summary(user_id))
+        else (
+            prompt_memory
+            if prompt_memory is not None
+            else get_prompt_memory_summary(db.session, user_id)
+        )
     )
     effective_prompt_memory = _apply_memory_candidates_to_prompt_memory(
         effective_prompt_memory,
@@ -913,9 +918,13 @@ def complete_tool_calling_agent_message(
             decision=decision,
         )
     effective_prompt_memory = (
-        get_prompt_memory_summary(user_id)
+        get_prompt_memory_summary(db.session, user_id)
         if memory_updates
-        else (prompt_memory if prompt_memory is not None else get_prompt_memory_summary(user_id))
+        else (
+            prompt_memory
+            if prompt_memory is not None
+            else get_prompt_memory_summary(db.session, user_id)
+        )
     )
     effective_prompt_memory = _apply_memory_candidates_to_prompt_memory(
         effective_prompt_memory,
@@ -1216,9 +1225,13 @@ def stream_chat_message(
             decision=decision,
         )
     effective_prompt_memory = (
-        get_prompt_memory_summary(user_id)
+        get_prompt_memory_summary(db.session, user_id)
         if memory_updates
-        else (prompt_memory if prompt_memory is not None else get_prompt_memory_summary(user_id))
+        else (
+            prompt_memory
+            if prompt_memory is not None
+            else get_prompt_memory_summary(db.session, user_id)
+        )
     )
     effective_prompt_memory = _apply_memory_candidates_to_prompt_memory(
         effective_prompt_memory,

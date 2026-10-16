@@ -161,7 +161,9 @@ def build_runtime_reply_context(
         "paused_context": paused_context,
         "selected_audit_attempt": selected_audit_attempt,
         "long_term_memory": (
-            dict(prompt_memory) if prompt_memory is not None else get_prompt_memory_summary(user_id)
+            dict(prompt_memory)
+            if prompt_memory is not None
+            else get_prompt_memory_summary(db.session, user_id)
         ),
     }
 

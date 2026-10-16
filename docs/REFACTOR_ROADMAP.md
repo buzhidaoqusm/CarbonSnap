@@ -214,6 +214,12 @@ docs/adr/
 >     现在 Flask 是 `router.default` 而不是挂在 `/` 上，所以返回 405 envelope。
 >     另外还有一处没处理，代码里能确认但没有实测：周排行榜会把窗口期内所有有积分的用户都查出来，
 >     再在 Python 里截取前 5 名，查询量随用户数线性增长。
+>   - 准备工作：共享 service 改为显式接收 session ✅（2026-10-16）。
+>     project、market、forum 都会调用行为事件、推荐画像、memory 和通知这几个 service，而它们内部用的是 Flask 的 `db.session`。
+>     在 FastAPI 里调用会抛出 `RuntimeError`，而调用方的 `try/except` 会把它吞掉：接口照样返回 200，副作用却全部丢失。
+>     变异测试证实了这一点：让行为事件写入失败后，原有的 10 个 project 测试全部照样通过。
+>     先补了 4 个副作用测试，再用 AST 脚本给 6 个模块里的 59 个函数加上 `session` 参数，`db.session` 从 44 处降到 0，
+>     这 6 个模块也加进了 mypy 检查。
 > - 下一步：按 project → market → forum → uploads → ai/memory 的顺序继续迁移。
 >   迁 forum 和 market 时，要把 `notification_service.dispatch` 和 `auth_identity` 剩下的 Flask 依赖一起去掉。
 

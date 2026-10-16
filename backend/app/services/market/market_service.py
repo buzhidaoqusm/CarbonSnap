@@ -62,8 +62,8 @@ def _ensure_aware_utc(value: datetime | None) -> datetime | None:
 
 
 def _refresh_recommendation_state(user_id: int) -> None:
-    preference_profile_service.recompute_user_preference_profiles(user_id)
-    memory_service.rebuild_user_preferences_summary(user_id)
+    preference_profile_service.recompute_user_preference_profiles(db.session, user_id)
+    memory_service.rebuild_user_preferences_summary(db.session, user_id)
 
 
 # ---------------------------------------------------------------------------
@@ -120,12 +120,15 @@ def create_item(
         price_points=price_points,
     )
     topic_mapping_service.refresh_market_item_topics(
+        db.session,
         item_id=item.id,
         title=item.title,
         description=item.description,
     )
     try:
-        behavior_event_service.record_market_item_create(user_id=seller_id, item_id=item.id)
+        behavior_event_service.record_market_item_create(
+            db.session, user_id=seller_id, item_id=item.id
+        )
         _refresh_recommendation_state(seller_id)
     except Exception:
         pass
@@ -138,7 +141,9 @@ def get_item(item_id: int, *, viewer_user_id: int | None = None) -> dict:
         raise MarketError("Item not found.", code=40400, http_status=404)
     if viewer_user_id is not None and viewer_user_id != item.seller_id:
         try:
-            behavior_event_service.record_market_view(user_id=viewer_user_id, item_id=item.id)
+            behavior_event_service.record_market_view(
+                db.session, user_id=viewer_user_id, item_id=item.id
+            )
             _refresh_recommendation_state(viewer_user_id)
         except Exception:
             pass
@@ -167,7 +172,9 @@ def record_item_long_view(item_id: int, *, viewer_user_id: int) -> dict:
             return {"tracked": False, "reason": "deduplicated"}
 
     try:
-        behavior_event_service.record_market_long_view(user_id=viewer_user_id, item_id=item.id)
+        behavior_event_service.record_market_long_view(
+            db.session, user_id=viewer_user_id, item_id=item.id
+        )
         _refresh_recommendation_state(viewer_user_id)
     except Exception:
         return {"tracked": False, "reason": "skipped"}
@@ -280,12 +287,14 @@ def place_order(*, buyer_id: int, item_id: int) -> dict:
     spend_txn.source_id = order.id
     db.session.commit()
     notification_service.on_item_purchased(
+        db.session,
         recipient_user_id=item.seller_id,
         order_id=order.id,
         item_title=item.title,
     )
     try:
         behavior_event_service.record_market_order(
+            db.session,
             user_id=buyer_id,
             order_id=order.id,
             item_id=item.id,
@@ -315,7 +324,9 @@ def ship_order(order_id: int, *, operator_user_id: int) -> dict:
     db.session.commit()
 
     # Notify buyer.
-    notification_service.on_order_shipped(recipient_user_id=order.buyer_id, order_id=order.id)
+    notification_service.on_order_shipped(
+        db.session, recipient_user_id=order.buyer_id, order_id=order.id
+    )
     return _serialize_order(order)
 
 
@@ -352,6 +363,7 @@ def confirm_receipt(order_id: int, *, operator_user_id: int) -> dict:
 
     try:
         behavior_event_service.record_market_order_completed_as_seller(
+            db.session,
             user_id=order.seller_id,
             order_id=order.id,
             item_id=order.item_id,
@@ -361,7 +373,9 @@ def confirm_receipt(order_id: int, *, operator_user_id: int) -> dict:
         pass
 
     # Notify seller.
-    notification_service.on_order_completed(recipient_user_id=order.seller_id, order_id=order.id)
+    notification_service.on_order_completed(
+        db.session, recipient_user_id=order.seller_id, order_id=order.id
+    )
     return _serialize_order(order)
 
 

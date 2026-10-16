@@ -58,7 +58,7 @@ class TestCreateItem:
         monkeypatch.setattr(
             market_service.topic_mapping_service,
             "refresh_market_item_topics",
-            lambda **kwargs: captured.update(kwargs) or [],
+            lambda _session, **kwargs: captured.update(kwargs) or [],
         )
 
         item = market_service.create_item(
@@ -103,7 +103,7 @@ class TestGetItem:
         monkeypatch.setattr(
             market_service.behavior_event_service,
             "record_market_view",
-            lambda **kwargs: captured.update(kwargs) or object(),
+            lambda _session, **kwargs: captured.update(kwargs) or object(),
         )
         monkeypatch.setattr(
             market_service,
@@ -217,7 +217,7 @@ class TestRecordItemLongView:
         monkeypatch.setattr(
             market_service.behavior_event_service,
             "record_market_long_view",
-            lambda **kwargs: captured.update(kwargs) or object(),
+            lambda _session, **kwargs: captured.update(kwargs) or object(),
         )
         monkeypatch.setattr(
             market_service,
@@ -252,7 +252,7 @@ class TestRecordItemLongView:
         monkeypatch.setattr(
             market_service.behavior_event_service,
             "record_market_long_view",
-            lambda **kwargs: pytest.fail("should not record duplicate market long-view"),
+            lambda _session, **kwargs: pytest.fail("should not record duplicate market long-view"),
         )
 
         result = market_service.record_item_long_view(item["id"], viewer_user_id=viewer.id)
@@ -343,7 +343,7 @@ class TestPlaceOrder:
         monkeypatch.setattr(
             market_service.behavior_event_service,
             "record_market_order",
-            lambda **kwargs: captured.update(kwargs) or object(),
+            lambda _session, **kwargs: captured.update(kwargs) or object(),
         )
         monkeypatch.setattr(
             market_service,
@@ -434,7 +434,7 @@ class TestConfirmReceipt:
         monkeypatch.setattr(
             market_service.behavior_event_service,
             "record_market_order_completed_as_seller",
-            lambda **kwargs: captured.update(kwargs) or object(),
+            lambda _session, **kwargs: captured.update(kwargs) or object(),
         )
         monkeypatch.setattr(
             market_service,

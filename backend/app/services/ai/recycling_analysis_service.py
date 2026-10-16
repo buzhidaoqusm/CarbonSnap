@@ -425,13 +425,14 @@ def _create_recycling_case(
     )
     try:
         behavior_event_service.record_ai_recycling_case_pending_audit(
+            db.session,
             user_id=user_id,
             recycling_case_id=case.id,
         )
-        preference_profile_service.recompute_user_preference_profiles(user_id)
+        preference_profile_service.recompute_user_preference_profiles(db.session, user_id)
     except Exception:
         pass
-    rebuild_user_preferences_summary(user_id)
+    rebuild_user_preferences_summary(db.session, user_id)
     session = set_workflow_reference(session["session_id"], recycling_case_id=case.id)
     return case, session
 
@@ -450,6 +451,7 @@ def _persist_memory_candidates(
     for candidate in candidates:
         try:
             item = upsert_memory_item(
+                db.session,
                 user_id=user_id,
                 memory_type=candidate["memory_type"],
                 memory_key=candidate["memory_key"],
@@ -531,7 +533,7 @@ def stream_recycling_analysis(
     prompt_memory = (
         decision.get("prompt_memory")
         if isinstance(decision, dict) and decision.get("prompt_memory") is not None
-        else get_prompt_memory_summary(effective_user_id)
+        else get_prompt_memory_summary(db.session, effective_user_id)
     )
     conversation = None
     user_message = None
@@ -1083,7 +1085,7 @@ def stream_recycling_resume(session_id: str) -> Generator[dict[str, Any], None, 
         runtime_context = build_runtime_reply_context(
             conversation_id=conversation_id,
             user_id=user_id,
-            prompt_memory=get_prompt_memory_summary(user_id),
+            prompt_memory=get_prompt_memory_summary(db.session, user_id),
         )
         yield from _stream_nearby_stage(
             session_id=session_id,
@@ -1091,7 +1093,7 @@ def stream_recycling_resume(session_id: str) -> Generator[dict[str, Any], None, 
             conversation_id=conversation_id,
             analysis_payload=analysis_payload,
             location_state=location_state,
-            prompt_memory=get_prompt_memory_summary(user_id),
+            prompt_memory=get_prompt_memory_summary(db.session, user_id),
             runtime_context=runtime_context,
         )
         return
@@ -1102,11 +1104,11 @@ def stream_recycling_resume(session_id: str) -> Generator[dict[str, Any], None, 
     yield from _stream_skip_summary(
         analysis_payload=analysis_payload,
         location_state=location_state,
-        prompt_memory=get_prompt_memory_summary(user_id),
+        prompt_memory=get_prompt_memory_summary(db.session, user_id),
         runtime_context=build_runtime_reply_context(
             conversation_id=conversation_id,
             user_id=user_id,
-            prompt_memory=get_prompt_memory_summary(user_id),
+            prompt_memory=get_prompt_memory_summary(db.session, user_id),
         ),
         collector=completion_chunks,
     )

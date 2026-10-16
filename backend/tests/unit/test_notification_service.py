@@ -29,6 +29,7 @@ class TestDispatch:
     def test_dispatch_creates_notification(self):
         user = _make_user()
         notification_service.dispatch(
+            db.session,
             recipient_user_id=user.id,
             event_type="post_liked",
             source_type="forum_post",
@@ -42,6 +43,7 @@ class TestDispatch:
     def test_dispatch_does_not_raise_on_invalid_user(self):
         """dispatch() swallows exceptions — must never propagate."""
         notification_service.dispatch(
+            db.session,
             recipient_user_id=99999,
             event_type="post_liked",
             source_type="forum_post",
@@ -54,7 +56,7 @@ class TestDomainShortcuts:
     def test_on_post_liked(self):
         user = _make_user()
         notification_service.on_post_liked(
-            recipient_user_id=user.id, post_id=42, liker_username="bob"
+            db.session, recipient_user_id=user.id, post_id=42, liker_username="bob"
         )
         result = notification_service.list_notifications(db.session, user.id, 1, 10)
         assert result["total"] == 1
@@ -67,7 +69,7 @@ class TestDomainShortcuts:
     def test_on_post_commented(self):
         user = _make_user()
         notification_service.on_post_commented(
-            recipient_user_id=user.id, post_id=7, commenter_username="carol"
+            db.session, recipient_user_id=user.id, post_id=7, commenter_username="carol"
         )
         result = notification_service.list_notifications(db.session, user.id, 1, 10)
         n = result["items"][0]
@@ -77,7 +79,7 @@ class TestDomainShortcuts:
     def test_on_comment_replied(self):
         user = _make_user()
         notification_service.on_comment_replied(
-            recipient_user_id=user.id, comment_id=5, replier_username="dave"
+            db.session, recipient_user_id=user.id, comment_id=5, replier_username="dave"
         )
         result = notification_service.list_notifications(db.session, user.id, 1, 10)
         n = result["items"][0]
@@ -86,7 +88,7 @@ class TestDomainShortcuts:
 
     def test_on_order_shipped(self):
         user = _make_user()
-        notification_service.on_order_shipped(recipient_user_id=user.id, order_id=10)
+        notification_service.on_order_shipped(db.session, recipient_user_id=user.id, order_id=10)
         result = notification_service.list_notifications(db.session, user.id, 1, 10)
         n = result["items"][0]
         assert n["event_type"] == "order_shipped"
@@ -94,7 +96,7 @@ class TestDomainShortcuts:
 
     def test_on_order_completed(self):
         user = _make_user()
-        notification_service.on_order_completed(recipient_user_id=user.id, order_id=11)
+        notification_service.on_order_completed(db.session, recipient_user_id=user.id, order_id=11)
         result = notification_service.list_notifications(db.session, user.id, 1, 10)
         n = result["items"][0]
         assert n["event_type"] == "order_completed"
@@ -102,7 +104,7 @@ class TestDomainShortcuts:
     def test_on_project_completed(self):
         user = _make_user()
         notification_service.on_project_completed(
-            recipient_user_id=user.id, project_id=3, project_title="Green Earth"
+            db.session, recipient_user_id=user.id, project_id=3, project_title="Green Earth"
         )
         result = notification_service.list_notifications(db.session, user.id, 1, 10)
         n = result["items"][0]
@@ -120,6 +122,7 @@ class TestListNotifications:
         user = _make_user()
         for i in range(5):
             notification_service.dispatch(
+                db.session,
                 recipient_user_id=user.id,
                 event_type="post_liked",
                 source_type="forum_post",
@@ -134,6 +137,7 @@ class TestListNotifications:
         user = _make_user()
         for i in range(3):
             notification_service.dispatch(
+                db.session,
                 recipient_user_id=user.id,
                 event_type="post_liked",
                 source_type="forum_post",
@@ -154,6 +158,7 @@ class TestListNotifications:
         user = _make_user()
         for i in range(4):
             notification_service.dispatch(
+                db.session,
                 recipient_user_id=user.id,
                 event_type="post_liked",
                 source_type="forum_post",
@@ -173,6 +178,7 @@ class TestGetUnreadCount:
         user = _make_user()
         for i in range(3):
             notification_service.dispatch(
+                db.session,
                 recipient_user_id=user.id,
                 event_type="post_liked",
                 source_type="forum_post",
@@ -187,6 +193,7 @@ class TestMarkAsRead:
     def test_mark_single_notification(self):
         user = _make_user()
         notification_service.dispatch(
+            db.session,
             recipient_user_id=user.id,
             event_type="post_liked",
             source_type="forum_post",
@@ -202,6 +209,7 @@ class TestMarkAsRead:
         u1 = _make_user("u1", "u1@x.com")
         u2 = _make_user("u2", "u2@x.com")
         notification_service.dispatch(
+            db.session,
             recipient_user_id=u1.id,
             event_type="post_liked",
             source_type="forum_post",
@@ -220,6 +228,7 @@ class TestMarkAllAsRead:
         user = _make_user()
         for i in range(3):
             notification_service.dispatch(
+                db.session,
                 recipient_user_id=user.id,
                 event_type="post_liked",
                 source_type="forum_post",
@@ -232,6 +241,7 @@ class TestMarkAllAsRead:
     def test_idempotent_second_call(self):
         user = _make_user()
         notification_service.dispatch(
+            db.session,
             recipient_user_id=user.id,
             event_type="post_liked",
             source_type="forum_post",

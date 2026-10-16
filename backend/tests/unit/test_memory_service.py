@@ -83,19 +83,21 @@ class TestMemoryService:
         user = _make_user()
 
         memory_service.create_manual_memory_item(
+            db.session,
             user_id=user.id,
             memory_type="response_style",
             memory_key="response_style",
             value={"value": "concise"},
         )
         memory_service.create_manual_memory_item(
+            db.session,
             user_id=user.id,
             memory_type="topic_interest",
             memory_key="battery",
             value={"topic": "battery"},
         )
 
-        summary = memory_service.rebuild_user_preferences_summary(user.id)
+        summary = memory_service.rebuild_user_preferences_summary(db.session, user.id)
         stored = json.loads(db.session.get(User, user.id).preferences_json)
 
         assert summary["action_preferences"]["response_style"] == "concise"
@@ -109,17 +111,17 @@ class TestMemoryService:
         case = _make_recycling_case(user, waste_type_predicted="battery")
 
         behavior_event_service.record_ai_recycling_case_pending_audit(
-            user_id=user.id, recycling_case_id=case.id
+            db.session, user_id=user.id, recycling_case_id=case.id
         )
         behavior_event_service.record_ai_recycling_case_failed_audit(
-            user_id=user.id, recycling_case_id=case.id
+            db.session, user_id=user.id, recycling_case_id=case.id
         )
         behavior_event_service.record_ai_recycling_case_passed_audit(
-            user_id=user.id, recycling_case_id=case.id
+            db.session, user_id=user.id, recycling_case_id=case.id
         )
-        preference_profile_service.recompute_user_preference_profiles(user.id)
+        preference_profile_service.recompute_user_preference_profiles(db.session, user.id)
 
-        summary = memory_service.rebuild_user_preferences_summary(user.id)
+        summary = memory_service.rebuild_user_preferences_summary(db.session, user.id)
         topic = summary["content_interest_preferences"]["topics"][0]
 
         assert topic["topic_id"] == "battery-recycling"
@@ -140,14 +142,16 @@ class TestMemoryService:
             topics=[{"topic_id": "upcycling", "confidence_score": 1.0, "source": "ai_constrained"}],
         )
 
-        behavior_event_service.record_market_view(user_id=buyer.id, item_id=item.id)
-        behavior_event_service.record_market_long_view(user_id=buyer.id, item_id=item.id)
-        behavior_event_service.record_market_order(
-            user_id=buyer.id, order_id=order.id, item_id=item.id
+        behavior_event_service.record_market_view(db.session, user_id=buyer.id, item_id=item.id)
+        behavior_event_service.record_market_long_view(
+            db.session, user_id=buyer.id, item_id=item.id
         )
-        preference_profile_service.recompute_user_preference_profiles(buyer.id)
+        behavior_event_service.record_market_order(
+            db.session, user_id=buyer.id, order_id=order.id, item_id=item.id
+        )
+        preference_profile_service.recompute_user_preference_profiles(db.session, buyer.id)
 
-        summary = memory_service.rebuild_user_preferences_summary(buyer.id)
+        summary = memory_service.rebuild_user_preferences_summary(db.session, buyer.id)
         topic = summary["content_interest_preferences"]["topics"][0]
 
         assert topic["topic_id"] == "upcycling"
@@ -155,10 +159,10 @@ class TestMemoryService:
         assert topic["event_count"] == 3
 
     def test_get_prompt_memory_summary_returns_empty_for_missing_user(self):
-        assert memory_service.get_prompt_memory_summary(None) == {}
+        assert memory_service.get_prompt_memory_summary(db.session, None) == {}
 
     def test_rebuild_preferences_summary_returns_empty_summary_for_missing_user(self):
-        summary = memory_service.rebuild_user_preferences_summary(999)
+        summary = memory_service.rebuild_user_preferences_summary(db.session, 999)
 
         assert summary["action_preferences"]["response_style"] is None
         assert summary["content_interest_preferences"]["topics"] == []
@@ -166,13 +170,14 @@ class TestMemoryService:
     def test_delete_memory_item_rebuilds_summary(self):
         user = _make_user("delete", "delete@example.com")
         item = memory_service.create_manual_memory_item(
+            db.session,
             user_id=user.id,
             memory_type="response_style",
             memory_key="response_style",
             value={"value": "concise"},
         )
 
-        memory_service.delete_memory_item(item_id=item.id, user_id=user.id)
-        summary = memory_service.get_prompt_memory_summary(user.id)
+        memory_service.delete_memory_item(db.session, item_id=item.id, user_id=user.id)
+        summary = memory_service.get_prompt_memory_summary(db.session, user.id)
 
         assert summary["action_preferences"]["response_style"] is None

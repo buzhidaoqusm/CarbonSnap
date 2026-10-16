@@ -28,7 +28,9 @@ def enqueue_post_removal(*, post_id: int) -> Future | None:
 
 def _refresh_post_search_surfaces(*, post_id: int, title: str, content: str) -> None:
     forum_indexing_service.reindex_post(post_id=post_id, title=title, content=content)
-    topic_mapping_service.refresh_forum_post_topics(post_id=post_id, title=title, content=content)
+    topic_mapping_service.refresh_forum_post_topics(
+        db.session, post_id=post_id, title=title, content=content
+    )
 
 
 def _remove_post_search_surfaces(*, post_id: int) -> None:

@@ -3,7 +3,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from app.extensions.db import db
+from sqlalchemy.orm import Session
+
 from app.repositories.recommendation import preference_profile_repository
 from app.services.ai.openrouter_service import complete_json_diagnostic
 from app.services.recommendation.topic_taxonomy import (
@@ -250,10 +251,12 @@ def assign_project_topics(*, title: str, description: str | None = None) -> list
     ]
 
 
-def refresh_forum_post_topics(*, post_id: int, title: str, content: str) -> list[dict[str, Any]]:
+def refresh_forum_post_topics(
+    session: Session, *, post_id: int, title: str, content: str
+) -> list[dict[str, Any]]:
     topics = assign_forum_post_topics(title=title, content=content)
     preference_profile_repository.replace_content_topic_assignments(
-        db.session,
+        session,
         domain="forum",
         content_type="post",
         content_id=post_id,
@@ -263,11 +266,11 @@ def refresh_forum_post_topics(*, post_id: int, title: str, content: str) -> list
 
 
 def refresh_market_item_topics(
-    *, item_id: int, title: str, description: str | None
+    session: Session, *, item_id: int, title: str, description: str | None
 ) -> list[dict[str, Any]]:
     topics = assign_market_item_topics(title=title, description=description)
     preference_profile_repository.replace_content_topic_assignments(
-        db.session,
+        session,
         domain="market",
         content_type="item",
         content_id=item_id,
@@ -277,11 +280,11 @@ def refresh_market_item_topics(
 
 
 def refresh_project_topics(
-    *, project_id: int, title: str, description: str | None
+    session: Session, *, project_id: int, title: str, description: str | None
 ) -> list[dict[str, Any]]:
     topics = assign_project_topics(title=title, description=description)
     preference_profile_repository.replace_content_topic_assignments(
-        db.session,
+        session,
         domain="project",
         content_type="project",
         content_id=project_id,

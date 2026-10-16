@@ -1,5 +1,6 @@
 """Integration tests for Notification API endpoints."""
 
+from app.extensions.db import db
 from app.services.notification import notification_service
 
 # ---------------------------------------------------------------------------
@@ -11,6 +12,7 @@ def _seed_notifications(user_id: int, count: int = 3):
     """Directly call service to create N notifications for a user."""
     for i in range(count):
         notification_service.dispatch(
+            db.session,
             recipient_user_id=user_id,
             event_type="post_liked",
             source_type="forum_post",
@@ -111,6 +113,7 @@ class TestListNotifications:
         comment = _create_forum_comment(client, commenter_headers, post["id"], content="Nice post")
 
         notification_service.dispatch(
+            db.session,
             recipient_user_id=post["author_id"],
             event_type="comment_liked",
             source_type="forum_comment",
@@ -126,6 +129,7 @@ class TestListNotifications:
     def test_forum_post_notifications_route_to_post_page(self, client, make_auth_headers):
         user_id, headers = make_auth_headers()
         notification_service.dispatch(
+            db.session,
             recipient_user_id=user_id,
             event_type="post_commented",
             source_type="forum_post",
@@ -141,6 +145,7 @@ class TestListNotifications:
     def test_missing_comment_source_falls_back_to_notification(self, client, make_auth_headers):
         user_id, headers = make_auth_headers()
         notification_service.dispatch(
+            db.session,
             recipient_user_id=user_id,
             event_type="comment_replied",
             source_type="forum_comment",
@@ -155,6 +160,7 @@ class TestListNotifications:
     def test_project_completed_uses_project_route_and_body(self, client, make_auth_headers):
         user_id, headers = make_auth_headers()
         notification_service.dispatch(
+            db.session,
             recipient_user_id=user_id,
             event_type="project_completed",
             source_type="project",
@@ -170,6 +176,7 @@ class TestListNotifications:
     def test_item_and_order_notifications_use_market_route(self, client, make_auth_headers):
         user_id, headers = make_auth_headers()
         notification_service.dispatch(
+            db.session,
             recipient_user_id=user_id,
             event_type="item_purchased",
             source_type="order",
@@ -177,6 +184,7 @@ class TestListNotifications:
             title="Your item has been purchased.",
         )
         notification_service.dispatch(
+            db.session,
             recipient_user_id=user_id,
             event_type="order_completed",
             source_type="order",

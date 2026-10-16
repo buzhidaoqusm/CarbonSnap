@@ -7,7 +7,8 @@ from datetime import UTC, datetime
 from math import exp
 from typing import Any
 
-from app.extensions.db import db
+from sqlalchemy.orm import Session
+
 from app.repositories.recommendation import behavior_event_repository, preference_profile_repository
 from app.services.recommendation.topic_taxonomy import PHASE1_TOPIC_IDS, normalize_topic_id
 
@@ -44,7 +45,7 @@ DEFAULT_PROFILE_EVENT_THRESHOLD = 3
 DEFAULT_PROFILE_NORMALIZED_THRESHOLD = 0.35
 DEFAULT_PROFILE_LIMIT = 5
 
-ACTION_PREFERENCE_TEMPLATE = {
+ACTION_PREFERENCE_TEMPLATE: dict[str, Any] = {
     "prefer_nearby_options": None,
     "allow_manual_area_input": None,
     "preferred_recycling_methods": [],
@@ -159,9 +160,9 @@ def _update_bucket(
         bucket["last_event_at"] = event_time
 
 
-def _aggregate_topic_rows(user_id: int) -> list[dict[str, Any]]:
+def _aggregate_topic_rows(session: Session, user_id: int) -> list[dict[str, Any]]:
     topic_buckets: dict[str, dict[str, Any]] = defaultdict(_topic_bucket)
-    for event in behavior_event_repository.list_behavior_events_for_user(db.session, user_id):
+    for event in behavior_event_repository.list_behavior_events_for_user(session, user_id):
         if str(getattr(event, "domain", "") or "").strip().lower() == "forum" and str(
             getattr(event, "action_type", "") or ""
         ).strip().lower() in {"like", "unlike"}:
@@ -180,7 +181,7 @@ def _aggregate_topic_rows(user_id: int) -> list[dict[str, Any]]:
                 source_domain=event.domain,
             )
 
-    for event in _list_active_forum_like_events(user_id):
+    for event in _list_active_forum_like_events(session, user_id):
         action_weight = FORUM_ACTION_WEIGHTS["like"]
         decay = time_decay_for_event(event.created_at)
         for contribution in _load_topic_payload(event):
@@ -234,10 +235,10 @@ def _aggregate_topic_rows(user_id: int) -> list[dict[str, Any]]:
     return rows
 
 
-def _list_active_forum_like_events(user_id: int) -> list[Any]:
+def _list_active_forum_like_events(session: Session, user_id: int) -> list[Any]:
     latest_by_target: dict[tuple[str, int], Any] = {}
     for event in behavior_event_repository.list_behavior_events_for_user(
-        db.session,
+        session,
         user_id,
         domain="forum",
         action_types=["like", "unlike"],
@@ -254,18 +255,18 @@ def _list_active_forum_like_events(user_id: int) -> list[Any]:
     ]
 
 
-def recompute_user_preference_profiles(user_id: int):
-    rows = _aggregate_topic_rows(user_id)
+def recompute_user_preference_profiles(session: Session, user_id: int):
+    rows = _aggregate_topic_rows(session, user_id)
     return preference_profile_repository.replace_user_preference_profiles(
-        db.session,
+        session,
         user_id=user_id,
         profiles=rows,
     )
 
 
-def list_content_interest_profiles(user_id: int):
+def list_content_interest_profiles(session: Session, user_id: int):
     return preference_profile_repository.list_user_preference_profiles(
-        db.session,
+        session,
         user_id,
         profile_type="content_interest",
     )
@@ -286,13 +287,14 @@ def is_promotable_profile(
 
 
 def has_sufficient_history(
-    user_id: int, *, min_event_count: int = DEFAULT_PROFILE_EVENT_THRESHOLD
+    session: Session, user_id: int, *, min_event_count: int = DEFAULT_PROFILE_EVENT_THRESHOLD
 ) -> bool:
-    profiles = list_content_interest_profiles(user_id)
+    profiles = list_content_interest_profiles(session, user_id)
     return any(int(profile.event_count or 0) >= min_event_count for profile in profiles)
 
 
 def list_promotable_topics(
+    session: Session,
     user_id: int,
     *,
     limit: int = DEFAULT_PROFILE_LIMIT,
@@ -302,7 +304,7 @@ def list_promotable_topics(
 ) -> list[dict[str, Any]]:
     promotable = [
         profile
-        for profile in list_content_interest_profiles(user_id)
+        for profile in list_content_interest_profiles(session, user_id)
         if is_promotable_profile(
             profile,
             min_event_count=min_event_count,
@@ -333,10 +335,11 @@ def list_promotable_topics(
     ]
 
 
-def get_profile_snapshot(user_id: int) -> dict[str, float]:
+def get_profile_snapshot(session: Session, user_id: int) -> dict[str, float]:
     return {
         item["topic_id"]: float(item["score"])
         for item in list_promotable_topics(
+            session,
             user_id,
             limit=DEFAULT_PROFILE_LIMIT,
             min_event_count=1,
@@ -346,8 +349,9 @@ def get_profile_snapshot(user_id: int) -> dict[str, float]:
     }
 
 
-def build_user_preference_snapshot(user_id: int) -> dict[str, Any]:
+def build_user_preference_snapshot(session: Session, user_id: int) -> dict[str, Any]:
     promotable_topics = list_promotable_topics(
+        session,
         user_id,
         limit=DEFAULT_PROFILE_LIMIT,
         min_event_count=1,

@@ -52,10 +52,10 @@ class TestForumRecommendationService:
 
         monkeypatch.setattr(
             "app.services.recommendation.preference_profile_service.has_sufficient_history",
-            lambda user_id: True,
+            lambda _session, user_id: True,
         )
 
-        def get_profile_snapshot(user_id):
+        def get_profile_snapshot(_session, user_id):
             call_counts["profile"] += 1
             return {"battery-recycling": 0.9}
 
@@ -512,11 +512,11 @@ class TestForumRecommendationService:
 
         monkeypatch.setattr(
             "app.services.recommendation.preference_profile_service.has_sufficient_history",
-            lambda user_id: True,
+            lambda _session, user_id: True,
         )
         monkeypatch.setattr(
             "app.services.recommendation.preference_profile_service.get_profile_snapshot",
-            lambda user_id: {"battery-recycling": 0.9, "plastic-recycling": 0.1},
+            lambda _session, user_id: {"battery-recycling": 0.9, "plastic-recycling": 0.1},
         )
         monkeypatch.setattr(
             forum_recommendation_service.behavior_event_repository,
@@ -539,11 +539,11 @@ class TestForumRecommendationService:
 
         monkeypatch.setattr(
             "app.services.recommendation.preference_profile_service.has_sufficient_history",
-            lambda user_id: True,
+            lambda _session, user_id: True,
         )
         monkeypatch.setattr(
             "app.services.recommendation.preference_profile_service.get_profile_snapshot",
-            lambda user_id: {"battery-recycling": 0.9, "plastic-recycling": 0.1},
+            lambda _session, user_id: {"battery-recycling": 0.9, "plastic-recycling": 0.1},
         )
         monkeypatch.setattr(
             forum_recommendation_service.preference_profile_repository,
@@ -593,7 +593,7 @@ class TestForumRecommendationService:
 
         monkeypatch.setattr(
             "app.services.recommendation.preference_profile_service.has_sufficient_history",
-            lambda user_id: False,
+            lambda _session, user_id: False,
         )
         monkeypatch.setattr(forum_recommendation_service, "_engagement_score", lambda post: 0.0)
 
@@ -611,7 +611,7 @@ class TestForumRecommendationService:
 
         monkeypatch.setattr(
             "app.services.recommendation.preference_profile_service.has_sufficient_history",
-            lambda user_id: False,
+            lambda _session, user_id: False,
         )
         monkeypatch.setattr(forum_recommendation_service, "_recency_score", lambda post: 0.6)
         monkeypatch.setattr(
@@ -649,11 +649,11 @@ class TestForumRecommendationService:
 
         monkeypatch.setattr(
             "app.services.recommendation.preference_profile_service.has_sufficient_history",
-            lambda user_id: True,
+            lambda _session, user_id: True,
         )
         monkeypatch.setattr(
             "app.services.recommendation.preference_profile_service.get_profile_snapshot",
-            lambda user_id: {"battery-recycling": 0.9},
+            lambda _session, user_id: {"battery-recycling": 0.9},
         )
         monkeypatch.setattr(
             forum_recommendation_service.behavior_event_repository,
