@@ -203,7 +203,12 @@ docs/adr/
 >   顺手修掉的问题：
 >   - `sub` 是用户名的老 token 访问 notification 会返回 500；
 >   - flask_jwt_extended 对坏 token 返回 422 加 `{"msg"}`，前端只能显示 "Request failed"。
-> - 下一步：第 3 段，按 profile/auth → ledger → project → market → forum → uploads → ai/memory 的顺序迁移。
+> - **第 3 段进行中**：
+>   - profile/auth ✅（2026-10-16）。迁移前这几个接口几乎没有测试：注册和登录 0 个，5 个接口一共 2 个测试。
+>     所以先对着 Flask 写了 24 个特征测试，把状态码、错误码和错误信息原样固定下来，迁移后一行没改，全部通过。
+>     签发 token 改用 PyJWT，从此不再依赖 Flask；老 token 访问 `/me` 原来会返回 500，现在正常。
+>     Flask 路由 51 → 46。
+> - 下一步：按 ledger → project → market → forum → uploads → ai/memory 的顺序继续迁移。
 >   迁 forum 和 market 时，要把 `notification_service.dispatch` 和 `auth_identity` 剩下的 Flask 依赖一起去掉。
 
 从简单到复杂，每迁一个模块开一个 PR：

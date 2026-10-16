@@ -37,6 +37,7 @@ docker compose -f docker-compose.yml -f docker-compose.bench.yml --profile bench
 | 7 | ~~每个并发会话约 115 MB~~ ✅ 已修 | 3 个对话 320 MB → 40 个对话 **245 MB**（单进程 40 线程） | 已修（2026-10-03，P1 第 1 段） | 内存不随并发线性增长 |
 | 8 | ~~第三方资源卡住，整站白屏~~ ✅ 已修 | 第三方请求挂起时：**30 s 后仍白屏 → 0.7 s 出现**；首页 LCP 中位数 **3.0 s → 0.68 s** | 已修（2026-10-03） | 首屏不依赖任何第三方 |
 | 9 | 一轮对话全程占着一个数据库连接 | 20 个用户时 **11–20 个连接 "idle in transaction"**；线程多于连接池时 **34% 的对话失败** | P2（第 1 段先把连接池调到和线程数一样大） | 调用 LLM 前结束事务 |
+| 10 | 上传接口不限请求体大小 | 未实测：读代码确认没有任何上限 | 待定 | 头像等接口有大小上限，超出返回 413 |
 
 ---
 
@@ -270,6 +271,16 @@ docker compose -f docker-compose.yml -f docker-compose.bench.yml exec postgres p
 ```
 
 （压测进行中执行。）
+
+## 10. 上传接口不限请求体大小
+
+`PATCH /api/auth/me/avatar` 接收一个 base64 data URL，`store_data_url_image` 会先把它整个解码进内存，
+然后写到磁盘。整个链路上没有任何大小检查：Flask 没设置 `MAX_CONTENT_LENGTH`，迁到 FastAPI 以后也没有加，
+`store_data_url_image` 里同样没有。一个已登录的用户可以上传任意大的"头像"，处理过程中会占用这么大的内存，
+最后还要占用这么大的磁盘空间。论坛、AI 对话这些接口也走 `store_data_url_image`，所以有同样的问题。
+
+这是 P1 第 3 段迁移 auth 时读代码发现的，还没有实测。修的时候先测一下：上传 50 MB 的 data URL，
+看进程内存涨了多少、请求花了多久，以及磁盘上多出了什么。
 
 ## 查过但没有发现问题的
 
