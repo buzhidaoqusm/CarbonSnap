@@ -227,7 +227,14 @@ docs/adr/
 >     `pagination(default_per_page)` 改成工厂函数，project 每页默认 12 条。Flask 路由 41 → 36。
 >     另外还有一处没处理，代码里能确认但没有实测：已登录用户请求列表时，会把所有项目都查出来，排完序再在 Python 里分页。
 >   - #11 并发扣积分 ✅（2026-10-16）。给用户、项目、商品、订单的读取加上行锁，4 个并发场景都从十几次出错降到 0/20，详见 PERFORMANCE_ISSUES #11。
-> - 下一步：按 market → forum → uploads → ai/memory 的顺序继续迁移。
+>   - market ✅（2026-10-17）。原有 41 个测试没有一个断言错误信息或返回结构，所以先补了 14 个特征测试。
+>     变异测试发现：行为事件写入失败时，只有"记录浏览时长"的 2 个测试会变红，于是又补了 3 个副作用集成测试。
+>     可选登录的处理改成和 project 一致，带了 token 就必须能解析出一个用户，否则返回 401；原来查不到用户时是当作匿名访问。
+>     `market_recommendation_service` 原来还在用 `db.session`，迁过去后个性化排序会静默失效，这次一起改了。
+>     6 处 `except Exception: pass` 改用共享的 `side_effects.discard_failed_side_effect`。
+>     下架商品时也会加行锁了：原来下架和下单可能同时成功，并发测试已经覆盖。Flask 路由 36 → 25。
+>     另外还有一处没处理，代码里能确认但没有实测：已登录用户浏览商城时，会把所有在售商品查出来再在 Python 里分页。
+> - 下一步：按 forum → uploads → ai/memory 的顺序继续迁移。
 >   迁 market 和 forum 时，要逐个处理剩下的 `except Exception: pass`：异常吞掉后 session 仍处于失败状态，后面的查询会返回 500。
 >   迁 forum 和 market 时，要把 `notification_service.dispatch` 和 `auth_identity` 剩下的 Flask 依赖一起去掉。
 

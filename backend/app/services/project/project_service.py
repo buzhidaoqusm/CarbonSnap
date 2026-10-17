@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from datetime import UTC, datetime
 from math import ceil
 from typing import overload
@@ -18,8 +17,7 @@ from app.services.recommendation import (
     topic_mapping_service,
 )
 from app.services.recommendation.project_recommendation_service import rank_projects_for_user
-
-logger = logging.getLogger(__name__)
+from app.services.side_effects import discard_failed_side_effect
 
 
 class ProjectError(Exception):
@@ -126,17 +124,6 @@ def _serialize_project(
     return payload
 
 
-def _discard_failed_side_effect(session: Session) -> None:
-    """After a best-effort write (events, profiles, ranking) fails.
-
-    The project write is already committed, or there was none; rolling back
-    clears the failed transaction, which would otherwise make every later
-    query in the request raise and turn a success into a 500.
-    """
-    logger.exception("Project side effect failed; continuing without it.")
-    session.rollback()
-
-
 def _refresh_recommendation_state(session: Session, user_id: int) -> None:
     preference_profile_service.recompute_user_preference_profiles(session, user_id)
     memory_service.rebuild_user_preferences_summary(session, user_id)
@@ -185,7 +172,7 @@ def create_project(
         )
         _refresh_recommendation_state(session, creator_user_id)
     except Exception:
-        _discard_failed_side_effect(session)
+        discard_failed_side_effect(session, "project")
     creator_map = project_repository.list_creator_usernames(session, [creator_user_id])
     return _serialize_project(
         session,
@@ -211,7 +198,7 @@ def list_projects(
                 session, projects=candidate_items, user_id=viewer_user_id
             )
         except Exception:
-            _discard_failed_side_effect(session)
+            discard_failed_side_effect(session, "project")
             ranked_candidate_items = candidate_items
         ordered_items = own_items + ranked_candidate_items
         start = max((page - 1) * per_page, 0)
@@ -263,7 +250,7 @@ def get_project(session: Session, project_id: int, *, viewer_user_id: int | None
             )
             _refresh_recommendation_state(session, viewer_user_id)
         except Exception:
-            _discard_failed_side_effect(session)
+            discard_failed_side_effect(session, "project")
     creator_map = project_repository.list_creator_usernames(session, [project.creator_user_id])
     return _serialize_project(
         session,
@@ -351,7 +338,7 @@ def contribute_to_project(session: Session, *, project_id: int, user_id: int, po
         )
         _refresh_recommendation_state(session, user_id)
     except Exception:
-        _discard_failed_side_effect(session)
+        discard_failed_side_effect(session, "project")
 
     creator_map = project_repository.list_creator_usernames(session, [project.creator_user_id])
     contribution_username = project_repository.list_creator_usernames(session, [user_id]).get(

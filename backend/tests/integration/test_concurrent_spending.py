@@ -266,3 +266,26 @@ def test_an_order_cannot_be_both_shipped_and_cancelled(base_url, db):
         )
 
         assert sorted(statuses) == [200, 409]
+
+
+def test_an_item_cannot_be_both_removed_and_sold(base_url, db):
+    # Removing read the item without a lock, so it could pass the "active"
+    # check while a purchase did: the buyer paid for a removed item.
+    for _ in range(ROUNDS):
+        seller_id, seller = _user(db, 0)
+        _, buyer = _user(db, 100)
+        item = MarketItem(seller_id=seller_id, title="Bike", price_points=50)
+        db.add(item)
+        db.commit()
+
+        statuses = _together(
+            base_url,
+            [
+                lambda c, i=item.id, h=seller: c.delete(f"/market/items/{i}", headers=h),
+                lambda c, i=item.id, h=buyer: c.post(
+                    "/market/orders", json={"item_id": i}, headers=h
+                ),
+            ],
+        )
+
+        assert sorted(statuses) in ([200, 409], [201, 409])

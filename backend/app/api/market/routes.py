@@ -1,52 +1,29 @@
-"""C2C Marketplace API Blueprint.
+"""C2C marketplace: items for sale and the orders that buy them."""
 
-Endpoints:
-  POST   /api/market/items                    List an item for sale
-  GET    /api/market/items                    Browse active items (paginated)
-  GET    /api/market/items/mine               My listed items
-  GET    /api/market/items/<id>               Item detail
-  DELETE /api/market/items/<id>               Remove/delist item (seller only)
+from typing import Any
 
-  POST   /api/market/orders                   Place an order (buy)
-  GET    /api/market/orders                   My orders (buyer+seller, ?role=buyer|seller|all)
-  PATCH  /api/market/orders/<id>/ship         Mark as shipped (seller only)
-  PATCH  /api/market/orders/<id>/confirm      Confirm receipt (buyer only)
-  PATCH  /api/market/orders/<id>/cancel       Cancel order (buyer only, before shipment)
-"""
+from fastapi import APIRouter
 
-from flask import Blueprint, request
-from flask_jwt_extended import jwt_required
-
+from app.api.deps import CurrentUserId, DbSession, OptionalUserId, PageParams
+from app.api.errors import ApiError
+from app.schemas.common import Envelope, ok
+from app.schemas.market import (
+    ItemIn,
+    ItemOut,
+    ItemPage,
+    LongViewResult,
+    OrderIn,
+    OrderOut,
+    OrderPage,
+)
 from app.services.market import market_service
 from app.services.market.market_service import MarketError
-from app.utils.auth_identity import (
-    UnresolvableJwtIdentityError,
-    get_optional_current_user_id,
-    get_required_current_user_id,
-)
-from app.utils.response import fail, ok
 
-market_bp = Blueprint("market", __name__)
+router = APIRouter(prefix="/api/market", tags=["market"])
 
 
-def _current_user_id() -> int:
-    return get_required_current_user_id()
-
-
-def _optional_current_user_id() -> int | None:
-    return get_optional_current_user_id()
-
-
-def _parse_pagination() -> tuple[int, int]:
-    try:
-        page = max(1, int(request.args.get("page", 1)))
-    except (TypeError, ValueError):
-        page = 1
-    try:
-        per_page = min(100, max(1, int(request.args.get("per_page", 20))))
-    except (TypeError, ValueError):
-        per_page = 20
-    return page, per_page
+def _api_error(exc: MarketError) -> ApiError:
+    return ApiError(exc.code, exc.message, exc.http_status)
 
 
 # ---------------------------------------------------------------------------
@@ -54,82 +31,75 @@ def _parse_pagination() -> tuple[int, int]:
 # ---------------------------------------------------------------------------
 
 
-@market_bp.post("/market/items")
-@jwt_required()
-def create_item():
-    body = request.get_json(silent=True) or {}
-    title = str(body.get("title", "")).strip()
+@router.post("/items", status_code=201, response_model=Envelope[ItemOut])
+def create_item(user_id: CurrentUserId, session: DbSession, body: ItemIn | None = None):
+    body = body or ItemIn()
+    title = body.title.strip()
     if not title:
-        return fail(40001, "Field 'title' is required.")
+        raise ApiError(40001, "Field 'title' is required.")
     try:
-        price_points = int(body.get("price_points", 0))
-    except (TypeError, ValueError):
-        return fail(40001, "'price_points' must be an integer.")
-
+        price_points = int(body.price_points)
+    except (TypeError, ValueError) as exc:
+        raise ApiError(40001, "'price_points' must be an integer.") from exc
     try:
         result = market_service.create_item(
-            seller_id=_current_user_id(),
+            session,
+            seller_id=user_id,
             title=title,
-            description=body.get("description") or None,
-            image_urls_json=body.get("image_urls_json") or None,
+            description=body.description or None,
+            image_urls_json=body.image_urls_json or None,
             price_points=price_points,
         )
     except MarketError as exc:
-        return fail(exc.code, exc.message, exc.http_status)
-    return ok(result, status=201)
+        raise _api_error(exc) from exc
+    return ok(result)
 
 
-@market_bp.get("/market/items")
-@jwt_required(optional=True)
-def list_active_items():
-    page, per_page = _parse_pagination()
+@router.get("/items", response_model=Envelope[ItemPage])
+def list_active_items(session: DbSession, viewer: OptionalUserId, paging: PageParams):
     return ok(
         market_service.list_active_items(
-            page,
-            per_page,
-            viewer_user_id=_optional_current_user_id(),
+            session, paging.page, paging.per_page, viewer_user_id=viewer
         )
     )
 
 
-@market_bp.get("/market/items/mine")
-@jwt_required()
-def list_my_items():
-    page, per_page = _parse_pagination()
-    return ok(market_service.list_my_items(_current_user_id(), page, per_page))
+# Registered before /items/{item_id}, which would otherwise try to read "mine"
+# as an id.
+@router.get("/items/mine", response_model=Envelope[ItemPage])
+def list_my_items(user_id: CurrentUserId, session: DbSession, paging: PageParams):
+    return ok(market_service.list_my_items(session, user_id, paging.page, paging.per_page))
 
 
-@market_bp.get("/market/items/<int:item_id>")
-@jwt_required(optional=True)
-def get_item(item_id: int):
+@router.get("/items/{item_id}", response_model=Envelope[ItemOut])
+def get_item(item_id: int, session: DbSession, viewer: OptionalUserId):
     try:
-        return ok(
-            market_service.get_item(
-                item_id,
-                viewer_user_id=_optional_current_user_id(),
-            )
-        )
+        return ok(market_service.get_item(session, item_id, viewer_user_id=viewer))
     except MarketError as exc:
-        return fail(exc.code, exc.message, exc.http_status)
+        raise _api_error(exc) from exc
 
 
-@market_bp.post("/market/items/<int:item_id>/long-view")
-@jwt_required()
-def record_item_long_view(item_id: int):
+# reason is only present when nothing was tracked, as before.
+@router.post(
+    "/items/{item_id}/long-view",
+    response_model=Envelope[LongViewResult],
+    response_model_exclude_none=True,
+)
+def record_item_long_view(item_id: int, user_id: CurrentUserId, session: DbSession):
     try:
-        return ok(market_service.record_item_long_view(item_id, viewer_user_id=_current_user_id()))
+        result = market_service.record_item_long_view(session, item_id, viewer_user_id=user_id)
     except MarketError as exc:
-        return fail(exc.code, exc.message, exc.http_status)
+        raise _api_error(exc) from exc
+    return ok(result)
 
 
-@market_bp.delete("/market/items/<int:item_id>")
-@jwt_required()
-def remove_item(item_id: int):
+@router.delete("/items/{item_id}", response_model=Envelope[dict[str, Any]])
+def remove_item(item_id: int, user_id: CurrentUserId, session: DbSession):
     try:
-        market_service.remove_item(item_id, operator_user_id=_current_user_id())
+        market_service.remove_item(session, item_id, operator_user_id=user_id)
     except MarketError as exc:
-        return fail(exc.code, exc.message, exc.http_status)
-    return ok()
+        raise _api_error(exc) from exc
+    return ok({})
 
 
 # ---------------------------------------------------------------------------
@@ -137,68 +107,53 @@ def remove_item(item_id: int):
 # ---------------------------------------------------------------------------
 
 
-@market_bp.post("/market/orders")
-@jwt_required()
-def place_order():
-    body = request.get_json(silent=True) or {}
-    item_id = body.get("item_id")
-    if item_id is None:
-        return fail(40001, "Field 'item_id' is required.")
+@router.post("/orders", status_code=201, response_model=Envelope[OrderOut])
+def place_order(user_id: CurrentUserId, session: DbSession, body: OrderIn | None = None):
+    raw_item_id = (body or OrderIn()).item_id
+    if raw_item_id is None:
+        raise ApiError(40001, "Field 'item_id' is required.")
     try:
-        item_id = int(item_id)
-    except (TypeError, ValueError):
-        return fail(40001, "'item_id' must be an integer.")
-
+        item_id = int(raw_item_id)
+    except (TypeError, ValueError) as exc:
+        raise ApiError(40001, "'item_id' must be an integer.") from exc
     try:
-        result = market_service.place_order(
-            buyer_id=_current_user_id(),
-            item_id=item_id,
-        )
+        result = market_service.place_order(session, buyer_id=user_id, item_id=item_id)
     except MarketError as exc:
-        return fail(exc.code, exc.message, exc.http_status)
-    return ok(result, status=201)
+        raise _api_error(exc) from exc
+    return ok(result)
 
 
-@market_bp.get("/market/orders")
-@jwt_required()
-def list_my_orders():
-    page, per_page = _parse_pagination()
-    role = request.args.get("role", "all")
+@router.get("/orders", response_model=Envelope[OrderPage])
+def list_my_orders(
+    user_id: CurrentUserId, session: DbSession, paging: PageParams, role: str = "all"
+):
+    # A plain str, not a Literal: the message stays the one users have seen.
     if role not in ("buyer", "seller", "all"):
-        return fail(40001, "'role' must be one of: buyer, seller, all.")
-    return ok(market_service.list_my_orders(_current_user_id(), page, per_page, role=role))
+        raise ApiError(40001, "'role' must be one of: buyer, seller, all.")
+    return ok(
+        market_service.list_my_orders(session, user_id, paging.page, paging.per_page, role=role)
+    )
 
 
-@market_bp.patch("/market/orders/<int:order_id>/ship")
-@jwt_required()
-def ship_order(order_id: int):
+@router.patch("/orders/{order_id}/ship", response_model=Envelope[OrderOut])
+def ship_order(order_id: int, user_id: CurrentUserId, session: DbSession):
     try:
-        result = market_service.ship_order(order_id, operator_user_id=_current_user_id())
+        return ok(market_service.ship_order(session, order_id, operator_user_id=user_id))
     except MarketError as exc:
-        return fail(exc.code, exc.message, exc.http_status)
-    return ok(result)
+        raise _api_error(exc) from exc
 
 
-@market_bp.patch("/market/orders/<int:order_id>/confirm")
-@jwt_required()
-def confirm_receipt(order_id: int):
+@router.patch("/orders/{order_id}/confirm", response_model=Envelope[OrderOut])
+def confirm_receipt(order_id: int, user_id: CurrentUserId, session: DbSession):
     try:
-        result = market_service.confirm_receipt(order_id, operator_user_id=_current_user_id())
+        return ok(market_service.confirm_receipt(session, order_id, operator_user_id=user_id))
     except MarketError as exc:
-        return fail(exc.code, exc.message, exc.http_status)
-    return ok(result)
+        raise _api_error(exc) from exc
 
 
-@market_bp.patch("/market/orders/<int:order_id>/cancel")
-@jwt_required()
-def cancel_order(order_id: int):
+@router.patch("/orders/{order_id}/cancel", response_model=Envelope[OrderOut])
+def cancel_order(order_id: int, user_id: CurrentUserId, session: DbSession):
     try:
-        result = market_service.cancel_order(order_id, operator_user_id=_current_user_id())
+        return ok(market_service.cancel_order(session, order_id, operator_user_id=user_id))
     except MarketError as exc:
-        return fail(exc.code, exc.message, exc.http_status)
-    return ok(result)
-
-
-@market_bp.errorhandler(UnresolvableJwtIdentityError)
-def handle_unresolvable_jwt_identity(exc: UnresolvableJwtIdentityError):
-    return fail(40100, str(exc), 401)
+        raise _api_error(exc) from exc

@@ -3,7 +3,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from math import exp
 
-from app.extensions.db import db
+from sqlalchemy.orm import Session
+
 from app.models.market import MarketItem
 from app.repositories.market import market_repository
 from app.repositories.recommendation import behavior_event_repository, preference_profile_repository
@@ -311,45 +312,45 @@ def merge_ranked_items(
     return merged_items
 
 
-def build_ranking_context(*, user_id: int, items: list[MarketItem]) -> dict:
+def build_ranking_context(session: Session, *, user_id: int, items: list[MarketItem]) -> dict:
     item_ids = [int(item.id) for item in items if item is not None and item.id is not None]
-    has_history = preference_profile_service.has_sufficient_history(db.session, user_id)
+    has_history = preference_profile_service.has_sufficient_history(session, user_id)
     profile_snapshot = (
-        preference_profile_service.get_profile_snapshot(db.session, user_id) if has_history else {}
+        preference_profile_service.get_profile_snapshot(session, user_id) if has_history else {}
     )
     topic_assignments_by_item_id = (
         preference_profile_repository.list_content_topic_assignments_for_content_ids(
-            db.session,
+            session,
             domain="market",
             content_type="item",
             content_ids=item_ids,
         )
     )
     viewed_item_ids = behavior_event_repository.list_behavior_target_ids_for_user(
-        db.session,
+        session,
         user_id,
         domain="market",
         target_type="item",
         action_types=["view", "long_view"],
     )
     long_viewed_item_ids = behavior_event_repository.list_behavior_target_ids_for_user(
-        db.session,
+        session,
         user_id,
         domain="market",
         target_type="item",
         action_types=["long_view"],
     )
-    ordered_item_ids = market_repository.list_ordered_item_ids_by_buyer(db.session, user_id)
+    ordered_item_ids = market_repository.list_ordered_item_ids_by_buyer(session, user_id)
     recent_topic_exposure = behavior_event_repository.list_recent_topic_exposure_counts_for_user(
-        db.session,
+        session,
         user_id,
         domain="market",
     )
     total_order_counts_by_item_id = market_repository.list_order_counts_for_item_ids(
-        db.session, item_ids
+        session, item_ids
     )
     completed_order_counts_by_item_id = market_repository.list_order_counts_for_item_ids(
-        db.session,
+        session,
         item_ids,
         statuses=["completed"],
     )
@@ -366,11 +367,13 @@ def build_ranking_context(*, user_id: int, items: list[MarketItem]) -> dict:
     }
 
 
-def rank_items_for_user(*, items: list[MarketItem], user_id: int) -> list[MarketItem]:
+def rank_items_for_user(
+    session: Session, *, items: list[MarketItem], user_id: int
+) -> list[MarketItem]:
     if not items:
         return []
 
-    ranking_context = build_ranking_context(user_id=user_id, items=items)
+    ranking_context = build_ranking_context(session, user_id=user_id, items=items)
     if not ranking_context["has_history"]:
         return sorted(
             items,

@@ -112,6 +112,7 @@ class TestMarketRecommendationService:
         )
 
         ranked = market_recommendation_service.rank_items_for_user(
+            db.session,
             items=[non_matching_item, matching_item],
             user_id=user.id,
         )
@@ -136,6 +137,7 @@ class TestMarketRecommendationService:
         )
 
         ranked = market_recommendation_service.rank_items_for_user(
+            db.session,
             items=[newer_item, older_popular_item],
             user_id=buyer.id,
         )
@@ -211,6 +213,7 @@ class TestMarketRecommendationService:
         )
 
         ranked = market_recommendation_service.rank_items_for_user(
+            db.session,
             items=[upcycling_3, alternate, upcycling_2, upcycling_1],
             user_id=buyer.id,
         )
