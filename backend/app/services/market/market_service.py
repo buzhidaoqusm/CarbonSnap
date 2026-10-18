@@ -34,6 +34,10 @@ from app.services.recommendation import (
     preference_profile_service,
     topic_mapping_service,
 )
+from app.services.recommendation.candidates import (
+    RANKING_CANDIDATE_LIMIT,
+    page_of_ranked_then_tail,
+)
 from app.services.recommendation.market_recommendation_service import rank_items_for_user
 from app.services.side_effects import discard_failed_side_effect
 
@@ -189,21 +193,27 @@ def list_active_items(
     session: Session, page: int, per_page: int, *, viewer_user_id: int | None = None
 ) -> dict:
     if viewer_user_id is not None:
-        all_items = market_repository.list_all_active_items_excluding_seller(
-            session, seller_id=viewer_user_id
+        total = market_repository.count_active_items_for_viewer(session, viewer_id=viewer_user_id)
+        candidate_items = market_repository.list_active_items_for_viewer(
+            session, viewer_id=viewer_user_id, limit=RANKING_CANDIDATE_LIMIT
         )
-        ordered_item_ids = market_repository.list_ordered_item_ids_by_buyer(session, viewer_user_id)
-        candidate_items = [item for item in all_items if int(item.id) not in ordered_item_ids]
-        total = len(candidate_items)
         try:
-            ordered_items = rank_items_for_user(
+            ranked_items = rank_items_for_user(
                 session, items=candidate_items, user_id=viewer_user_id
             )
         except Exception:
             discard_failed_side_effect(session, "market")
-            ordered_items = candidate_items
-        start = max((page - 1) * per_page, 0)
-        items = ordered_items[start : start + per_page]
+            ranked_items = candidate_items
+        items = page_of_ranked_then_tail(
+            ranked_items,
+            start=max((page - 1) * per_page, 0),
+            per_page=per_page,
+            window=len(candidate_items),
+            total=total,
+            fetch_tail=lambda offset, limit: market_repository.list_active_items_for_viewer(
+                session, viewer_id=viewer_user_id, limit=limit, offset=offset
+            ),
+        )
     else:
         items, total = market_repository.list_active_items_page(session, page, per_page)
     return {

@@ -66,15 +66,39 @@ def list_all_active_items(session: Session) -> list[MarketItem]:
     )
 
 
-def list_all_active_items_excluding_seller(session: Session, *, seller_id: int) -> list[MarketItem]:
+def _active_items_for_viewer(viewer_id: int):
+    """Active items the viewer could buy: not their own, not already bought."""
+    bought = select(Order.item_id).where(Order.buyer_id == viewer_id)
+    return (
+        MarketItem.status == "active",
+        MarketItem.seller_id != viewer_id,
+        MarketItem.id.not_in(bought),
+    )
+
+
+def count_active_items_for_viewer(session: Session, *, viewer_id: int) -> int:
+    return (
+        session.scalar(
+            select(func.count(MarketItem.id)).where(*_active_items_for_viewer(viewer_id))
+        )
+        or 0
+    )
+
+
+def list_active_items_for_viewer(
+    session: Session, *, viewer_id: int, limit: int, offset: int = 0
+) -> list[MarketItem]:
+    """Newest first: the ranking candidates, and from `offset` on, the pages
+    past them."""
+    if limit <= 0:
+        return []
     return list(
         session.scalars(
             select(MarketItem)
-            .where(
-                MarketItem.status == "active",
-                MarketItem.seller_id != seller_id,
-            )
+            .where(*_active_items_for_viewer(viewer_id))
             .order_by(MarketItem.created_at.desc(), MarketItem.id.desc())
+            .limit(limit)
+            .offset(offset)
         ).all()
     )
 

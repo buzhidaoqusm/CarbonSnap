@@ -154,7 +154,11 @@ def count_all_published_posts(session: Session) -> int:
     )
 
 
-def list_published_posts_for_ranking(session: Session, *, candidate_limit: int) -> list[ForumPost]:
+def list_published_posts_for_ranking(
+    session: Session, *, candidate_limit: int, offset: int = 0
+) -> list[ForumPost]:
+    """Published posts newest first: the ranking candidates, and from `offset`
+    on, the pages past them."""
     if candidate_limit <= 0:
         return []
     return list(
@@ -163,6 +167,7 @@ def list_published_posts_for_ranking(session: Session, *, candidate_limit: int) 
             .where(ForumPost.status == "published")
             .order_by(ForumPost.created_at.desc(), ForumPost.id.desc())
             .limit(candidate_limit)
+            .offset(offset)
         ).all()
     )
 

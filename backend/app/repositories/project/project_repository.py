@@ -44,49 +44,55 @@ def get_project_for_update(session: Session, project_id: int) -> Project | None:
     )
 
 
-def list_projects_page(session: Session, page: int, per_page: int) -> tuple[list[Project], int]:
+def _default_order() -> tuple:
+    """Fundraising first, then the soonest deadline: the order of every list."""
     fundraising_first = case((Project.status == "fundraising", 0), else_=1)
-    base = select(Project)
-    total = session.scalar(select(func.count()).select_from(base.subquery())) or 0
+    return (
+        fundraising_first.asc(),
+        Project.deadline_at.asc(),
+        Project.created_at.desc(),
+        Project.id.desc(),
+    )
+
+
+def list_projects_page(session: Session, page: int, per_page: int) -> tuple[list[Project], int]:
+    total = count_projects(session)
     items = session.scalars(
-        base.order_by(
-            fundraising_first.asc(),
-            Project.deadline_at.asc(),
-            Project.created_at.desc(),
-            Project.id.desc(),
-        )
-        .limit(per_page)
-        .offset((page - 1) * per_page)
+        select(Project).order_by(*_default_order()).limit(per_page).offset((page - 1) * per_page)
     ).all()
     return list(items), total
 
 
-def list_all_projects(session: Session) -> list[Project]:
-    fundraising_first = case((Project.status == "fundraising", 0), else_=1)
-    rows = session.scalars(
-        select(Project).order_by(
-            fundraising_first.asc(),
-            Project.deadline_at.asc(),
-            Project.created_at.desc(),
-            Project.id.desc(),
-        )
-    ).all()
-    return list(rows)
+def count_projects(session: Session) -> int:
+    return session.scalar(select(func.count(Project.id))) or 0
 
 
-def list_all_projects_excluding_creator(session: Session, *, creator_user_id: int) -> list[Project]:
-    fundraising_first = case((Project.status == "fundraising", 0), else_=1)
-    rows = session.scalars(
-        select(Project)
-        .where(Project.creator_user_id != creator_user_id)
-        .order_by(
-            fundraising_first.asc(),
-            Project.deadline_at.asc(),
-            Project.created_at.desc(),
-            Project.id.desc(),
-        )
-    ).all()
-    return list(rows)
+def list_projects_by_creator(session: Session, *, creator_user_id: int) -> list[Project]:
+    return list(
+        session.scalars(
+            select(Project)
+            .where(Project.creator_user_id == creator_user_id)
+            .order_by(*_default_order())
+        ).all()
+    )
+
+
+def list_projects_excluding_creator(
+    session: Session, *, creator_user_id: int, limit: int, offset: int = 0
+) -> list[Project]:
+    """Other people's projects in the default order: the ranking candidates,
+    and from `offset` on, the pages past them."""
+    if limit <= 0:
+        return []
+    return list(
+        session.scalars(
+            select(Project)
+            .where(Project.creator_user_id != creator_user_id)
+            .order_by(*_default_order())
+            .limit(limit)
+            .offset(offset)
+        ).all()
+    )
 
 
 def count_projects_by_status(session: Session, status: str) -> int:

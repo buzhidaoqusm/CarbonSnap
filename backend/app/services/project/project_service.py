@@ -16,6 +16,10 @@ from app.services.recommendation import (
     preference_profile_service,
     topic_mapping_service,
 )
+from app.services.recommendation.candidates import (
+    RANKING_CANDIDATE_LIMIT,
+    page_of_ranked_then_tail,
+)
 from app.services.recommendation.project_recommendation_service import rank_projects_for_user
 from app.services.side_effects import discard_failed_side_effect
 
@@ -187,12 +191,13 @@ def list_projects(
     session: Session, page: int, per_page: int, *, viewer_user_id: int | None = None
 ) -> dict:
     if viewer_user_id is not None:
-        all_items = project_repository.list_all_projects(session)
-        total = len(all_items)
-        own_items = [item for item in all_items if int(item.creator_user_id) == int(viewer_user_id)]
-        candidate_items = [
-            item for item in all_items if int(item.creator_user_id) != int(viewer_user_id)
-        ]
+        total = project_repository.count_projects(session)
+        own_items = project_repository.list_projects_by_creator(
+            session, creator_user_id=viewer_user_id
+        )
+        candidate_items = project_repository.list_projects_excluding_creator(
+            session, creator_user_id=viewer_user_id, limit=RANKING_CANDIDATE_LIMIT
+        )
         try:
             ranked_candidate_items = rank_projects_for_user(
                 session, projects=candidate_items, user_id=viewer_user_id
@@ -200,9 +205,20 @@ def list_projects(
         except Exception:
             discard_failed_side_effect(session, "project")
             ranked_candidate_items = candidate_items
-        ordered_items = own_items + ranked_candidate_items
-        start = max((page - 1) * per_page, 0)
-        items = ordered_items[start : start + per_page]
+        # The viewer's own projects come first, then everyone else's.
+        items = page_of_ranked_then_tail(
+            own_items + ranked_candidate_items,
+            start=max((page - 1) * per_page, 0),
+            per_page=per_page,
+            window=len(own_items) + len(candidate_items),
+            total=total,
+            fetch_tail=lambda offset, limit: project_repository.list_projects_excluding_creator(
+                session,
+                creator_user_id=viewer_user_id,
+                limit=limit,
+                offset=offset - len(own_items),
+            ),
+        )
     else:
         items, total = project_repository.list_projects_page(session, page, per_page)
     creator_map = project_repository.list_creator_usernames(

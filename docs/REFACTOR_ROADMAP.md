@@ -249,7 +249,7 @@ docs/adr/
 >     迁移时还实测到论坛列表的 N+1 查询，已登录用户拉一页帖子要 129 条 SQL，记为 PERFORMANCE_ISSUES #12。
 >   - #12 论坛 N+1 ✅（2026-10-18）。作者、计数、点赞状态都改成按 id 列表批量查询，排序用的计数也放进 ranking context。
 >     全站 200 帖时，已登录用户拉一页帖子的 SQL 条数 489 → 15，未登录 62 → 5，并且不再随帖子数增长。
->     还剩一个问题：已登录时会把全站帖子加载进内存再分页，见 PERFORMANCE_ISSUES #12。
+>     还剩一个问题：已登录时会把全站帖子加载进内存再分页，已在 #13 修复。
 >   - uploads ✅（2026-10-18）。这个接口原来一个测试都没有，先对着 Flask 写了 13 个测试，覆盖正常读取、HEAD、
 >     ETag 和 If-Modified-Since 的 304、Range 的 206、404，以及 `Cache-Control: no-cache`。
 >     顺手修了一个路径穿越漏洞：旧代码用 `str.startswith` 判断文件是否在上传目录里，所以 `../uploads_secret/x`
@@ -268,6 +268,10 @@ docs/adr/
 >     迁移前后的 SQL 条数一致，只有 POST 多了 1 条，来自上面那个用户检查。Flask 路由 13 → 9。
 >     还有两处没处理，已实测：GET 每次都会重建偏好摘要并 `UPDATE users`；每次写操作会把摘要重建两遍，
 >     一次 POST 有 2 条 `UPDATE users`。要不要改，取决于存储的摘要什么时候算"过期"，需要单独决定。
+>   - #13 已登录列表的候选集 ✅（2026-10-18）。forum、project、market 只取默认 SQL 顺序的前 200 行做个性化排序，
+>     第 200 行以后按同一个顺序用 SQL 分页。全站 2 万行、有画像的用户拉第 1 页：forum 18.3 s → 49 ms，
+>     project 14.6 s → 183 ms，market 15.3 s → 41 ms；内存峰值约 70 MB → 0.7 MB。
+>     修之前的耗时近似平方增长，原因是 merge 要把全部候选合并一遍。merge 本身仍是 O(N²)，只是 N 被固定在 200 了。
 > - 下一步：ai/chat（SSE），它依赖 P2 的 async LLM 网关，迁完后就可以删除 Flask。
 >   迁 market 和 forum 时，要逐个处理剩下的 `except Exception: pass`：异常吞掉后 session 仍处于失败状态，后面的查询会返回 500。
 >   迁 forum 和 market 时，要把 `notification_service.dispatch` 和 `auth_identity` 剩下的 Flask 依赖一起去掉。

@@ -17,6 +17,10 @@ from app.repositories.recommendation import behavior_event_repository
 from app.services.forum import forum_background_job_service
 from app.services.notification import notification_service
 from app.services.recommendation import behavior_event_service, preference_profile_service
+from app.services.recommendation.candidates import (
+    RANKING_CANDIDATE_LIMIT,
+    page_of_ranked_then_tail,
+)
 from app.services.recommendation.forum_recommendation_service import rank_posts_for_user
 from app.services.side_effects import discard_failed_side_effect
 
@@ -259,13 +263,20 @@ def list_posts(
 ) -> dict:
     if viewer_user_id is not None:
         total = forum_repository.count_all_published_posts(session)
-        candidate_limit = max(total, per_page)
         candidate_posts = forum_repository.list_published_posts_for_ranking(
-            session, candidate_limit=candidate_limit
+            session, candidate_limit=RANKING_CANDIDATE_LIMIT
         )
         ranked_posts = rank_posts_for_user(session, posts=candidate_posts, user_id=viewer_user_id)
-        start = (page - 1) * per_page
-        posts = ranked_posts[start : start + per_page]
+        posts = page_of_ranked_then_tail(
+            ranked_posts,
+            start=(page - 1) * per_page,
+            per_page=per_page,
+            window=len(candidate_posts),
+            total=total,
+            fetch_tail=lambda offset, limit: forum_repository.list_published_posts_for_ranking(
+                session, candidate_limit=limit, offset=offset
+            ),
+        )
     else:
         posts, total = forum_repository.list_posts_page_by_impact(session, page, per_page)
 
