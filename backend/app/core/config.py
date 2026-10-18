@@ -147,6 +147,13 @@ class Settings(BaseSettings):
     forum_rag_final_top_k: int = Field(4, gt=0)
     forum_rag_faiss_dir: Path = DATA_ROOT / "faiss"
     forum_rag_embedding_model: str = "text-embedding-v3"
+    # Run post re-indexing in the request instead of a background thread.
+    # The tests set it: their data lives in a transaction that a background
+    # thread, on its own connection, could not see.
+    forum_background_jobs_inline: bool = False
+    # Skip writing vectors to the FAISS index (chunk rows are still saved).
+    # The tests set it, so they never touch the developer's index on disk.
+    forum_rag_skip_live_indexing: bool = False
     ai_neo4j_graphrag_enabled: bool = False
     neo4j_uri: str = ""
     neo4j_username: str = ""

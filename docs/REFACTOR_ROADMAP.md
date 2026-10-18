@@ -234,7 +234,13 @@ docs/adr/
 >     6 处 `except Exception: pass` 改用共享的 `side_effects.discard_failed_side_effect`。
 >     下架商品时也会加行锁了：原来下架和下单可能同时成功，并发测试已经覆盖。Flask 路由 36 → 25。
 >     另外还有一处没处理，代码里能确认但没有实测：已登录用户浏览商城时，会把所有在售商品查出来再在 Python 里分页。
-> - 下一步：按 forum → uploads → ai/memory 的顺序继续迁移。
+>   - 准备工作：forum 后台任务不再依赖 Flask ✅（2026-10-18）。
+>     原来后台任务用的是 `db.session`，提交任务时没有 app context 的话（FastAPI 里就是这种情况），任务会抛 `RuntimeError`，
+>     但异常只存在一个没人读的 Future 里，没有任何日志。如果不改就迁移，帖子能发出去，索引和主题标签却永远不会更新。
+>     现在任务显式接收 session：同步执行时用调用方的 session，在后台线程执行时自己开 session，失败时记录日志。
+>     `FORUM_BACKGROUND_JOBS_*`、`FORUM_RAG_ENABLE_TEST_INDEXING` 和 `TESTING` 这几个开关，统一换成了 `Settings` 里的
+>     `forum_background_jobs_inline` 和 `forum_rag_skip_live_indexing`。
+> - 下一步：迁移 forum 路由，然后是 uploads → ai/memory。
 >   迁 market 和 forum 时，要逐个处理剩下的 `except Exception: pass`：异常吞掉后 session 仍处于失败状态，后面的查询会返回 500。
 >   迁 forum 和 market 时，要把 `notification_service.dispatch` 和 `auth_identity` 剩下的 Flask 依赖一起去掉。
 

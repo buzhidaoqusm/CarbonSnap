@@ -44,11 +44,13 @@ def test_complete_chat_message_uses_real_forum_retrieval_for_chinese_plastic_bot
     db.session.commit()
 
     forum_indexing_service.reindex_post(
+        db.session,
         post_id=diy_post.id,
         title=diy_post.title,
         content=diy_post.content,
     )
     forum_indexing_service.reindex_post(
+        db.session,
         post_id=battery_post.id,
         title=battery_post.title,
         content=battery_post.content,

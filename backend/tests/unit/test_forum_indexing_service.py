@@ -52,6 +52,7 @@ def test_reindex_post_persists_chunks_and_updates_rag_index(monkeypatch, app):
         )
 
         rows = forum_indexing_service.reindex_post(
+            db.session,
             post_id=post.id,
             title=post.title,
             content=post.content,
@@ -98,7 +99,7 @@ def test_remove_post_index_deletes_chunk_rows_and_vector_entries(monkeypatch, ap
             lambda **kwargs: graph_calls.append(kwargs) or {"removed": True},
         )
 
-        forum_indexing_service.remove_post_index(post.id)
+        forum_indexing_service.remove_post_index(db.session, post.id)
 
         assert forum_repository.get_chunks_by_post(db.session, post.id) == []
         assert fake_index.deletes == [[f"post-{post.id}-v1-c0"]]

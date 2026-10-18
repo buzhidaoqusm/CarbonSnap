@@ -141,11 +141,13 @@ def test_retrieve_forum_references_expands_chinese_plastic_bottle_queries(app):
         db.session.commit()
 
         forum_indexing_service.reindex_post(
+            db.session,
             post_id=diy_post.id,
             title=diy_post.title,
             content=diy_post.content,
         )
         forum_indexing_service.reindex_post(
+            db.session,
             post_id=battery_post.id,
             title=battery_post.title,
             content=battery_post.content,

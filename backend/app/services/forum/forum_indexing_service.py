@@ -2,25 +2,27 @@ from __future__ import annotations
 
 from typing import Any
 
-from flask import current_app
+from sqlalchemy.orm import Session
 
 from app.ai.rag.chunking import chunk_forum_post
 from app.ai.rag.indexing import ForumRagChunkRecord, build_forum_rag_index
-from app.extensions.db import db
+from app.core.config import get_settings
 from app.repositories.forum import forum_repository
 from app.services.ai.forum_graph_sync_service import remove_forum_post_graph, sync_forum_post_graph
 
 _DEFAULT_BUILD_FORUM_RAG_INDEX = build_forum_rag_index
 
 
-def reindex_post(*, post_id: int, title: str, content: str) -> list[dict[str, Any]]:
-    current_chunks = forum_repository.get_chunks_by_post(db.session, post_id)
+def reindex_post(
+    session: Session, *, post_id: int, title: str, content: str
+) -> list[dict[str, Any]]:
+    current_chunks = forum_repository.get_chunks_by_post(session, post_id)
     previous_embedding_ids = [
         str(chunk.embedding_id).strip()
         for chunk in current_chunks
         if getattr(chunk, "embedding_id", None)
     ]
-    next_version = max(forum_repository.get_latest_chunk_version(db.session, post_id), 0) + 1
+    next_version = max(forum_repository.get_latest_chunk_version(session, post_id), 0) + 1
     chunk_payloads = chunk_forum_post(title=title, content=content, version=next_version)
 
     for item in chunk_payloads:
@@ -33,12 +35,12 @@ def reindex_post(*, post_id: int, title: str, content: str) -> list[dict[str, An
 
     _upsert_chunks(chunk_payloads)
     saved_rows = forum_repository.save_post_chunks(
-        db.session,
+        session,
         post_id,
         chunk_payloads,
     )
     _remove_vectors(previous_embedding_ids)
-    post = forum_repository.get_post_by_id(db.session, post_id)
+    post = forum_repository.get_post_by_id(session, post_id)
     remove_forum_post_graph(post_id=post_id)
     sync_forum_post_graph(
         post_id=post_id,
@@ -61,22 +63,22 @@ def reindex_post(*, post_id: int, title: str, content: str) -> list[dict[str, An
     ]
 
 
-def remove_post_index(post_id: int) -> None:
-    current_chunks = forum_repository.get_chunks_by_post(db.session, post_id)
+def remove_post_index(session: Session, post_id: int) -> None:
+    current_chunks = forum_repository.get_chunks_by_post(session, post_id)
     embedding_ids = [
         str(chunk.embedding_id).strip()
         for chunk in current_chunks
         if getattr(chunk, "embedding_id", None)
     ]
-    forum_repository.save_post_chunks(db.session, post_id, [])
+    forum_repository.save_post_chunks(session, post_id, [])
     _remove_vectors(embedding_ids)
     remove_forum_post_graph(post_id=post_id)
 
 
-def rebuild_all_post_indexes() -> int:
+def rebuild_all_post_indexes(session: Session) -> int:
     indexed_count = 0
-    for post in forum_repository.list_all_published_posts(db.session):
-        reindex_post(post_id=post.id, title=post.title, content=post.content)
+    for post in forum_repository.list_all_published_posts(session):
+        reindex_post(session, post_id=post.id, title=post.title, content=post.content)
         indexed_count += 1
     return indexed_count
 
@@ -120,10 +122,8 @@ def _remove_vectors(embedding_ids: list[str]) -> None:
 
 
 def _should_skip_live_indexing() -> bool:
-    if not current_app.config.get("TESTING"):
-        return False
-
-    if current_app.config.get("FORUM_RAG_ENABLE_TEST_INDEXING"):
-        return False
-
-    return build_forum_rag_index is _DEFAULT_BUILD_FORUM_RAG_INDEX
+    # A test that replaces build_forum_rag_index with a fake still gets it.
+    return (
+        get_settings().forum_rag_skip_live_indexing
+        and build_forum_rag_index is _DEFAULT_BUILD_FORUM_RAG_INDEX
+    )

@@ -170,6 +170,7 @@ def create_post(
         image_urls_json=image_urls_json,
     )
     forum_background_job_service.enqueue_post_refresh(
+        db.session,
         post_id=post.id,
         title=post.title,
         content=post.content,
@@ -292,6 +293,7 @@ def update_post(
         image_urls_json=image_urls_json,
     )
     forum_background_job_service.enqueue_post_refresh(
+        db.session,
         post_id=post.id,
         title=post.title,
         content=post.content,
@@ -307,7 +309,7 @@ def delete_post(post_id: int, *, operator_user_id: int) -> None:
         raise ForumError("You are not the author of this post.", code=40300, http_status=403)
 
     forum_repository.soft_delete_post(db.session, post)
-    forum_background_job_service.enqueue_post_removal(post_id=post_id)
+    forum_background_job_service.enqueue_post_removal(db.session, post_id=post_id)
 
 
 # ---------------------------------------------------------------------------

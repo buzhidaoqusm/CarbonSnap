@@ -58,7 +58,7 @@ class TestCreatePost:
         monkeypatch.setattr(
             forum_service.forum_background_job_service,
             "enqueue_post_refresh",
-            lambda **kwargs: captured.update(kwargs) or None,
+            lambda _session, **kwargs: captured.update(kwargs) or None,
         )
 
         created = forum_service.create_post(author_id=user.id, title="Bottle", content="Tips")
@@ -223,7 +223,7 @@ class TestUpdatePost:
         monkeypatch.setattr(
             forum_service.forum_background_job_service,
             "enqueue_post_refresh",
-            lambda **kwargs: captured.update(kwargs) or None,
+            lambda _session, **kwargs: captured.update(kwargs) or None,
         )
 
         forum_service.update_post(
@@ -262,7 +262,7 @@ class TestDeletePost:
         monkeypatch.setattr(
             forum_service.forum_background_job_service,
             "enqueue_post_removal",
-            lambda post_id: removed.append(post_id) or None,
+            lambda _session, post_id: removed.append(post_id) or None,
         )
 
         forum_service.delete_post(post["id"], operator_user_id=user.id)

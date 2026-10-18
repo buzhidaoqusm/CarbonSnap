@@ -1,4 +1,6 @@
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from sqlalchemy import case, func, select
 from sqlalchemy.exc import IntegrityError
@@ -320,7 +322,7 @@ def is_liked_by(session: Session, user_id: int, target_type: str, target_id: int
 
 
 def save_post_chunks(
-    session: Session, post_id: int, chunks: list[str | dict]
+    session: Session, post_id: int, chunks: Sequence[str | dict[str, Any]]
 ) -> list[ForumPostChunk]:
     """Persist a list of chunks for a post (replaces old chunks)."""
     # Remove stale chunks first.

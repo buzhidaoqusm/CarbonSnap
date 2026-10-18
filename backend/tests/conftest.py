@@ -88,6 +88,10 @@ os.environ.update(
         "AI_DEMO_REPLAY_ENABLED": "false",
         "AI_TOOL_SELECTION_MODE": "",
         "AI_TOOL_SELECTION_SHADOW_LOG": "",
+        # Re-index posts in the request, inside the test's transaction, and
+        # leave the FAISS index on disk alone.
+        "FORUM_BACKGROUND_JOBS_INLINE": "true",
+        "FORUM_RAG_SKIP_LIVE_INDEXING": "true",
         "NEO4J_URI": "",
         "NEO4J_USERNAME": "",
         "NEO4J_PASSWORD": "",
