@@ -118,6 +118,7 @@ class TestForumRecommendationService:
         )
 
         context = forum_recommendation_service.build_ranking_context(
+            db.session,
             user_id=user.id,
             posts=[first_post, second_post],
         )
@@ -246,11 +247,13 @@ class TestForumRecommendationService:
         }
 
         assert forum_recommendation_service.is_exploitation_candidate(
-            matched_post, ranking_context=matched_context
+            db.session, matched_post, ranking_context=matched_context
         )
 
         monkeypatch.setattr(forum_recommendation_service, "_recency_score", lambda post: 0.6)
-        monkeypatch.setattr(forum_recommendation_service, "_engagement_score", lambda post: 0.0)
+        monkeypatch.setattr(
+            forum_recommendation_service, "_engagement_score", lambda _session, post: 0.0
+        )
 
         fallback_context = {
             "profile_snapshot": {},
@@ -260,14 +263,18 @@ class TestForumRecommendationService:
         }
 
         assert forum_recommendation_service.is_exploitation_candidate(
+            db.session,
             fallback_post,
             ranking_context=fallback_context,
         )
 
         monkeypatch.setattr(forum_recommendation_service, "_recency_score", lambda post: 0.0)
-        monkeypatch.setattr(forum_recommendation_service, "_engagement_score", lambda post: 0.2)
+        monkeypatch.setattr(
+            forum_recommendation_service, "_engagement_score", lambda _session, post: 0.2
+        )
 
         assert forum_recommendation_service.is_exploitation_candidate(
+            db.session,
             fallback_post,
             ranking_context=fallback_context,
         )
@@ -393,16 +400,18 @@ class TestForumRecommendationService:
         }
 
         monkeypatch.setattr(forum_recommendation_service, "_recency_score", lambda post: 0.6)
-        monkeypatch.setattr(forum_recommendation_service, "_engagement_score", lambda post: 0.4)
+        monkeypatch.setattr(
+            forum_recommendation_service, "_engagement_score", lambda _session, post: 0.4
+        )
         monkeypatch.setattr(
             forum_recommendation_service, "_novelty_score", lambda post, ranking_context: 0.8
         )
 
         assert forum_recommendation_service.exploit_score(
-            post, ranking_context=context
+            db.session, post, ranking_context=context
         ) == pytest.approx(0.64)
         assert forum_recommendation_service.explore_score(
-            post, ranking_context=context
+            db.session, post, ranking_context=context
         ) == pytest.approx(0.47)
 
     def test_merge_ranked_posts_preserves_deterministic_exploration_slots(self):
@@ -523,9 +532,12 @@ class TestForumRecommendationService:
             "list_behavior_target_ids_for_user",
             lambda *args, **kwargs: set(),
         )
-        monkeypatch.setattr(forum_recommendation_service, "_engagement_score", lambda post: 0.0)
+        monkeypatch.setattr(
+            forum_recommendation_service, "_engagement_score", lambda _session, post: 0.0
+        )
 
         ranked = forum_recommendation_service.rank_posts_for_user(
+            db.session,
             posts=[plastic_post, battery_post],
             user_id=user.id,
         )
@@ -577,9 +589,12 @@ class TestForumRecommendationService:
             "list_recent_topic_exposure_counts_for_user",
             lambda *args, **kwargs: {},
         )
-        monkeypatch.setattr(forum_recommendation_service, "_engagement_score", lambda post: 0.0)
+        monkeypatch.setattr(
+            forum_recommendation_service, "_engagement_score", lambda _session, post: 0.0
+        )
 
         ranked = forum_recommendation_service.rank_posts_for_user(
+            db.session,
             posts=[weak_post, strong_post],
             user_id=user.id,
         )
@@ -595,9 +610,12 @@ class TestForumRecommendationService:
             "app.services.recommendation.preference_profile_service.has_sufficient_history",
             lambda _session, user_id: False,
         )
-        monkeypatch.setattr(forum_recommendation_service, "_engagement_score", lambda post: 0.0)
+        monkeypatch.setattr(
+            forum_recommendation_service, "_engagement_score", lambda _session, post: 0.0
+        )
 
         ranked = forum_recommendation_service.rank_posts_for_user(
+            db.session,
             posts=[older, newer],
             user_id=user.id,
         )
@@ -617,10 +635,11 @@ class TestForumRecommendationService:
         monkeypatch.setattr(
             forum_recommendation_service,
             "_engagement_score",
-            lambda post: 0.9 if post.id == high_engagement.id else 0.0,
+            lambda _session, post: 0.9 if post.id == high_engagement.id else 0.0,
         )
 
         ranked = forum_recommendation_service.rank_posts_for_user(
+            db.session,
             posts=[low_engagement, high_engagement],
             user_id=user.id,
         )
@@ -662,9 +681,12 @@ class TestForumRecommendationService:
                 {viewed.id} if kwargs.get("action_types") == ["view", "long_view"] else set()
             ),
         )
-        monkeypatch.setattr(forum_recommendation_service, "_engagement_score", lambda post: 0.0)
+        monkeypatch.setattr(
+            forum_recommendation_service, "_engagement_score", lambda _session, post: 0.0
+        )
 
         ranked = forum_recommendation_service.rank_posts_for_user(
+            db.session,
             posts=[viewed, fresh],
             user_id=user.id,
         )

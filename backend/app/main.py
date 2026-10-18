@@ -16,6 +16,7 @@ from flask import Flask
 from app import create_app
 from app.api import health
 from app.api.errors import install_error_handlers
+from app.api.forum import routes as forum
 from app.api.ledger import routes as ledger
 from app.api.market import routes as market
 from app.api.notification import routes as notification
@@ -37,6 +38,7 @@ def create_api(flask_app: Flask | None = None) -> FastAPI:
     api.include_router(auth.router)
     api.include_router(ledger.router)
     api.include_router(market.router)
+    api.include_router(forum.router)
     api.include_router(project.router)
 
     legacy = flask_app if flask_app is not None else create_app()

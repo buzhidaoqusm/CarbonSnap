@@ -240,7 +240,14 @@ docs/adr/
 >     现在任务显式接收 session：同步执行时用调用方的 session，在后台线程执行时自己开 session，失败时记录日志。
 >     `FORUM_BACKGROUND_JOBS_*`、`FORUM_RAG_ENABLE_TEST_INDEXING` 和 `TESTING` 这几个开关，统一换成了 `Settings` 里的
 >     `forum_background_jobs_inline` 和 `forum_rag_skip_live_indexing`。
-> - 下一步：迁移 forum 路由，然后是 uploads → ai/memory。
+>   - forum ✅（2026-10-18）。原有 44 个测试没有一个断言错误信息，所以先对着 Flask 补了 24 个特征测试和 3 个副作用测试。
+>     变异测试显示，行为事件写入失败时，原有测试里只有浏览时长那一个会变红。
+>     `forum_recommendation_service` 也改成显式接收 session。其中排序函数是作为 `score_getter` 引用传出去的，
+>     AST 脚本改不到这种地方，所以用 `functools.partial` 绑定 session。
+>     forum 迁走之后，`auth_identity` 里依赖 flask_jwt_extended 的函数没有人用了，已删除。
+>     手工检查了后台线程这条路径：发帖立即返回，chunk 和主题标签由后台线程写入，删帖后 chunk 被清空。Flask 路由 25 → 14。
+>     迁移时还实测到论坛列表的 N+1 查询，已登录用户拉一页帖子要 129 条 SQL，记为 PERFORMANCE_ISSUES #12。
+> - 下一步：修 #12，然后迁移 uploads → ai/memory。
 >   迁 market 和 forum 时，要逐个处理剩下的 `except Exception: pass`：异常吞掉后 session 仍处于失败状态，后面的查询会返回 500。
 >   迁 forum 和 market 时，要把 `notification_service.dispatch` 和 `auth_identity` 剩下的 Flask 依赖一起去掉。
 

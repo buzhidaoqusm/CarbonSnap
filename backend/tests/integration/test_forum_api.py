@@ -151,7 +151,7 @@ class TestListPosts:
         monkeypatch.setattr(
             forum_service,
             "rank_posts_for_user",
-            lambda posts, user_id: list(reversed(posts)),
+            lambda _session, posts, user_id: list(reversed(posts)),
         )
 
         resp = client.get("/api/forum/posts", headers=headers)
@@ -171,7 +171,7 @@ class TestListPosts:
         monkeypatch.setattr(
             forum_service,
             "rank_posts_for_user",
-            lambda *, posts, user_id: list(reversed(posts)),
+            lambda _session, *, posts, user_id: list(reversed(posts)),
         )
 
         resp = client.get("/api/forum/posts?page=2&per_page=3", headers=headers)
@@ -207,7 +207,7 @@ class TestListPosts:
         monkeypatch.setattr(
             forum_service,
             "rank_posts_for_user",
-            lambda *, posts, user_id: posts,
+            lambda _session, *, posts, user_id: posts,
         )
 
         resp = client.get("/api/forum/posts?page=1&per_page=5", headers=headers)

@@ -6,7 +6,6 @@ from flask_migrate import Migrate
 import app.models  # noqa: F401
 from app.api.ai.chat import ai_bp
 from app.api.ai.memory import ai_memory_bp
-from app.api.forum.routes import forum_bp
 from app.api.uploads.routes import uploads_bp
 from app.config.settings import load_app_settings
 from app.extensions.db import db
@@ -26,7 +25,6 @@ def create_app() -> Flask:
 
     flask_app.register_blueprint(ai_bp, url_prefix="/api")
     flask_app.register_blueprint(ai_memory_bp, url_prefix="/api")
-    flask_app.register_blueprint(forum_bp, url_prefix="/api")
     flask_app.register_blueprint(uploads_bp, url_prefix="/api")
 
     return flask_app

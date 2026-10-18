@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from flask_jwt_extended import get_jwt_identity
 from sqlalchemy.orm import Session
 
-from app.extensions.db import db
 from app.repositories.profile import user_repository
 
 
@@ -37,20 +35,3 @@ def resolve_identity_to_user_id(session: Session, identity) -> int:
     if user is None:
         raise UnresolvableJwtIdentityError(f"JWT identity '{identity_str}' could not be resolved.")
     return int(user.id)
-
-
-def get_optional_current_user_id() -> int | None:
-    identity = get_jwt_identity()
-    if identity in (None, ""):
-        return None
-    try:
-        return resolve_identity_to_user_id(db.session, identity)
-    except UnresolvableJwtIdentityError:
-        return None
-
-
-def get_required_current_user_id() -> int:
-    user_id = get_optional_current_user_id()
-    if user_id is None:
-        raise UnresolvableJwtIdentityError("Authenticated user could not be resolved from the JWT.")
-    return user_id

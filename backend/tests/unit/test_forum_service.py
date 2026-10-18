@@ -38,7 +38,9 @@ def _make_user(username="alice", email="alice@example.com", avatar_url=None):
 class TestCreatePost:
     def test_creates_post_and_returns_dict(self):
         user = _make_user()
-        result = forum_service.create_post(author_id=user.id, title="Hello", content="World")
+        result = forum_service.create_post(
+            db.session, author_id=user.id, title="Hello", content="World"
+        )
         assert result["title"] == "Hello"
         assert result["content"] == "World"
         assert result["author_id"] == user.id
@@ -47,7 +49,7 @@ class TestCreatePost:
 
     def test_post_id_is_positive_integer(self):
         user = _make_user()
-        result = forum_service.create_post(author_id=user.id, title="T", content="C")
+        result = forum_service.create_post(db.session, author_id=user.id, title="T", content="C")
         assert isinstance(result["id"], int)
         assert result["id"] > 0
 
@@ -61,7 +63,9 @@ class TestCreatePost:
             lambda _session, **kwargs: captured.update(kwargs) or None,
         )
 
-        created = forum_service.create_post(author_id=user.id, title="Bottle", content="Tips")
+        created = forum_service.create_post(
+            db.session, author_id=user.id, title="Bottle", content="Tips"
+        )
 
         assert captured == {
             "post_id": created["id"],
@@ -73,19 +77,19 @@ class TestCreatePost:
 class TestGetPost:
     def test_get_existing_post(self):
         user = _make_user()
-        created = forum_service.create_post(author_id=user.id, title="T", content="C")
-        fetched = forum_service.get_post(created["id"])
+        created = forum_service.create_post(db.session, author_id=user.id, title="T", content="C")
+        fetched = forum_service.get_post(db.session, created["id"])
         assert fetched["id"] == created["id"]
 
     def test_get_nonexistent_post_raises(self):
         with pytest.raises(ForumError) as exc_info:
-            forum_service.get_post(99999)
+            forum_service.get_post(db.session, 99999)
         assert exc_info.value.http_status == 404
 
     def test_liked_by_user_field_present_when_viewer_given(self):
         user = _make_user()
-        created = forum_service.create_post(author_id=user.id, title="T", content="C")
-        result = forum_service.get_post(created["id"], viewer_user_id=user.id)
+        created = forum_service.create_post(db.session, author_id=user.id, title="T", content="C")
+        result = forum_service.get_post(db.session, created["id"], viewer_user_id=user.id)
         assert result["liked_by_user"] is False
 
 
@@ -93,7 +97,9 @@ class TestRecordPostLongView:
     @pytest.mark.usefixtures("llm_unavailable")
     def test_records_long_view_and_recomputes_profile(self, monkeypatch):
         user = _make_user("reader", "reader@example.com")
-        created = forum_service.create_post(author_id=user.id, title="Battery", content="Tips")
+        created = forum_service.create_post(
+            db.session, author_id=user.id, title="Battery", content="Tips"
+        )
         captured = {}
         recomputed = []
 
@@ -113,7 +119,9 @@ class TestRecordPostLongView:
             lambda _session, user_id: recomputed.append(user_id),
         )
 
-        result = forum_service.record_post_long_view(created["id"], viewer_user_id=user.id)
+        result = forum_service.record_post_long_view(
+            db.session, created["id"], viewer_user_id=user.id
+        )
 
         assert result == {"tracked": True}
         assert captured == {"user_id": user.id, "post_id": created["id"]}
@@ -122,7 +130,9 @@ class TestRecordPostLongView:
     @pytest.mark.usefixtures("llm_unavailable")
     def test_skips_duplicate_long_view_inside_dedup_window(self, monkeypatch):
         user = _make_user("dedup", "dedup@example.com")
-        created = forum_service.create_post(author_id=user.id, title="Plastic", content="Bottle")
+        created = forum_service.create_post(
+            db.session, author_id=user.id, title="Plastic", content="Bottle"
+        )
         latest_event = type(
             "Event",
             (),
@@ -143,14 +153,18 @@ class TestRecordPostLongView:
             lambda _session, **kwargs: pytest.fail("should not record duplicate long-view"),
         )
 
-        result = forum_service.record_post_long_view(created["id"], viewer_user_id=user.id)
+        result = forum_service.record_post_long_view(
+            db.session, created["id"], viewer_user_id=user.id
+        )
 
         assert result == {"tracked": False, "reason": "deduplicated"}
 
     @pytest.mark.usefixtures("llm_unavailable")
     def test_skips_duplicate_long_view_when_latest_timestamp_is_naive(self, monkeypatch):
         user = _make_user("naive", "naive@example.com")
-        created = forum_service.create_post(author_id=user.id, title="Glass", content="Bottle")
+        created = forum_service.create_post(
+            db.session, author_id=user.id, title="Glass", content="Bottle"
+        )
         latest_event = type(
             "Event",
             (),
@@ -174,17 +188,21 @@ class TestRecordPostLongView:
             ),
         )
 
-        result = forum_service.record_post_long_view(created["id"], viewer_user_id=user.id)
+        result = forum_service.record_post_long_view(
+            db.session, created["id"], viewer_user_id=user.id
+        )
 
         assert result == {"tracked": False, "reason": "deduplicated"}
 
     def test_record_post_long_view_returns_tracked_payload(self):
         user = _make_user("reader", "reader@example.com")
         created = forum_service.create_post(
-            author_id=user.id, title="Read", content="This is detailed"
+            db.session, author_id=user.id, title="Read", content="This is detailed"
         )
 
-        result = forum_service.record_post_long_view(created["id"], viewer_user_id=user.id)
+        result = forum_service.record_post_long_view(
+            db.session, created["id"], viewer_user_id=user.id
+        )
 
         assert result == {"tracked": True}
 
@@ -192,7 +210,7 @@ class TestRecordPostLongView:
         user = _make_user("missing", "missing@example.com")
 
         with pytest.raises(ForumError) as exc_info:
-            forum_service.record_post_long_view(99999, viewer_user_id=user.id)
+            forum_service.record_post_long_view(db.session, 99999, viewer_user_id=user.id)
 
         assert exc_info.value.http_status == 404
 
@@ -200,9 +218,9 @@ class TestRecordPostLongView:
 class TestUpdatePost:
     def test_author_can_update(self):
         user = _make_user()
-        post = forum_service.create_post(author_id=user.id, title="Old", content="Old")
+        post = forum_service.create_post(db.session, author_id=user.id, title="Old", content="Old")
         updated = forum_service.update_post(
-            post["id"], operator_user_id=user.id, title="New", content="New content"
+            db.session, post["id"], operator_user_id=user.id, title="New", content="New content"
         )
         assert updated["title"] == "New"
         assert updated["content"] == "New content"
@@ -210,14 +228,14 @@ class TestUpdatePost:
     def test_non_author_cannot_update(self):
         author = _make_user("author", "author@x.com")
         other = _make_user("other", "other@x.com")
-        post = forum_service.create_post(author_id=author.id, title="T", content="C")
+        post = forum_service.create_post(db.session, author_id=author.id, title="T", content="C")
         with pytest.raises(ForumError) as exc_info:
-            forum_service.update_post(post["id"], operator_user_id=other.id, title="X")
+            forum_service.update_post(db.session, post["id"], operator_user_id=other.id, title="X")
         assert exc_info.value.http_status == 403
 
     def test_update_post_queues_forum_maintenance(self, monkeypatch):
         user = _make_user("editor", "editor@example.com")
-        post = forum_service.create_post(author_id=user.id, title="Old", content="Old")
+        post = forum_service.create_post(db.session, author_id=user.id, title="Old", content="Old")
         captured = {}
 
         monkeypatch.setattr(
@@ -227,7 +245,7 @@ class TestUpdatePost:
         )
 
         forum_service.update_post(
-            post["id"], operator_user_id=user.id, title="New", content="Fresh"
+            db.session, post["id"], operator_user_id=user.id, title="New", content="Fresh"
         )
 
         assert captured == {
@@ -240,23 +258,23 @@ class TestUpdatePost:
 class TestDeletePost:
     def test_author_can_delete(self):
         user = _make_user()
-        post = forum_service.create_post(author_id=user.id, title="T", content="C")
-        forum_service.delete_post(post["id"], operator_user_id=user.id)
+        post = forum_service.create_post(db.session, author_id=user.id, title="T", content="C")
+        forum_service.delete_post(db.session, post["id"], operator_user_id=user.id)
         with pytest.raises(ForumError) as exc_info:
-            forum_service.get_post(post["id"])
+            forum_service.get_post(db.session, post["id"])
         assert exc_info.value.http_status == 404
 
     def test_non_author_cannot_delete(self):
         author = _make_user("a", "a@x.com")
         other = _make_user("b", "b@x.com")
-        post = forum_service.create_post(author_id=author.id, title="T", content="C")
+        post = forum_service.create_post(db.session, author_id=author.id, title="T", content="C")
         with pytest.raises(ForumError) as exc_info:
-            forum_service.delete_post(post["id"], operator_user_id=other.id)
+            forum_service.delete_post(db.session, post["id"], operator_user_id=other.id)
         assert exc_info.value.http_status == 403
 
     def test_delete_post_removes_forum_index(self, monkeypatch):
         user = _make_user("deleter", "deleter@example.com")
-        post = forum_service.create_post(author_id=user.id, title="T", content="C")
+        post = forum_service.create_post(db.session, author_id=user.id, title="T", content="C")
         removed = []
 
         monkeypatch.setattr(
@@ -265,7 +283,7 @@ class TestDeletePost:
             lambda _session, post_id: removed.append(post_id) or None,
         )
 
-        forum_service.delete_post(post["id"], operator_user_id=user.id)
+        forum_service.delete_post(db.session, post["id"], operator_user_id=user.id)
 
         assert removed == [post["id"]]
 
@@ -274,8 +292,8 @@ class TestListPosts:
     def test_returns_pagination_envelope(self):
         user = _make_user()
         for i in range(3):
-            forum_service.create_post(author_id=user.id, title=f"T{i}", content="C")
-        result = forum_service.list_posts(page=1, per_page=2)
+            forum_service.create_post(db.session, author_id=user.id, title=f"T{i}", content="C")
+        result = forum_service.list_posts(db.session, page=1, per_page=2)
         assert result["total"] == 3
         assert len(result["items"]) == 2
         assert result["page"] == 1
@@ -283,10 +301,10 @@ class TestListPosts:
 
     def test_deleted_posts_excluded(self):
         user = _make_user()
-        p1 = forum_service.create_post(author_id=user.id, title="Keep", content="C")
-        p2 = forum_service.create_post(author_id=user.id, title="Del", content="C")
-        forum_service.delete_post(p2["id"], operator_user_id=user.id)
-        result = forum_service.list_posts(page=1, per_page=10)
+        p1 = forum_service.create_post(db.session, author_id=user.id, title="Keep", content="C")
+        p2 = forum_service.create_post(db.session, author_id=user.id, title="Del", content="C")
+        forum_service.delete_post(db.session, p2["id"], operator_user_id=user.id)
+        result = forum_service.list_posts(db.session, page=1, per_page=10)
         ids = [item["id"] for item in result["items"]]
         assert p1["id"] in ids
         assert p2["id"] not in ids
@@ -294,22 +312,28 @@ class TestListPosts:
     @pytest.mark.usefixtures("llm_unavailable")
     def test_authenticated_user_uses_personalized_order(self, monkeypatch):
         user = _make_user("personal", "personal@example.com")
-        first = forum_service.create_post(author_id=user.id, title="Plastic", content="Bottle")
-        second = forum_service.create_post(author_id=user.id, title="Battery", content="Cell")
+        first = forum_service.create_post(
+            db.session, author_id=user.id, title="Plastic", content="Bottle"
+        )
+        second = forum_service.create_post(
+            db.session, author_id=user.id, title="Battery", content="Cell"
+        )
 
         monkeypatch.setattr(
             forum_service,
             "rank_posts_for_user",
-            lambda posts, user_id: list(reversed(posts)),
+            lambda _session, posts, user_id: list(reversed(posts)),
         )
 
-        result = forum_service.list_posts(page=1, per_page=10, viewer_user_id=user.id)
+        result = forum_service.list_posts(db.session, page=1, per_page=10, viewer_user_id=user.id)
         assert [item["id"] for item in result["items"]] == [first["id"], second["id"]]
 
     def test_authenticated_user_ranks_candidate_window_once_then_slices_globally(self, monkeypatch):
         user = _make_user("global", "global@example.com")
         created_posts = [
-            forum_service.create_post(author_id=user.id, title=f"Post {index}", content="C")
+            forum_service.create_post(
+                db.session, author_id=user.id, title=f"Post {index}", content="C"
+            )
             for index in range(1, 11)
         ]
         candidate_posts = forum_service.forum_repository.list_published_posts_for_ranking(
@@ -323,7 +347,7 @@ class TestListPosts:
             lambda _session: 10,
         )
 
-        def reverse_ranked_posts(*, posts, user_id):
+        def reverse_ranked_posts(_session, *, posts, user_id):
             captured["posts"] = [post.id for post in posts]
             captured["user_id"] = user_id
             return list(reversed(posts))
@@ -334,7 +358,7 @@ class TestListPosts:
             reverse_ranked_posts,
         )
 
-        result = forum_service.list_posts(page=2, per_page=3, viewer_user_id=user.id)
+        result = forum_service.list_posts(db.session, page=2, per_page=3, viewer_user_id=user.id)
 
         assert captured == {
             "posts": [post.id for post in candidate_posts],
@@ -352,7 +376,9 @@ class TestListPosts:
     ):
         user = _make_user("counted", "counted@example.com")
         for index in range(1, 8):
-            forum_service.create_post(author_id=user.id, title=f"Post {index}", content="C")
+            forum_service.create_post(
+                db.session, author_id=user.id, title=f"Post {index}", content="C"
+            )
 
         candidate_posts = forum_service.forum_repository.list_published_posts_for_ranking(
             db.session, candidate_limit=5
@@ -371,10 +397,10 @@ class TestListPosts:
         monkeypatch.setattr(
             forum_service,
             "rank_posts_for_user",
-            lambda *, posts, user_id: posts,
+            lambda _session, *, posts, user_id: posts,
         )
 
-        result = forum_service.list_posts(page=1, per_page=5, viewer_user_id=user.id)
+        result = forum_service.list_posts(db.session, page=1, per_page=5, viewer_user_id=user.id)
 
         assert len(result["items"]) == 5
         assert result["total"] == 7
@@ -388,9 +414,9 @@ class TestListPosts:
 class TestCreateComment:
     def test_top_level_comment(self):
         user = _make_user()
-        post = forum_service.create_post(author_id=user.id, title="T", content="C")
+        post = forum_service.create_post(db.session, author_id=user.id, title="T", content="C")
         comment = forum_service.create_comment(
-            post_id=post["id"], user_id=user.id, content="Nice post!"
+            db.session, post_id=post["id"], user_id=user.id, content="Nice post!"
         )
         assert comment["post_id"] == post["id"]
         assert comment["parent_comment_id"] is None
@@ -402,10 +428,10 @@ class TestCreateComment:
             email="comment-author@example.com",
             avatar_url="/api/uploads/avatars/comment-author.svg",
         )
-        post = forum_service.create_post(author_id=user.id, title="T", content="C")
+        post = forum_service.create_post(db.session, author_id=user.id, title="T", content="C")
 
         comment = forum_service.create_comment(
-            post_id=post["id"], user_id=user.id, content="Nice post!"
+            db.session, post_id=post["id"], user_id=user.id, content="Nice post!"
         )
 
         assert comment["author_username"] == "comment_author"
@@ -413,9 +439,12 @@ class TestCreateComment:
 
     def test_reply_to_comment(self):
         user = _make_user()
-        post = forum_service.create_post(author_id=user.id, title="T", content="C")
-        parent = forum_service.create_comment(post_id=post["id"], user_id=user.id, content="Parent")
+        post = forum_service.create_post(db.session, author_id=user.id, title="T", content="C")
+        parent = forum_service.create_comment(
+            db.session, post_id=post["id"], user_id=user.id, content="Parent"
+        )
         reply = forum_service.create_comment(
+            db.session,
             post_id=post["id"],
             user_id=user.id,
             content="Reply",
@@ -426,15 +455,19 @@ class TestCreateComment:
     def test_comment_on_nonexistent_post_raises(self):
         user = _make_user()
         with pytest.raises(ForumError) as exc_info:
-            forum_service.create_comment(post_id=99999, user_id=user.id, content="X")
+            forum_service.create_comment(db.session, post_id=99999, user_id=user.id, content="X")
         assert exc_info.value.http_status == 404
 
     def test_reply_to_nonexistent_comment_raises(self):
         user = _make_user()
-        post = forum_service.create_post(author_id=user.id, title="T", content="C")
+        post = forum_service.create_post(db.session, author_id=user.id, title="T", content="C")
         with pytest.raises(ForumError) as exc_info:
             forum_service.create_comment(
-                post_id=post["id"], user_id=user.id, content="X", parent_comment_id=99999
+                db.session,
+                post_id=post["id"],
+                user_id=user.id,
+                content="X",
+                parent_comment_id=99999,
             )
         assert exc_info.value.http_status == 404
 
@@ -442,22 +475,24 @@ class TestCreateComment:
 class TestDeleteComment:
     def test_author_can_delete_comment(self):
         user = _make_user()
-        post = forum_service.create_post(author_id=user.id, title="T", content="C")
-        comment = forum_service.create_comment(post_id=post["id"], user_id=user.id, content="Bye")
-        forum_service.delete_comment(comment["id"], operator_user_id=user.id)
-        result = forum_service.list_comments(post["id"])
+        post = forum_service.create_post(db.session, author_id=user.id, title="T", content="C")
+        comment = forum_service.create_comment(
+            db.session, post_id=post["id"], user_id=user.id, content="Bye"
+        )
+        forum_service.delete_comment(db.session, comment["id"], operator_user_id=user.id)
+        result = forum_service.list_comments(db.session, post["id"])
         ids = [c["id"] for c in result["items"]]
         assert comment["id"] not in ids
 
     def test_non_author_cannot_delete_comment(self):
         author = _make_user("a", "a@x.com")
         other = _make_user("b", "b@x.com")
-        post = forum_service.create_post(author_id=author.id, title="T", content="C")
+        post = forum_service.create_post(db.session, author_id=author.id, title="T", content="C")
         comment = forum_service.create_comment(
-            post_id=post["id"], user_id=author.id, content="Mine"
+            db.session, post_id=post["id"], user_id=author.id, content="Mine"
         )
         with pytest.raises(ForumError) as exc_info:
-            forum_service.delete_comment(comment["id"], operator_user_id=other.id)
+            forum_service.delete_comment(db.session, comment["id"], operator_user_id=other.id)
         assert exc_info.value.http_status == 403
 
 
@@ -469,27 +504,31 @@ class TestDeleteComment:
 class TestToggleLike:
     def test_like_post(self):
         user = _make_user()
-        post = forum_service.create_post(author_id=user.id, title="T", content="C")
+        post = forum_service.create_post(db.session, author_id=user.id, title="T", content="C")
         result = forum_service.toggle_like(
-            user_id=user.id, target_type="post", target_id=post["id"]
+            db.session, user_id=user.id, target_type="post", target_id=post["id"]
         )
         assert result["liked"] is True
         assert result["like_count"] == 1
 
     def test_unlike_post(self):
         user = _make_user()
-        post = forum_service.create_post(author_id=user.id, title="T", content="C")
-        forum_service.toggle_like(user_id=user.id, target_type="post", target_id=post["id"])
+        post = forum_service.create_post(db.session, author_id=user.id, title="T", content="C")
+        forum_service.toggle_like(
+            db.session, user_id=user.id, target_type="post", target_id=post["id"]
+        )
         result = forum_service.toggle_like(
-            user_id=user.id, target_type="post", target_id=post["id"]
+            db.session, user_id=user.id, target_type="post", target_id=post["id"]
         )
         assert result["liked"] is False
         assert result["like_count"] == 0
 
     def test_unlike_records_unlike_behavior_and_recomputes_profile(self, monkeypatch):
         user = _make_user("toggle", "toggle@x.com")
-        post = forum_service.create_post(author_id=user.id, title="T", content="C")
-        forum_service.toggle_like(user_id=user.id, target_type="post", target_id=post["id"])
+        post = forum_service.create_post(db.session, author_id=user.id, title="T", content="C")
+        forum_service.toggle_like(
+            db.session, user_id=user.id, target_type="post", target_id=post["id"]
+        )
 
         captured = {}
         recomputed = []
@@ -506,7 +545,7 @@ class TestToggleLike:
         )
 
         result = forum_service.toggle_like(
-            user_id=user.id, target_type="post", target_id=post["id"]
+            db.session, user_id=user.id, target_type="post", target_id=post["id"]
         )
 
         assert result["liked"] is False
@@ -519,28 +558,38 @@ class TestToggleLike:
 
     def test_like_comment(self):
         user = _make_user()
-        post = forum_service.create_post(author_id=user.id, title="T", content="C")
-        comment = forum_service.create_comment(post_id=post["id"], user_id=user.id, content="Hi")
+        post = forum_service.create_post(db.session, author_id=user.id, title="T", content="C")
+        comment = forum_service.create_comment(
+            db.session, post_id=post["id"], user_id=user.id, content="Hi"
+        )
         result = forum_service.toggle_like(
-            user_id=user.id, target_type="comment", target_id=comment["id"]
+            db.session, user_id=user.id, target_type="comment", target_id=comment["id"]
         )
         assert result["liked"] is True
 
     def test_invalid_target_type_raises(self):
         user = _make_user()
         with pytest.raises(ForumError):
-            forum_service.toggle_like(user_id=user.id, target_type="invalid", target_id=1)
+            forum_service.toggle_like(
+                db.session, user_id=user.id, target_type="invalid", target_id=1
+            )
 
     def test_like_nonexistent_post_raises(self):
         user = _make_user()
         with pytest.raises(ForumError) as exc_info:
-            forum_service.toggle_like(user_id=user.id, target_type="post", target_id=99999)
+            forum_service.toggle_like(
+                db.session, user_id=user.id, target_type="post", target_id=99999
+            )
         assert exc_info.value.http_status == 404
 
     def test_multiple_users_like_same_post(self):
         u1 = _make_user("u1", "u1@x.com")
         u2 = _make_user("u2", "u2@x.com")
-        post = forum_service.create_post(author_id=u1.id, title="T", content="C")
-        forum_service.toggle_like(user_id=u1.id, target_type="post", target_id=post["id"])
-        result = forum_service.toggle_like(user_id=u2.id, target_type="post", target_id=post["id"])
+        post = forum_service.create_post(db.session, author_id=u1.id, title="T", content="C")
+        forum_service.toggle_like(
+            db.session, user_id=u1.id, target_type="post", target_id=post["id"]
+        )
+        result = forum_service.toggle_like(
+            db.session, user_id=u2.id, target_type="post", target_id=post["id"]
+        )
         assert result["like_count"] == 2

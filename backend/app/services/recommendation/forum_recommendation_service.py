@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from functools import partial
 from math import exp
 
-from app.extensions.db import db
+from sqlalchemy.orm import Session
+
 from app.models.forum import ForumPost
 from app.repositories.forum import forum_repository
 from app.repositories.recommendation import behavior_event_repository, preference_profile_repository
@@ -121,9 +123,9 @@ def _preference_match_score(post: ForumPost, ranking_context: dict) -> float:
     return round(_clamp_unit_interval(weighted_score), 6)
 
 
-def _engagement_score(post: ForumPost) -> float:
-    likes = forum_repository.count_likes(db.session, "post", post.id)
-    comments = forum_repository.count_comments(db.session, post.id)
+def _engagement_score(session: Session, post: ForumPost) -> float:
+    likes = forum_repository.count_likes(session, "post", post.id)
+    comments = forum_repository.count_comments(session, post.id)
     raw_score = float(likes) + (float(comments) * 1.5)
     if raw_score <= 0:
         return 0.0
@@ -174,11 +176,11 @@ def _unfamiliarity_score(post: ForumPost, ranking_context: dict) -> float:
     return round(1.0 - _clamp_unit_interval(max_topic_match), 6)
 
 
-def is_exploitation_candidate(post: ForumPost, *, ranking_context: dict) -> bool:
+def is_exploitation_candidate(session: Session, post: ForumPost, *, ranking_context: dict) -> bool:
     preference_match = _preference_match_score(post, ranking_context)
     if preference_match > 0.0:
         return True
-    if _engagement_score(post) >= EXPLOITATION_MIN_ENGAGEMENT_SCORE:
+    if _engagement_score(session, post) >= EXPLOITATION_MIN_ENGAGEMENT_SCORE:
         return True
     if _recency_score(post) >= EXPLOITATION_MIN_RECENCY_SCORE:
         return True
@@ -197,10 +199,10 @@ def is_exploration_candidate(post: ForumPost, *, ranking_context: dict) -> bool:
     return (weak_affinity and low_exposure) or (uncategorized_fallback and low_exposure)
 
 
-def exploit_score(post: ForumPost, *, ranking_context: dict) -> float:
+def exploit_score(session: Session, post: ForumPost, *, ranking_context: dict) -> float:
     preference_match = _preference_match_score(post, ranking_context)
     recency = _recency_score(post)
-    engagement = _engagement_score(post)
+    engagement = _engagement_score(session, post)
     novelty = _novelty_score(post, ranking_context)
     quality_floor = max(recency, engagement)
     return round(
@@ -213,10 +215,10 @@ def exploit_score(post: ForumPost, *, ranking_context: dict) -> float:
     )
 
 
-def explore_score(post: ForumPost, *, ranking_context: dict) -> float:
+def explore_score(session: Session, post: ForumPost, *, ranking_context: dict) -> float:
     unfamiliarity = _unfamiliarity_score(post, ranking_context)
     recency = _recency_score(post)
-    engagement = _engagement_score(post)
+    engagement = _engagement_score(session, post)
     novelty = _novelty_score(post, ranking_context)
     return round(
         (0.40 * unfamiliarity) + (0.25 * recency) + (0.20 * engagement) + (0.15 * novelty),
@@ -225,6 +227,7 @@ def explore_score(post: ForumPost, *, ranking_context: dict) -> float:
 
 
 def recommendation_score(
+    session: Session,
     post: ForumPost,
     *,
     ranking_context: dict,
@@ -232,7 +235,7 @@ def recommendation_score(
     base_score = (
         (_topic_match_score(post, ranking_context) * 0.55)
         + (_recency_score(post) * 0.3)
-        + (_engagement_score(post) * 0.15)
+        + (_engagement_score(session, post) * 0.15)
     )
     return round(
         base_score
@@ -244,8 +247,8 @@ def recommendation_score(
     )
 
 
-def _cold_start_score(post: ForumPost) -> float:
-    return round((_recency_score(post) * 0.75) + (_engagement_score(post) * 0.25), 6)
+def _cold_start_score(session: Session, post: ForumPost) -> float:
+    return round((_recency_score(post) * 0.75) + (_engagement_score(session, post) * 0.25), 6)
 
 
 def _source_index_for_post(post: ForumPost, source_index_by_post_id: dict[int, int]) -> int:
@@ -354,48 +357,48 @@ def merge_ranked_posts(
     return merged_posts
 
 
-def build_ranking_context(*, user_id: int, posts: list[ForumPost]) -> dict:
+def build_ranking_context(session: Session, *, user_id: int, posts: list[ForumPost]) -> dict:
     post_ids = [int(post.id) for post in posts if post is not None and post.id is not None]
-    has_history = preference_profile_service.has_sufficient_history(db.session, user_id)
+    has_history = preference_profile_service.has_sufficient_history(session, user_id)
     profile_snapshot = (
-        preference_profile_service.get_profile_snapshot(db.session, user_id) if has_history else {}
+        preference_profile_service.get_profile_snapshot(session, user_id) if has_history else {}
     )
     topic_assignments_by_post_id = (
         preference_profile_repository.list_content_topic_assignments_for_content_ids(
-            db.session,
+            session,
             domain="forum",
             content_type="post",
             content_ids=post_ids,
         )
     )
     viewed_post_ids = behavior_event_repository.list_behavior_target_ids_for_user(
-        db.session,
+        session,
         user_id,
         domain="forum",
         target_type="post",
         action_types=["view", "long_view"],
     )
     long_viewed_post_ids = behavior_event_repository.list_behavior_target_ids_for_user(
-        db.session,
+        session,
         user_id,
         domain="forum",
         target_type="post",
         action_types=["long_view"],
     )
     active_liked_post_ids = behavior_event_repository.list_active_forum_like_target_ids_for_user(
-        db.session,
+        session,
         user_id,
         target_type="post",
     )
     commented_post_ids = behavior_event_repository.list_behavior_target_ids_for_user(
-        db.session,
+        session,
         user_id,
         domain="forum",
         target_type="post",
         action_types=["comment_or_reply"],
     )
     recent_topic_exposure = behavior_event_repository.list_recent_topic_exposure_counts_for_user(
-        db.session,
+        session,
         user_id,
         domain="forum",
     )
@@ -410,15 +413,17 @@ def build_ranking_context(*, user_id: int, posts: list[ForumPost]) -> dict:
     }
 
 
-def rank_posts_for_user(*, posts: list[ForumPost], user_id: int) -> list[ForumPost]:
+def rank_posts_for_user(
+    session: Session, *, posts: list[ForumPost], user_id: int
+) -> list[ForumPost]:
     if not posts:
         return []
-    ranking_context = build_ranking_context(user_id=user_id, posts=posts)
+    ranking_context = build_ranking_context(session, user_id=user_id, posts=posts)
     if not ranking_context["has_history"]:
         return sorted(
             posts,
             key=lambda post: (
-                _cold_start_score(post),
+                _cold_start_score(session, post),
                 _ensure_aware_utc(post.created_at),
                 post.id,
             ),
@@ -434,9 +439,9 @@ def rank_posts_for_user(*, posts: list[ForumPost], user_id: int) -> list[ForumPo
         posts=[
             post
             for post in posts
-            if is_exploitation_candidate(post, ranking_context=ranking_context)
+            if is_exploitation_candidate(session, post, ranking_context=ranking_context)
         ],
-        score_getter=exploit_score,
+        score_getter=partial(exploit_score, session),
         ranking_context=ranking_context,
         source_index_by_post_id=source_index_by_post_id,
     )
@@ -446,7 +451,7 @@ def rank_posts_for_user(*, posts: list[ForumPost], user_id: int) -> list[ForumPo
             for post in posts
             if is_exploration_candidate(post, ranking_context=ranking_context)
         ],
-        score_getter=explore_score,
+        score_getter=partial(explore_score, session),
         ranking_context=ranking_context,
         source_index_by_post_id=source_index_by_post_id,
     )
@@ -461,7 +466,7 @@ def rank_posts_for_user(*, posts: list[ForumPost], user_id: int) -> list[ForumPo
             for post in posts
             if post is not None and post.id is not None and int(post.id) not in ranked_pool_post_ids
         ],
-        score_getter=exploit_score,
+        score_getter=partial(exploit_score, session),
         ranking_context=ranking_context,
         source_index_by_post_id=source_index_by_post_id,
     )
