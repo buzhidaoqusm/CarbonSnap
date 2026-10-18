@@ -1,3 +1,5 @@
+from collections.abc import Collection
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -6,6 +8,13 @@ from app.models.user import User
 
 def get_by_id(session: Session, user_id: int) -> User | None:
     return session.get(User, user_id)
+
+
+def get_by_ids(session: Session, user_ids: Collection[int]) -> dict[int, User]:
+    if not user_ids:
+        return {}
+    users = session.scalars(select(User).where(User.id.in_(user_ids)))
+    return {user.id: user for user in users}
 
 
 def get_for_update(session: Session, user_id: int) -> User | None:

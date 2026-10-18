@@ -5,7 +5,7 @@ import pytest
 from werkzeug.security import generate_password_hash
 
 from app.extensions.db import db
-from app.models.forum import ForumPost
+from app.models.forum import ForumComment, ForumPost, Like
 from app.models.user import User
 from app.repositories.recommendation import preference_profile_repository
 from app.services.recommendation import forum_recommendation_service
@@ -142,6 +142,26 @@ class TestForumRecommendationService:
             row.topic_id for row in context["topic_assignments_by_post_id"][second_post.id]
         ] == ["battery-recycling"]
 
+    def test_engagement_counts_come_from_the_context(self):
+        user = _make_user("engagement", "engagement@example.com")
+        liked = _make_post(user.id, "Liked", "Liked post")
+        quiet = _make_post(user.id, "Quiet", "Quiet post")
+        db.session.add(Like(user_id=user.id, target_type="post", target_id=liked.id))
+        db.session.add(ForumComment(post_id=liked.id, user_id=user.id, content="Yes."))
+        db.session.flush()
+
+        context = forum_recommendation_service.build_ranking_context(
+            db.session, user_id=user.id, posts=[liked, quiet]
+        )
+
+        assert context["like_counts_by_post_id"] == {liked.id: 1}
+        assert context["comment_counts_by_post_id"] == {liked.id: 1}
+        # 1 like + 1.5 for the comment: 1 - exp(-2.5 / 5)
+        assert forum_recommendation_service._engagement_score(liked, context) == pytest.approx(
+            0.393469
+        )
+        assert forum_recommendation_service._engagement_score(quiet, context) == 0.0
+
     def test_preference_match_is_bounded_to_one(self):
         user = _make_user("bounded", "bounded@example.com")
         post = _make_post(user.id, "Mixed recycling", "Mixed recycling content")
@@ -247,12 +267,12 @@ class TestForumRecommendationService:
         }
 
         assert forum_recommendation_service.is_exploitation_candidate(
-            db.session, matched_post, ranking_context=matched_context
+            matched_post, ranking_context=matched_context
         )
 
         monkeypatch.setattr(forum_recommendation_service, "_recency_score", lambda post: 0.6)
         monkeypatch.setattr(
-            forum_recommendation_service, "_engagement_score", lambda _session, post: 0.0
+            forum_recommendation_service, "_engagement_score", lambda post, _ranking_context: 0.0
         )
 
         fallback_context = {
@@ -263,18 +283,16 @@ class TestForumRecommendationService:
         }
 
         assert forum_recommendation_service.is_exploitation_candidate(
-            db.session,
             fallback_post,
             ranking_context=fallback_context,
         )
 
         monkeypatch.setattr(forum_recommendation_service, "_recency_score", lambda post: 0.0)
         monkeypatch.setattr(
-            forum_recommendation_service, "_engagement_score", lambda _session, post: 0.2
+            forum_recommendation_service, "_engagement_score", lambda post, _ranking_context: 0.2
         )
 
         assert forum_recommendation_service.is_exploitation_candidate(
-            db.session,
             fallback_post,
             ranking_context=fallback_context,
         )
@@ -401,17 +419,17 @@ class TestForumRecommendationService:
 
         monkeypatch.setattr(forum_recommendation_service, "_recency_score", lambda post: 0.6)
         monkeypatch.setattr(
-            forum_recommendation_service, "_engagement_score", lambda _session, post: 0.4
+            forum_recommendation_service, "_engagement_score", lambda post, _ranking_context: 0.4
         )
         monkeypatch.setattr(
             forum_recommendation_service, "_novelty_score", lambda post, ranking_context: 0.8
         )
 
         assert forum_recommendation_service.exploit_score(
-            db.session, post, ranking_context=context
+            post, ranking_context=context
         ) == pytest.approx(0.64)
         assert forum_recommendation_service.explore_score(
-            db.session, post, ranking_context=context
+            post, ranking_context=context
         ) == pytest.approx(0.47)
 
     def test_merge_ranked_posts_preserves_deterministic_exploration_slots(self):
@@ -533,7 +551,7 @@ class TestForumRecommendationService:
             lambda *args, **kwargs: set(),
         )
         monkeypatch.setattr(
-            forum_recommendation_service, "_engagement_score", lambda _session, post: 0.0
+            forum_recommendation_service, "_engagement_score", lambda post, _ranking_context: 0.0
         )
 
         ranked = forum_recommendation_service.rank_posts_for_user(
@@ -590,7 +608,7 @@ class TestForumRecommendationService:
             lambda *args, **kwargs: {},
         )
         monkeypatch.setattr(
-            forum_recommendation_service, "_engagement_score", lambda _session, post: 0.0
+            forum_recommendation_service, "_engagement_score", lambda post, _ranking_context: 0.0
         )
 
         ranked = forum_recommendation_service.rank_posts_for_user(
@@ -611,7 +629,7 @@ class TestForumRecommendationService:
             lambda _session, user_id: False,
         )
         monkeypatch.setattr(
-            forum_recommendation_service, "_engagement_score", lambda _session, post: 0.0
+            forum_recommendation_service, "_engagement_score", lambda post, _ranking_context: 0.0
         )
 
         ranked = forum_recommendation_service.rank_posts_for_user(
@@ -635,7 +653,7 @@ class TestForumRecommendationService:
         monkeypatch.setattr(
             forum_recommendation_service,
             "_engagement_score",
-            lambda _session, post: 0.9 if post.id == high_engagement.id else 0.0,
+            lambda post, _ranking_context: 0.9 if post.id == high_engagement.id else 0.0,
         )
 
         ranked = forum_recommendation_service.rank_posts_for_user(
@@ -682,7 +700,7 @@ class TestForumRecommendationService:
             ),
         )
         monkeypatch.setattr(
-            forum_recommendation_service, "_engagement_score", lambda _session, post: 0.0
+            forum_recommendation_service, "_engagement_score", lambda post, _ranking_context: 0.0
         )
 
         ranked = forum_recommendation_service.rank_posts_for_user(

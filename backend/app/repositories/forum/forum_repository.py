@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -313,6 +313,50 @@ def is_liked_by(session: Session, user_id: int, target_type: str, target_id: int
             )
         )
         is not None
+    )
+
+
+# Batched forms of the three above, for lists: one statement for all ids.
+# Ids with nothing to count are absent, so callers read them with .get(id, 0).
+
+
+def count_likes_by_target(
+    session: Session, target_type: str, target_ids: Collection[int]
+) -> dict[int, int]:
+    if not target_ids:
+        return {}
+    rows = session.execute(
+        select(Like.target_id, func.count(Like.id))
+        .where(Like.target_type == target_type, Like.target_id.in_(target_ids))
+        .group_by(Like.target_id)
+    )
+    return {int(target_id): int(count) for target_id, count in rows}
+
+
+def count_comments_by_post(session: Session, post_ids: Collection[int]) -> dict[int, int]:
+    if not post_ids:
+        return {}
+    rows = session.execute(
+        select(ForumComment.post_id, func.count(ForumComment.id))
+        .where(ForumComment.post_id.in_(post_ids), ForumComment.status == "published")
+        .group_by(ForumComment.post_id)
+    )
+    return {int(post_id): int(count) for post_id, count in rows}
+
+
+def liked_target_ids(
+    session: Session, user_id: int, target_type: str, target_ids: Collection[int]
+) -> set[int]:
+    if not target_ids:
+        return set()
+    return set(
+        session.scalars(
+            select(Like.target_id).where(
+                Like.user_id == user_id,
+                Like.target_type == target_type,
+                Like.target_id.in_(target_ids),
+            )
+        )
     )
 
 

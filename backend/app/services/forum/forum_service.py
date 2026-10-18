@@ -10,6 +10,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
+from app.models.user import User
 from app.repositories.forum import forum_repository
 from app.repositories.profile import user_repository
 from app.repositories.recommendation import behavior_event_repository
@@ -108,18 +109,13 @@ def _notify_comment_liked(
 
 
 def _serialize_post(
-    session: Session,
     post,
     *,
+    author: User | None,
     liked_by_user: bool | None = None,
     like_count: int | None = None,
     comment_count: int | None = None,
 ) -> dict:
-    author = (
-        user_repository.get_by_id(session, int(post.author_id))
-        if getattr(post, "author_id", None) is not None
-        else None
-    )
     return {
         "id": post.id,
         "author_id": post.author_id,
@@ -137,13 +133,12 @@ def _serialize_post(
 
 
 def _serialize_comment(
-    session: Session, comment, *, liked_by_user: bool | None = None, like_count: int | None = None
+    comment,
+    *,
+    author: User | None,
+    liked_by_user: bool | None = None,
+    like_count: int | None = None,
 ) -> dict:
-    author = (
-        user_repository.get_by_id(session, int(comment.user_id))
-        if getattr(comment, "user_id", None) is not None
-        else None
-    )
     return {
         "id": comment.id,
         "post_id": comment.post_id,
@@ -185,7 +180,13 @@ def create_post(
         title=post.title,
         content=post.content,
     )
-    return _serialize_post(session, post, like_count=0, comment_count=0, liked_by_user=False)
+    return _serialize_post(
+        post,
+        author=user_repository.get_by_id(session, post.author_id),
+        like_count=0,
+        comment_count=0,
+        liked_by_user=False,
+    )
 
 
 def get_post(session: Session, post_id: int, *, viewer_user_id: int | None = None) -> dict:
@@ -208,7 +209,11 @@ def get_post(session: Session, post_id: int, *, viewer_user_id: int | None = Non
         else None
     )
     return _serialize_post(
-        session, post, like_count=like_count, comment_count=comment_count, liked_by_user=liked
+        post,
+        author=user_repository.get_by_id(session, post.author_id),
+        like_count=like_count,
+        comment_count=comment_count,
+        liked_by_user=liked,
     )
 
 
@@ -264,24 +269,25 @@ def list_posts(
     else:
         posts, total = forum_repository.list_posts_page_by_impact(session, page, per_page)
 
-    items = []
-    for post in posts:
-        like_count = forum_repository.count_likes(session, "post", post.id)
-        comment_count = forum_repository.count_comments(session, post.id)
-        liked = (
-            forum_repository.is_liked_by(session, viewer_user_id, "post", post.id)
-            if viewer_user_id is not None
-            else None
+    post_ids = [post.id for post in posts]
+    authors = user_repository.get_by_ids(session, {post.author_id for post in posts})
+    like_counts = forum_repository.count_likes_by_target(session, "post", post_ids)
+    comment_counts = forum_repository.count_comments_by_post(session, post_ids)
+    liked_ids = (
+        forum_repository.liked_target_ids(session, viewer_user_id, "post", post_ids)
+        if viewer_user_id is not None
+        else None
+    )
+    items = [
+        _serialize_post(
+            post,
+            author=authors.get(post.author_id),
+            like_count=like_counts.get(post.id, 0),
+            comment_count=comment_counts.get(post.id, 0),
+            liked_by_user=None if liked_ids is None else post.id in liked_ids,
         )
-        items.append(
-            _serialize_post(
-                session,
-                post,
-                like_count=like_count,
-                comment_count=comment_count,
-                liked_by_user=liked,
-            )
-        )
+        for post in posts
+    ]
     return {"items": items, "total": total, "page": page, "per_page": per_page}
 
 
@@ -313,7 +319,7 @@ def update_post(
         title=post.title,
         content=post.content,
     )
-    return _serialize_post(session, post)
+    return _serialize_post(post, author=user_repository.get_by_id(session, post.author_id))
 
 
 def delete_post(session: Session, post_id: int, *, operator_user_id: int) -> None:
@@ -382,7 +388,12 @@ def create_comment(
         preference_profile_service.recompute_user_preference_profiles(session, user_id)
     except Exception:
         discard_failed_side_effect(session, "forum")
-    return _serialize_comment(session, comment, like_count=0, liked_by_user=False)
+    return _serialize_comment(
+        comment,
+        author=user_repository.get_by_id(session, comment.user_id),
+        like_count=0,
+        liked_by_user=False,
+    )
 
 
 def list_comments(session: Session, post_id: int, *, viewer_user_id: int | None = None) -> dict:
@@ -391,15 +402,23 @@ def list_comments(session: Session, post_id: int, *, viewer_user_id: int | None 
         raise ForumError("Post not found.", code=40400, http_status=404)
 
     comments = forum_repository.list_comments_by_post(session, post_id)
-    items = []
-    for c in comments:
-        like_count = forum_repository.count_likes(session, "comment", c.id)
-        liked = (
-            forum_repository.is_liked_by(session, viewer_user_id, "comment", c.id)
-            if viewer_user_id is not None
-            else None
+    comment_ids = [c.id for c in comments]
+    authors = user_repository.get_by_ids(session, {c.user_id for c in comments})
+    like_counts = forum_repository.count_likes_by_target(session, "comment", comment_ids)
+    liked_ids = (
+        forum_repository.liked_target_ids(session, viewer_user_id, "comment", comment_ids)
+        if viewer_user_id is not None
+        else None
+    )
+    items = [
+        _serialize_comment(
+            c,
+            author=authors.get(c.user_id),
+            like_count=like_counts.get(c.id, 0),
+            liked_by_user=None if liked_ids is None else c.id in liked_ids,
         )
-        items.append(_serialize_comment(session, c, like_count=like_count, liked_by_user=liked))
+        for c in comments
+    ]
     return {"items": items, "total": len(items)}
 
 

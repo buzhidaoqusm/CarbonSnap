@@ -247,7 +247,10 @@ docs/adr/
 >     forum 迁走之后，`auth_identity` 里依赖 flask_jwt_extended 的函数没有人用了，已删除。
 >     手工检查了后台线程这条路径：发帖立即返回，chunk 和主题标签由后台线程写入，删帖后 chunk 被清空。Flask 路由 25 → 14。
 >     迁移时还实测到论坛列表的 N+1 查询，已登录用户拉一页帖子要 129 条 SQL，记为 PERFORMANCE_ISSUES #12。
-> - 下一步：修 #12，然后迁移 uploads → ai/memory。
+>   - #12 论坛 N+1 ✅（2026-10-18）。作者、计数、点赞状态都改成按 id 列表批量查询，排序用的计数也放进 ranking context。
+>     全站 200 帖时，已登录用户拉一页帖子的 SQL 条数 489 → 15，未登录 62 → 5，并且不再随帖子数增长。
+>     还剩一个问题：已登录时会把全站帖子加载进内存再分页，见 PERFORMANCE_ISSUES #12。
+> - 下一步：迁移 uploads → ai/memory。
 >   迁 market 和 forum 时，要逐个处理剩下的 `except Exception: pass`：异常吞掉后 session 仍处于失败状态，后面的查询会返回 500。
 >   迁 forum 和 market 时，要把 `notification_service.dispatch` 和 `auth_identity` 剩下的 Flask 依赖一起去掉。
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from functools import partial
 from math import exp
 
 from sqlalchemy.orm import Session
@@ -123,9 +122,11 @@ def _preference_match_score(post: ForumPost, ranking_context: dict) -> float:
     return round(_clamp_unit_interval(weighted_score), 6)
 
 
-def _engagement_score(session: Session, post: ForumPost) -> float:
-    likes = forum_repository.count_likes(session, "post", post.id)
-    comments = forum_repository.count_comments(session, post.id)
+def _engagement_score(post: ForumPost, ranking_context: dict) -> float:
+    like_counts = ranking_context.get("like_counts_by_post_id") or {}
+    comment_counts = ranking_context.get("comment_counts_by_post_id") or {}
+    likes = like_counts.get(int(post.id), 0)
+    comments = comment_counts.get(int(post.id), 0)
     raw_score = float(likes) + (float(comments) * 1.5)
     if raw_score <= 0:
         return 0.0
@@ -176,11 +177,11 @@ def _unfamiliarity_score(post: ForumPost, ranking_context: dict) -> float:
     return round(1.0 - _clamp_unit_interval(max_topic_match), 6)
 
 
-def is_exploitation_candidate(session: Session, post: ForumPost, *, ranking_context: dict) -> bool:
+def is_exploitation_candidate(post: ForumPost, *, ranking_context: dict) -> bool:
     preference_match = _preference_match_score(post, ranking_context)
     if preference_match > 0.0:
         return True
-    if _engagement_score(session, post) >= EXPLOITATION_MIN_ENGAGEMENT_SCORE:
+    if _engagement_score(post, ranking_context) >= EXPLOITATION_MIN_ENGAGEMENT_SCORE:
         return True
     if _recency_score(post) >= EXPLOITATION_MIN_RECENCY_SCORE:
         return True
@@ -199,10 +200,10 @@ def is_exploration_candidate(post: ForumPost, *, ranking_context: dict) -> bool:
     return (weak_affinity and low_exposure) or (uncategorized_fallback and low_exposure)
 
 
-def exploit_score(session: Session, post: ForumPost, *, ranking_context: dict) -> float:
+def exploit_score(post: ForumPost, *, ranking_context: dict) -> float:
     preference_match = _preference_match_score(post, ranking_context)
     recency = _recency_score(post)
-    engagement = _engagement_score(session, post)
+    engagement = _engagement_score(post, ranking_context)
     novelty = _novelty_score(post, ranking_context)
     quality_floor = max(recency, engagement)
     return round(
@@ -215,10 +216,10 @@ def exploit_score(session: Session, post: ForumPost, *, ranking_context: dict) -
     )
 
 
-def explore_score(session: Session, post: ForumPost, *, ranking_context: dict) -> float:
+def explore_score(post: ForumPost, *, ranking_context: dict) -> float:
     unfamiliarity = _unfamiliarity_score(post, ranking_context)
     recency = _recency_score(post)
-    engagement = _engagement_score(session, post)
+    engagement = _engagement_score(post, ranking_context)
     novelty = _novelty_score(post, ranking_context)
     return round(
         (0.40 * unfamiliarity) + (0.25 * recency) + (0.20 * engagement) + (0.15 * novelty),
@@ -227,7 +228,6 @@ def explore_score(session: Session, post: ForumPost, *, ranking_context: dict) -
 
 
 def recommendation_score(
-    session: Session,
     post: ForumPost,
     *,
     ranking_context: dict,
@@ -235,7 +235,7 @@ def recommendation_score(
     base_score = (
         (_topic_match_score(post, ranking_context) * 0.55)
         + (_recency_score(post) * 0.3)
-        + (_engagement_score(session, post) * 0.15)
+        + (_engagement_score(post, ranking_context) * 0.15)
     )
     return round(
         base_score
@@ -247,8 +247,10 @@ def recommendation_score(
     )
 
 
-def _cold_start_score(session: Session, post: ForumPost) -> float:
-    return round((_recency_score(post) * 0.75) + (_engagement_score(session, post) * 0.25), 6)
+def _cold_start_score(post: ForumPost, ranking_context: dict) -> float:
+    return round(
+        (_recency_score(post) * 0.75) + (_engagement_score(post, ranking_context) * 0.25), 6
+    )
 
 
 def _source_index_for_post(post: ForumPost, source_index_by_post_id: dict[int, int]) -> int:
@@ -410,6 +412,8 @@ def build_ranking_context(session: Session, *, user_id: int, posts: list[ForumPo
         "engaged_post_ids": active_liked_post_ids | commented_post_ids,
         "recent_topic_exposure": recent_topic_exposure,
         "topic_assignments_by_post_id": topic_assignments_by_post_id,
+        "like_counts_by_post_id": forum_repository.count_likes_by_target(session, "post", post_ids),
+        "comment_counts_by_post_id": forum_repository.count_comments_by_post(session, post_ids),
     }
 
 
@@ -423,7 +427,7 @@ def rank_posts_for_user(
         return sorted(
             posts,
             key=lambda post: (
-                _cold_start_score(session, post),
+                _cold_start_score(post, ranking_context),
                 _ensure_aware_utc(post.created_at),
                 post.id,
             ),
@@ -439,9 +443,9 @@ def rank_posts_for_user(
         posts=[
             post
             for post in posts
-            if is_exploitation_candidate(session, post, ranking_context=ranking_context)
+            if is_exploitation_candidate(post, ranking_context=ranking_context)
         ],
-        score_getter=partial(exploit_score, session),
+        score_getter=exploit_score,
         ranking_context=ranking_context,
         source_index_by_post_id=source_index_by_post_id,
     )
@@ -451,7 +455,7 @@ def rank_posts_for_user(
             for post in posts
             if is_exploration_candidate(post, ranking_context=ranking_context)
         ],
-        score_getter=partial(explore_score, session),
+        score_getter=explore_score,
         ranking_context=ranking_context,
         source_index_by_post_id=source_index_by_post_id,
     )
@@ -466,7 +470,7 @@ def rank_posts_for_user(
             for post in posts
             if post is not None and post.id is not None and int(post.id) not in ranked_pool_post_ids
         ],
-        score_getter=partial(exploit_score, session),
+        score_getter=exploit_score,
         ranking_context=ranking_context,
         source_index_by_post_id=source_index_by_post_id,
     )
