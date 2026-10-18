@@ -250,7 +250,15 @@ docs/adr/
 >   - #12 论坛 N+1 ✅（2026-10-18）。作者、计数、点赞状态都改成按 id 列表批量查询，排序用的计数也放进 ranking context。
 >     全站 200 帖时，已登录用户拉一页帖子的 SQL 条数 489 → 15，未登录 62 → 5，并且不再随帖子数增长。
 >     还剩一个问题：已登录时会把全站帖子加载进内存再分页，见 PERFORMANCE_ISSUES #12。
-> - 下一步：迁移 uploads → ai/memory。
+>   - uploads ✅（2026-10-18）。这个接口原来一个测试都没有，先对着 Flask 写了 13 个测试，覆盖正常读取、HEAD、
+>     ETag 和 If-Modified-Since 的 304、Range 的 206、404，以及 `Cache-Control: no-cache`。
+>     顺手修了一个路径穿越漏洞：旧代码用 `str.startswith` 判断文件是否在上传目录里，所以 `../uploads_secret/x`
+>     这种和上传目录同前缀的兄弟目录也能读到。真实 uvicorn 上 4 种写法（`../`、`%2F`、`%2E%2E`、`%5C`）
+>     都返回了文件内容；改成 `Path.is_relative_to` 后全部返回 404。按默认部署，`/data` 下没有这样的目录，
+>     所以目前读不到真实数据。
+>     迁移时发现 Starlette 的 `FileResponse` 会生成 ETag 和 Last-Modified，但不处理条件请求，只有 `StaticFiles` 会。
+>     所以在路由里补了 304 的判断，保持浏览器的缓存行为不变。Flask 路由 14 → 13。
+> - 下一步：迁移 ai/memory。
 >   迁 market 和 forum 时，要逐个处理剩下的 `except Exception: pass`：异常吞掉后 session 仍处于失败状态，后面的查询会返回 500。
 >   迁 forum 和 market 时，要把 `notification_service.dispatch` 和 `auth_identity` 剩下的 Flask 依赖一起去掉。
 

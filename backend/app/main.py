@@ -22,6 +22,7 @@ from app.api.market import routes as market
 from app.api.notification import routes as notification
 from app.api.profile import auth
 from app.api.project import routes as project
+from app.api.uploads import routes as uploads
 from app.core.config import get_settings
 
 
@@ -40,6 +41,7 @@ def create_api(flask_app: Flask | None = None) -> FastAPI:
     api.include_router(market.router)
     api.include_router(forum.router)
     api.include_router(project.router)
+    api.include_router(uploads.router)
 
     legacy = flask_app if flask_app is not None else create_app()
     # Flask is the router's default, not a mount at "/": a mount matches every
