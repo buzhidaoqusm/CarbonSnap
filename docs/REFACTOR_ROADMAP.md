@@ -258,7 +258,17 @@ docs/adr/
 >     所以目前读不到真实数据。
 >     迁移时发现 Starlette 的 `FileResponse` 会生成 ETag 和 Last-Modified，但不处理条件请求，只有 `StaticFiles` 会。
 >     所以在路由里补了 304 的判断，保持浏览器的缓存行为不变。Flask 路由 14 → 13。
-> - 下一步：迁移 ai/memory。
+>   - ai/memory ✅（2026-10-18）。原有测试只直接调用了 4 个接口里的 2 个，POST 和 PATCH 的错误分支一个都没测，
+>     所以先对着 Flask 补了 29 个特征测试，覆盖每一条错误信息、返回结构，以及"摘要写回 users 表"这个副作用。
+>     变异测试：故意让摘要不写回数据库，原有 5 个 memory 测试全部照样通过，新测试会变红。
+>     旧代码的几个怪行为原样保留：传 null 的字段会被 `str()` 成 `"None"`；PATCH 传空白 key 时保持原值不变。
+>     这里用 Pydantic 的 `model_fields_set` 区分"没传"和"传了 null"。
+>     已删除用户用仍然有效的 token 发 POST，原来会撞上外键约束，返回 500；现在和 auth `/me`、ledger 一致，返回 404 "User not found."。
+>     GET 仍然返回 200 空结果，这是现有测试固定下来的行为。
+>     迁移前后的 SQL 条数一致，只有 POST 多了 1 条，来自上面那个用户检查。Flask 路由 13 → 9。
+>     还有两处没处理，已实测：GET 每次都会重建偏好摘要并 `UPDATE users`；每次写操作会把摘要重建两遍，
+>     一次 POST 有 2 条 `UPDATE users`。要不要改，取决于存储的摘要什么时候算"过期"，需要单独决定。
+> - 下一步：ai/chat（SSE），它依赖 P2 的 async LLM 网关，迁完后就可以删除 Flask。
 >   迁 market 和 forum 时，要逐个处理剩下的 `except Exception: pass`：异常吞掉后 session 仍处于失败状态，后面的查询会返回 500。
 >   迁 forum 和 market 时，要把 `notification_service.dispatch` 和 `auth_identity` 剩下的 Flask 依赖一起去掉。
 
