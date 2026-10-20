@@ -290,7 +290,16 @@ docs/adr/
 >       所以这两个文件里数据库 session 的参数名改叫 `db_session`。
 >     新测试 `test_ai_services_without_flask` 在没有 app context 的线程里跑回收分析。
 >     另外 5 个 ai 模块加进了 mypy。剩下 6 个模块各有 1–14 个原有的类型错误，留作后续。
-> - 下一步：ai/chat 任务 B（5 个 JSON 接口）。
+>   - B. 5 个 JSON 接口 ✅（2026-10-20）：非流式 chat、location-context，以及会话的列表、消息、删除。
+>     probe 列出了 10 条用户能看到的错误信息，除了 "not found"，其余 9 条现有测试都没有断言。
+>     迁移前先对着 Flask 补了 32 个特征测试，迁移后全部照样通过。
+>     请求体的解析抽到 `app/api/ai/payloads.py`，FastAPI 路由和 Flask 上剩下的 4 个 SSE 路由共用这一份。
+>     会话列表改用 `PageParams`：page 不是数字时，从"悄悄用默认值"变成返回 400，和其他列表接口一致。
+>     chat 的 `data` 和消息里的 trace、decision 暂时用 `dict[str, Any]`，等 P2 的主图稳定后再写具体的 schema。
+>     变异测试：去掉 conversation_id 的整数校验、把 502 改成 500，新测试都会变红。Flask 路由 9 → 4。
+>     顺带发现一个问题，还没处理：先授权位置、再拒绝时，之前的坐标仍留在会话里，
+>     因为 `update_location_state` 把 `coordinates=None` 当成"不修改"。
+> - 下一步：ai/chat 任务 C（4 个 SSE 接口）。
 >   迁 market 和 forum 时，要逐个处理剩下的 `except Exception: pass`：异常吞掉后 session 仍处于失败状态，后面的查询会返回 500。
 >   迁 forum 和 market 时，要把 `notification_service.dispatch` 和 `auth_identity` 剩下的 Flask 依赖一起去掉。
 

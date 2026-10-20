@@ -94,6 +94,8 @@ files = [
     "app/api/forum",
     "app/api/uploads",
     "app/api/ai/memory.py",
+    "app/api/ai/payloads.py",
+    "app/api/ai/conversations.py",
     "app/services/ai/ai_decision_engine.py",
     "app/services/ai/forum_retrieval_service.py",
     "app/services/ai/recycling_audit_service.py",
