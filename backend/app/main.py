@@ -17,6 +17,7 @@ from app import create_app
 from app.api import health
 from app.api.ai import conversations as ai_conversations
 from app.api.ai import memory as ai_memory
+from app.api.ai import streams as ai_streams
 from app.api.errors import install_error_handlers
 from app.api.forum import routes as forum
 from app.api.ledger import routes as ledger
@@ -46,6 +47,7 @@ def create_api(flask_app: Flask | None = None) -> FastAPI:
     api.include_router(uploads.router)
     api.include_router(ai_memory.router)
     api.include_router(ai_conversations.router)
+    api.include_router(ai_streams.router)
 
     legacy = flask_app if flask_app is not None else create_app()
     # Flask is the router's default, not a mount at "/": a mount matches every

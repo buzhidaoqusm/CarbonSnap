@@ -60,3 +60,24 @@ class LocationContextIn(BaseModel):
     browser_location: Any = None
     manual_area: Any = None
     skip_nearby_search: Any = None
+
+
+class RecyclingIn(BaseModel):
+    message: Any = None
+    prompt: Any = None
+    image: Any = None
+    image_url: Any = None
+    session_id: Any = None
+    conversation_id: Any = None
+
+
+class ResumeIn(BaseModel):
+    session_id: Any = None
+
+
+class AuditIn(BaseModel):
+    conversation_id: Any = None
+    recycling_case_id: Any = None
+    message: Any = None
+    image: Any = None
+    image_url: Any = None

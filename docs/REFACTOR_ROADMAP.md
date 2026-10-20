@@ -299,7 +299,22 @@ docs/adr/
 >     变异测试：去掉 conversation_id 的整数校验、把 502 改成 500，新测试都会变红。Flask 路由 9 → 4。
 >     顺带发现一个问题，还没处理：先授权位置、再拒绝时，之前的坐标仍留在会话里，
 >     因为 `update_location_state` 把 `coordinates=None` 当成"不修改"。
-> - 下一步：ai/chat 任务 C（4 个 SSE 接口）。
+>   - C. 4 个 SSE 接口 ✅（2026-10-20）：chat/stream、analyze-image、chat/resume、audit-recycling。**Flask 路由 4 → 0。**
+>     先用实验验证了 3 件事：
+>     - `get_db` 要等流式响应全部发送完才关闭；
+>     - 同步生成器的每一步都在 AnyIO 的线程池里运行；
+>     - 客户端断开后，生成器不会被关闭（`finally` 不执行）。
+>
+>     为此写了 `app/api/ai/sse.py`：
+>     - 每一步都在一个**独立的 `CapacityLimiter`**（`AI_STREAM_THREADS=40`）上运行；
+>     - 用 background 任务关闭 service 的生成器，正常结束和客户端断开两种情况都会执行。
+>
+>     FastAPI engine 的连接池原来是默认的 5 + 10，改成 40 + 20。迁移前先对着 Flask 补了 15 个 SSE 特征测试，
+>     包括心跳帧逐字节一致、错误帧、开始流式之前的 400，迁移后照样通过。
+>     压测（假 LLM，60 个对话）：`/api/health` 6 ms，没有失败。
+>     反事实实验：把流式放回默认线程池时，`/api/health` 是 **8.1 s**。
+>     #5 部分改善：断开后仍发起的 LLM 调用 4 → 3 次。
+> - 下一步：任务 D，删除 Flask、flask_jwt_extended、Flask-SQLAlchemy 和 a2wsgi。
 >   迁 market 和 forum 时，要逐个处理剩下的 `except Exception: pass`：异常吞掉后 session 仍处于失败状态，后面的查询会返回 500。
 >   迁 forum 和 market 时，要把 `notification_service.dispatch` 和 `auth_identity` 剩下的 Flask 依赖一起去掉。
 

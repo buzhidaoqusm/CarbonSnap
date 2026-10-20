@@ -6,6 +6,9 @@ problem at a time, so each fix later has a before/after number of its own:
   timeline    where a single chat turn spends its time (needs FAKE_LLM_LOG=1)
   blocking    does a cheap endpoint wait while chat streams are in flight
   disconnect  does the server keep working after the user closes the tab
+              (built for gunicorn workers: it reads a busy worker off /api/health)
+  abandon     how many provider calls still start after the user closes the tab
+              (reads the fake provider's log; start the stack with FAKE_LLM_LOG=1)
   slow        what a hanging provider does to a worker
 
 Run against the bench stack (docker-compose.bench.yml):
@@ -16,7 +19,9 @@ Run against the bench stack (docker-compose.bench.yml):
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
+import subprocess
 import statistics
 import threading
 import time
@@ -96,20 +101,41 @@ def probe_timeline() -> None:
         print(f"  {key:<16} {fmt(value)}")
 
 
+def _connections_by_state() -> str:
+    query = (
+        "select coalesce(state, '-') || '=' || count(*) from pg_stat_activity "
+        "where datname = 'carbonsnap' group by state order by 1"
+    )
+    out = subprocess.run(
+        ["docker", "exec", "carbonsnap-postgres-1", "psql", "-U", "carbonsnap", "-d", "carbonsnap",
+         "-tA", "-c", query],
+        capture_output=True, text=True, check=False,
+    )
+    return " ".join(out.stdout.split()) or out.stderr.strip()
+
+
 def probe_blocking(streams: int) -> None:
     idle = [health_latency() for _ in range(5)]
     print(f"  /api/health idle:           median {fmt(statistics.median(idle))}")
 
     tokens = [register() for _ in range(streams)]
-    threads = [threading.Thread(target=stream_turn, args=(t,)) for t in tokens]
+    results: list[dict] = []
+    threads = [
+        threading.Thread(target=lambda t=t: results.append(stream_turn(t))) for t in tokens
+    ]
     for thread in threads:
         thread.start()
-    time.sleep(1)  # let every stream take a worker
+    time.sleep(3)  # every stream is past its first queries and waiting on the model
 
-    during = health_latency()
-    print(f"  /api/health with {streams} streams: {fmt(during)}")
+    during = [health_latency() for _ in range(3)]
+    print(f"  /api/health with {streams} streams: max {fmt(max(during))}")
+    print(f"  connections while streaming: {_connections_by_state()}")
     for thread in threads:
         thread.join()
+    failed = [r for r in results if "done" not in r]
+    print(f"  streams that did not finish: {len(failed)} of {streams}")
+    if results:
+        print(f"  slowest turn:                {fmt(max(r['closed'] for r in results))}")
 
 
 def probe_disconnect() -> None:
@@ -129,6 +155,32 @@ def probe_disconnect() -> None:
         thread.join()
 
 
+def _provider_calls_since(since: dt.datetime) -> list[dt.datetime]:
+    out = subprocess.run(
+        ["docker", "logs", "--timestamps", "--since", since.isoformat(), "carbonsnap-fake-llm-1"],
+        capture_output=True, text=True, check=False,
+    )
+    calls = []
+    for line in (out.stdout + out.stderr).splitlines():
+        stamp, _, rest = line.partition(" ")
+        if '"path"' in rest:
+            calls.append(dt.datetime.fromisoformat(stamp[:26] + "+00:00"))
+    return calls
+
+
+def probe_abandon() -> None:
+    token = register()
+    started = dt.datetime.now(dt.UTC)
+    marks = stream_turn(token, abort_after=1.0)
+    aborted = dt.datetime.now(dt.UTC)
+    print(f"  client gave up after         {fmt(marks.get('aborted', marks['closed']))}")
+    time.sleep(25)  # a full turn is ~10 s; anything still running shows up by now
+    calls = _provider_calls_since(started)
+    later = [c for c in calls if c > aborted]
+    print(f"  provider calls in the turn:  {len(calls)}")
+    print(f"  ...started after the abort:  {len(later)}")
+
+
 def probe_slow() -> None:
     token = register()
     marks = stream_turn(token)
@@ -138,7 +190,7 @@ def probe_slow() -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("probe", choices=["timeline", "blocking", "disconnect", "slow"])
+    parser.add_argument("probe", choices=["timeline", "blocking", "disconnect", "abandon", "slow"])
     parser.add_argument("--streams", type=int, default=3)
     args = parser.parse_args()
 
@@ -149,6 +201,8 @@ def main() -> None:
         probe_blocking(args.streams)
     elif args.probe == "disconnect":
         probe_disconnect()
+    elif args.probe == "abandon":
+        probe_abandon()
     else:
         probe_slow()
 

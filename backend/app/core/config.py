@@ -80,6 +80,11 @@ class Settings(BaseSettings):
     # one process serves at once. The database pool is sized to match. See
     # docs/benchmarks.md for why one process with 40 threads beat three.
     wsgi_threads: int = Field(40, ge=1)
+    # Threads that step the AI streams (one per stream while it waits on the
+    # model), kept apart from the thread pool every other sync route runs on,
+    # so streams cannot starve /api/health or a login. The FastAPI database
+    # pool is sized to match: a stream holds its connection for the turn.
+    ai_stream_threads: int = Field(40, ge=1)
     jwt_secret_key: str = "dev-secret-change-in-production"
 
     # --- LLM provider ----------------------------------------------------------

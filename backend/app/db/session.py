@@ -18,8 +18,17 @@ from app.core.config import get_settings
 
 @lru_cache
 def get_engine() -> Engine:
-    # pre_ping replaces connections the server closed while they sat idle.
-    return create_engine(get_settings().database_url, pool_pre_ping=True)
+    settings = get_settings()
+    # A chat stream keeps its connection for the whole turn (PERFORMANCE_ISSUES
+    # #9), so the pool holds one per stream thread; the overflow covers the
+    # short requests on the default thread pool. pre_ping replaces
+    # connections the server closed while they sat idle.
+    return create_engine(
+        settings.database_url,
+        pool_size=settings.ai_stream_threads,
+        max_overflow=20,
+        pool_pre_ping=True,
+    )
 
 
 @lru_cache
