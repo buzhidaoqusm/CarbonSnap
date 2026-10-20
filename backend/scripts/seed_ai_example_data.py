@@ -16,8 +16,8 @@ from sqlalchemy import text
 _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_BACKEND_ROOT))
 
-from app import create_app
 from app.extensions.db import db
+from app.flask_app import create_app
 from app.models.user import User
 from scripts import seed_example_data
 

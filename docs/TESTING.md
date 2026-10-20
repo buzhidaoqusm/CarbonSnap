@@ -116,7 +116,7 @@ docker volume rm carbonsnap_bench-data carbonsnap_bench-postgres-data
 ## 本地开发库恢复演示数据（在 `backend/` 下，PG 要先启动）
 
 ```bash
-uv run flask --app "app:create_app()" db upgrade   # 空库先建表
+uv run alembic -c migrations/alembic.ini upgrade head   # 空库先建表
 uv run python scripts/reset_all_data.py
 uv run python scripts/seed_example_data.py
 ```

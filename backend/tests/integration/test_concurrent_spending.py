@@ -48,7 +48,13 @@ def scratch_url() -> Iterator[str]:
         conn.execute(text(f'CREATE DATABASE "{url.database}"'))
     rendered = url.render_as_string(hide_password=False)
     upgrade = subprocess.run(
-        [sys.executable, "-m", "flask", "--app", "app:create_app()", "db", "upgrade"],
+        [
+            str(Path(sys.executable).with_name("alembic")),
+            "-c",
+            "migrations/alembic.ini",
+            "upgrade",
+            "head",
+        ],
         cwd=BACKEND_ROOT,
         env={**os.environ, "DATABASE_URL": rendered},
         capture_output=True,

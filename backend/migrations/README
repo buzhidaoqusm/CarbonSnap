@@ -1,1 +1,3 @@
-Single-database configuration for Flask.
+Alembic migrations. Run from backend/:
+
+    alembic -c migrations/alembic.ini upgrade head

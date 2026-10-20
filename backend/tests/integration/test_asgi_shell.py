@@ -1,31 +1,6 @@
-"""The ASGI shell: FastAPI answers what it has routes for, Flask the rest."""
+"""The ASGI app as a whole: CORS, docs, and what an unrouted request gets."""
 
 from __future__ import annotations
-
-
-def test_unmigrated_paths_reach_flask(client):
-    response = client.get("/api/forum/posts")
-
-    assert response.status_code == 200
-    assert response.json()["code"] == 0
-
-
-def test_fastapi_routes_take_precedence_over_flask():
-    # A Flask app that still has its own /api/health: FastAPI must answer.
-    from fastapi.testclient import TestClient
-    from flask import Flask
-
-    from app.main import create_api
-
-    legacy = Flask(__name__)
-    legacy.add_url_rule("/api/health", "health", lambda: {"served_by": "flask"})
-
-    with TestClient(create_api(legacy)) as client:
-        response = client.get("/api/health")
-
-    assert response.status_code == 200
-    assert response.json()["status"] == "ok"
-    assert "served_by" not in response.json()
 
 
 def test_cors_preflight_is_answered_for_fastapi_routes(client):
@@ -49,33 +24,30 @@ def test_fastapi_serves_its_own_docs(client):
     assert response.json()["info"]["title"] == "CarbonSnap API"
 
 
-def test_db_pool_covers_every_flask_thread(monkeypatch):
-    # Each thread serving Flask may hold a connection for a whole chat turn
-    # (the transaction stays open across the LLM calls). With a pool smaller
-    # than the thread pool the extra threads waited 30 s and failed: 34% of
-    # chat requests at 40 users with WSGI_THREADS=40 and the default pool of
-    # 5 + 10 overflow.
-    from app import create_app
+def test_db_pool_covers_every_stream_thread(monkeypatch):
+    # A chat stream holds its connection for the whole turn (the transaction
+    # stays open across the LLM calls, PERFORMANCE_ISSUES #9). With a pool
+    # smaller than the stream threads the extra streams waited 30 s and
+    # failed: 34% of chat requests at 40 users on the default 5 + 10.
     from app.core.config import clear_settings_cache
-    from app.extensions.db import db
+    from app.db.session import get_engine
 
-    monkeypatch.setenv("WSGI_THREADS", "40")
+    monkeypatch.setenv("AI_STREAM_THREADS", "40")
     clear_settings_cache()
+    get_engine.cache_clear()
     try:
-        flask_app = create_app()
-        with flask_app.app_context():
-            pool = db.engine.pool
-            capacity = pool.size() + max(pool._max_overflow, 0)  # type: ignore[attr-defined]
-            db.engine.dispose()
+        engine = get_engine()
+        pool = engine.pool
+        capacity = pool.size() + max(pool._max_overflow, 0)  # type: ignore[attr-defined]
+        engine.dispose()
     finally:
+        get_engine.cache_clear()
         clear_settings_cache()
 
     assert capacity >= 40
 
 
-def test_wrong_method_on_a_fastapi_path_is_405(client):
-    # The path belongs to FastAPI; Flask, which no longer has it, must not
-    # answer with its HTML 404.
+def test_wrong_method_on_a_route_is_405(client):
     for method, path in [("POST", "/api/notifications/read-all"), ("DELETE", "/api/auth/me")]:
         response = client.request(method, path)
 
@@ -83,8 +55,10 @@ def test_wrong_method_on_a_fastapi_path_is_405(client):
         assert response.json() == {"code": 40500, "message": "Method Not Allowed", "data": {}}
 
 
-def test_unknown_paths_still_reach_flask(client):
-    response = client.get("/api/no-such-route")
+def test_unknown_paths_are_a_404_envelope(client):
+    # Flask used to catch these and answer with its HTML page.
+    for path in ["/api/no-such-route", "/no-such-page"]:
+        response = client.get(path)
 
-    assert response.status_code == 404
-    assert response.headers["content-type"].startswith("text/html")
+        assert response.status_code == 404, path
+        assert response.json() == {"code": 40400, "message": "Not Found", "data": {}}

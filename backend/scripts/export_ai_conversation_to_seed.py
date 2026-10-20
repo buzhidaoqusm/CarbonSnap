@@ -25,8 +25,8 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 _REPO_ROOT = _BACKEND_ROOT.parent
 sys.path.insert(0, str(_BACKEND_ROOT))
 
-from app import create_app
 from app.extensions.db import db
+from app.flask_app import create_app
 from app.models.ai import (
     AIConversation,
     AIMessage,

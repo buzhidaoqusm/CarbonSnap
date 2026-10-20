@@ -39,11 +39,10 @@ USER carbonsnap
 
 EXPOSE 5000
 
-# run.py is the local dev entrypoint; the container serves the ASGI app
-# (FastAPI in front of Flask, see app/main.py) through uvicorn.
+# The container serves the ASGI app (app/main.py) through uvicorn.
 # Migrate first: nothing else creates the schema in a fresh volume. Once,
 # before uvicorn starts its worker processes. One process: with several,
 # connections spread unevenly (one sat idle under load) and each needs its
-# own database pool; WSGI_THREADS sets the concurrency instead.
+# own database pool; AI_STREAM_THREADS sets the stream concurrency instead.
 ENV WEB_WORKERS=1
-CMD ["sh", "-c", "flask --app 'app:create_app()' db upgrade && exec uvicorn --factory app.main:create_api --host 0.0.0.0 --port 5000 --workers \"$WEB_WORKERS\" --timeout-graceful-shutdown 60"]
+CMD ["sh", "-c", "alembic -c migrations/alembic.ini upgrade head && exec uvicorn --factory app.main:create_api --host 0.0.0.0 --port 5000 --workers \"$WEB_WORKERS\" --timeout-graceful-shutdown 60"]

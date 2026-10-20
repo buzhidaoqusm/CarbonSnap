@@ -1,19 +1,15 @@
-"""The ASGI application: FastAPI in front, the Flask app behind it.
-
-Routes move from Flask to FastAPI one module at a time (the strangler fig
-pattern). FastAPI answers the paths it has routes for, including /docs and
-/openapi.json; every other path falls through to the Flask app, which a2wsgi
-runs on a thread pool. Run with:
+"""The ASGI application. Run with:
 
     uvicorn --factory app.main:create_api
+
+Every route is FastAPI's: the Flask app the routes moved off (the strangler
+fig pattern) no longer sits behind it, so an unknown path is a 404 envelope
+from the error handlers.
 """
 
-from a2wsgi import WSGIMiddleware
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from flask import Flask
 
-from app import create_app
 from app.api import health
 from app.api.ai import conversations as ai_conversations
 from app.api.ai import memory as ai_memory
@@ -26,13 +22,10 @@ from app.api.notification import routes as notification
 from app.api.profile import auth
 from app.api.project import routes as project
 from app.api.uploads import routes as uploads
-from app.core.config import get_settings
 
 
-def create_api(flask_app: Flask | None = None) -> FastAPI:
+def create_api() -> FastAPI:
     api = FastAPI(title="CarbonSnap API", version="0.1.0")
-    # Wraps the Flask fallback too; it answers preflights itself and its headers
-    # replace the ones flask_cors adds, so each response carries one set.
     api.add_middleware(
         CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
     )
@@ -49,13 +42,4 @@ def create_api(flask_app: Flask | None = None) -> FastAPI:
     api.include_router(ai_conversations.router)
     api.include_router(ai_streams.router)
 
-    legacy = flask_app if flask_app is not None else create_app()
-    # Flask is the router's default, not a mount at "/": a mount matches every
-    # path, so a FastAPI path called with the wrong method went to Flask and
-    # came back as its HTML 404. The router answers that case with a 405 before
-    # it falls back to the default.
-    # The WSGI/ASGI type stubs of Flask, a2wsgi and Starlette do not line up,
-    # though the objects are compatible at runtime.
-    wsgi = WSGIMiddleware(legacy, workers=get_settings().wsgi_threads)  # type: ignore[arg-type]
-    api.router.default = wsgi  # type: ignore[assignment]
     return api

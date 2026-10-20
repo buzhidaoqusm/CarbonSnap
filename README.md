@@ -46,8 +46,8 @@ Dependencies are managed with [uv](https://docs.astral.sh/uv/) (Python 3.12):
 cd backend
 uv sync
 Copy-Item .env.example .env
-uv run flask --app run.py db upgrade
-uv run python run.py
+uv run alembic -c migrations/alembic.ini upgrade head
+uv run uvicorn --factory app.main:create_api --reload --port 5000
 ```
 
 The backend runs at `http://127.0.0.1:5000` by default.

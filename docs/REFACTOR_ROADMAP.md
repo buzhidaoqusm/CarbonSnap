@@ -314,7 +314,18 @@ docs/adr/
 >     压测（假 LLM，60 个对话）：`/api/health` 6 ms，没有失败。
 >     反事实实验：把流式放回默认线程池时，`/api/health` 是 **8.1 s**。
 >     #5 部分改善：断开后仍发起的 LLM 调用 4 → 3 次。
-> - 下一步：任务 D，删除 Flask、flask_jwt_extended、Flask-SQLAlchemy 和 a2wsgi。
+>   - 任务 D 拆成 3 步：D1 运行时不再用 Flask → D2 测试不再用 Flask → D3 改脚本、删除 Flask 相关代码和依赖。
+>   - D1 ✅（2026-10-20）：
+>     - `main.py` 去掉 a2wsgi 兜底，未知路径从 Flask 的 HTML 404 变成 404 envelope；
+>     - `create_app` 挪到 `app/flask_app.py`（只给测试和脚本用），`app/__init__.py` 不再 import Flask；
+>     - Alembic 直接读取 Settings 和 `Base.metadata`（保留 Flask-Migrate 原来的 `compare_type` 和 `render_as_batch`）；
+>       Dockerfile、迁移测试和并发测试都改用 `alembic` 命令；
+>     - 删掉了 `run.py` 和没人用的 `utils/response.py`。
+>
+>     进程启动：导入加构建应用 2.33 → 2.05 s，常驻内存 126 → 110 MB，Flask 不再被加载。
+>     用 Docker 验证时发现，直接调用 `alembic` 命令行入口不会把 `backend/` 加进 `sys.path`（测试里用的 `python -m alembic` 会），
+>     容器因此启动失败。现在 `alembic.ini` 里设置了 `prepend_sys_path`，测试也改为调用同一个命令行入口。
+> - 下一步：D2，测试不再用 Flask。
 >   迁 market 和 forum 时，要逐个处理剩下的 `except Exception: pass`：异常吞掉后 session 仍处于失败状态，后面的查询会返回 500。
 >   迁 forum 和 market 时，要把 `notification_service.dispatch` 和 `auth_identity` 剩下的 Flask 依赖一起去掉。
 

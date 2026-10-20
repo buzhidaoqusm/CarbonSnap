@@ -1,6 +1,6 @@
 """Migrations must build the production schema on an empty PostgreSQL database.
 
-The container runs ``flask db upgrade`` on start, so this runs the same
+The container runs ``alembic upgrade head`` on start, so this runs the same
 command, in a subprocess, against a scratch database next to the test one.
 """
 
@@ -32,10 +32,10 @@ def scratch_database_url():
     admin.dispose()
 
 
-def _flask_db(database_url: str, *args: str) -> subprocess.CompletedProcess[str]:
+def _alembic(database_url: str, *args: str) -> subprocess.CompletedProcess[str]:
     env = {**os.environ, "DATABASE_URL": database_url}
     return subprocess.run(
-        [sys.executable, "-m", "flask", "--app", "app:create_app()", "db", *args],
+        [str(Path(sys.executable).with_name("alembic")), "-c", "migrations/alembic.ini", *args],
         cwd=BACKEND_ROOT,
         env=env,
         capture_output=True,
@@ -49,12 +49,12 @@ def _check(result: subprocess.CompletedProcess[str]) -> None:
 
 
 def test_migrations_upgrade_match_models_and_downgrade(scratch_database_url):
-    _check(_flask_db(scratch_database_url, "upgrade"))
+    _check(_alembic(scratch_database_url, "upgrade", "head"))
     # No difference between the migrated schema and the models.
-    _check(_flask_db(scratch_database_url, "check"))
+    _check(_alembic(scratch_database_url, "check"))
     # Every downgrade works too, and the chain can be replayed.
-    _check(_flask_db(scratch_database_url, "downgrade", "base"))
-    _check(_flask_db(scratch_database_url, "upgrade"))
+    _check(_alembic(scratch_database_url, "downgrade", "base"))
+    _check(_alembic(scratch_database_url, "upgrade", "head"))
 
 
 # The last revision before market refunds got their own source type.
@@ -66,7 +66,7 @@ def test_market_refunds_are_backfilled_and_restored(scratch_database_url):
     # 'market_order' earn row, the same shape as the seller's settlement, and
     # only the order's buyer tells them apart. Plain SQL, so the rows match the
     # schema of that revision whatever the models look like later.
-    _check(_flask_db(scratch_database_url, "upgrade", BEFORE_MARKET_REFUND))
+    _check(_alembic(scratch_database_url, "upgrade", BEFORE_MARKET_REFUND))
     engine = create_engine(scratch_database_url)
     try:
         with engine.begin() as conn:
@@ -114,10 +114,10 @@ def test_market_refunds_are_backfilled_and_restored(scratch_database_url):
             5: "waste_analysis",
         }
 
-        _check(_flask_db(scratch_database_url, "upgrade"))
+        _check(_alembic(scratch_database_url, "upgrade", "head"))
         assert _transaction_source_types(engine) == {**before, 2: "market_refund"}
 
-        _check(_flask_db(scratch_database_url, "downgrade", BEFORE_MARKET_REFUND))
+        _check(_alembic(scratch_database_url, "downgrade", BEFORE_MARKET_REFUND))
         assert _transaction_source_types(engine) == before
     finally:
         engine.dispose()

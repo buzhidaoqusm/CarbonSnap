@@ -110,8 +110,8 @@ for _proxy_var in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"):
 from flask_jwt_extended import create_access_token  # noqa: E402
 from werkzeug.security import generate_password_hash  # noqa: E402
 
-from app import create_app  # noqa: E402
 from app.extensions.db import db as _db  # noqa: E402
+from app.flask_app import create_app  # noqa: E402
 from app.models.user import User  # noqa: E402
 
 # ---------------------------------------------------------------------------
@@ -409,7 +409,7 @@ def api(app):
     """The ASGI app as it runs in production: FastAPI in front of Flask."""
     from app.main import create_api
 
-    return create_api(app)
+    return create_api()
 
 
 @pytest.fixture()

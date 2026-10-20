@@ -30,8 +30,8 @@ sys.path.insert(0, str(_BACKEND_ROOT))
 
 from werkzeug.security import generate_password_hash  # noqa: E402 – must be after sys.path
 
-from app import create_app  # noqa: E402
 from app.extensions.db import db  # noqa: E402
+from app.flask_app import create_app  # noqa: E402
 from app.models.ledger import Transaction  # noqa: E402
 from app.models.user import User  # noqa: E402
 
