@@ -1,11 +1,13 @@
 import uuid
 
+import pytest
 from werkzeug.security import generate_password_hash
 
 from app.extensions.db import db
 from app.models.ai import AIConversation, AIMessage, RecyclingCase
 from app.models.user import User
 from app.services.ai.conversation_context_builder import (
+    _normalize_selected_audit_attempt,
     build_context_bundle,
     build_runtime_reply_context,
 )
@@ -119,3 +121,25 @@ class TestConversationContextBuilder:
         assert runtime_context["location_state"]["normalized_area"] == "Shanghai"
         assert runtime_context["case_summaries"][0]["case_id"] == case.id
         assert runtime_context["working_memory"]["latest_analysis"] == "Bottle analysis result"
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        {"attempt_no": 1},
+        {"case_id": None, "attempt_no": 1},
+        {"case_id": 3},
+        {"case_id": "abc", "attempt_no": 1},
+        {"case_id": 0, "attempt_no": 1},
+    ],
+)
+def test_normalize_selected_audit_attempt_rejects_missing_or_invalid_ids(raw):
+    assert _normalize_selected_audit_attempt({"selected_audit_attempt": raw}) is None
+
+
+def test_normalize_selected_audit_attempt_coerces_numeric_strings():
+    normalized = _normalize_selected_audit_attempt(
+        {"selected_audit_attempt": {"case_id": "3", "attempt_no": 2, "audit_result": "Passed"}}
+    )
+
+    assert normalized == {"case_id": 3, "attempt_no": 2, "audit_result": "passed"}

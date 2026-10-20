@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Generator
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Literal, TypedDict
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 
 from sqlalchemy.orm import Session
 
@@ -210,7 +210,9 @@ def _run_routing_graph(
     graph.add_edge(START, "route_intent")
     graph.add_edge("route_intent", "select_tools")
     graph.add_edge("select_tools", END)
-    return graph.compile().invoke(
+    # invoke() is typed as returning a plain dict, so the state schema is lost
+    # at the library boundary; at runtime it is the GraphAgentState we built.
+    result = graph.compile().invoke(
         {
             "user_id": user_id,
             "message": message,
@@ -223,6 +225,7 @@ def _run_routing_graph(
         },
         context=GraphContext(session=session),
     )
+    return cast(GraphAgentState, result)
 
 
 def _route_intent_node(state: GraphAgentState, runtime: Runtime[GraphContext]) -> GraphAgentState:

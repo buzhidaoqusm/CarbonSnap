@@ -260,14 +260,19 @@ def _normalize_case(item: dict[str, Any]) -> EvalCase:
     }
 
 
+def _dict_field(source: dict[str, Any], key: str) -> dict[str, Any]:
+    value = source.get(key)
+    return value if isinstance(value, dict) else {}
+
+
 def _observed_properties(output: dict[str, Any]) -> dict[str, Any]:
-    trace = output.get("trace") if isinstance(output.get("trace"), dict) else {}
-    router = trace.get("router") if isinstance(trace.get("router"), dict) else {}
-    retrieval = trace.get("retrieval") if isinstance(trace.get("retrieval"), dict) else {}
-    forum = retrieval.get("forum") if isinstance(retrieval.get("forum"), dict) else {}
-    neo4j = retrieval.get("neo4j") if isinstance(retrieval.get("neo4j"), dict) else {}
-    guardrails = trace.get("guardrails") if isinstance(trace.get("guardrails"), dict) else {}
-    decision = output.get("decision") if isinstance(output.get("decision"), dict) else {}
+    trace = _dict_field(output, "trace")
+    router = _dict_field(trace, "router")
+    retrieval = _dict_field(trace, "retrieval")
+    forum = _dict_field(retrieval, "forum")
+    neo4j = _dict_field(retrieval, "neo4j")
+    guardrails = _dict_field(trace, "guardrails")
+    decision = _dict_field(output, "decision")
 
     return {
         "intent": str(router.get("intent") or decision.get("intent") or ""),

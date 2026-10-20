@@ -223,9 +223,9 @@ def _build_structured_short_term_notes(messages: list[Any] | None) -> list[str]:
 
     notes: list[str] = []
     for message_type in ("analysis_result", "tool_result", "audit_result"):
-        content = latest_by_type.get(message_type)
-        if content:
-            notes.append(f"{labels[message_type]}: {content}")
+        note_content = latest_by_type.get(message_type)
+        if note_content:
+            notes.append(f"{labels[message_type]}: {note_content}")
     return notes
 
 
@@ -384,7 +384,7 @@ def _persist_clarification_assistant_message(
     clarification_options: list[dict[str, Any]] | None,
     trace: dict[str, Any] | None = None,
 ) -> AIMessage:
-    payload = {
+    payload: dict[str, Any] = {
         "stream_stage": "clarification",
         "clarification_options": clarification_options or [],
     }
@@ -1182,7 +1182,7 @@ def stream_chat_message(
         )
         if image_data_url:
             store_data_url_image(image_data_url, namespace="chat")
-        assistant_reply_parts: list[str] = []
+        guest_reply_parts: list[str] = []
         for event in stream_chat_with_openrouter(
             user_message=message,
             history=request_history,
@@ -1191,14 +1191,14 @@ def stream_chat_message(
             prompt_memory=prompt_memory or {},
         ):
             if event.get("type") == "delta":
-                assistant_reply_parts.append(str(event.get("content", "")))
+                guest_reply_parts.append(str(event.get("content", "")))
                 yield event
                 continue
             if event.get("type") == "done":
                 yield {
                     **event,
                     "forum_references": _resolve_response_forum_references(
-                        "".join(assistant_reply_parts),
+                        "".join(guest_reply_parts),
                         forum_candidates,
                         graph_context,
                     ),
@@ -1614,9 +1614,14 @@ def get_conversation_messages(
             case_id = serialized_message["content_json"].get("recycling_case_id")
             if case_id is not None:
                 associated_case = case_by_id.get(case_id)
+        audit_attempts = (
+            audit_attempts_by_case_id.get(associated_case.id, [])
+            if associated_case is not None
+            else []
+        )
         serialized_message["recycling_case"] = _serialize_recycling_case(
             associated_case,
-            audit_attempts=audit_attempts_by_case_id.get(getattr(associated_case, "id", None), []),
+            audit_attempts=audit_attempts,
         )
         serialized_items.append(serialized_message)
 

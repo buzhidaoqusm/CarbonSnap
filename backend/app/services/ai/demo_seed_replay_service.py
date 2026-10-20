@@ -357,9 +357,10 @@ def stream_seed_demo_resume(
 ) -> Generator[dict[str, Any], None, None]:
     conversation_id = paused_context.get("conversation_id")
     recycling_case_id = paused_context.get("recycling_case_id")
-    case_id_by_seed_key = {
-        _seed_key_from_ref(paused_context.get("demo_recycling_case_ref") or ""): recycling_case_id
-    }
+    case_id_by_seed_key: dict[str, int] = {}
+    if recycling_case_id is not None:
+        case_ref = paused_context.get("demo_recycling_case_ref") or ""
+        case_id_by_seed_key[_seed_key_from_ref(case_ref)] = recycling_case_id
 
     yield {
         "type": "meta",
@@ -701,9 +702,7 @@ def _stream_awaiting_location(
         )
 
     analysis_payload = (
-        content_json.get("analysis_payload")
-        if isinstance(content_json.get("analysis_payload"), dict)
-        else {}
+        raw_payload if isinstance(raw_payload := content_json.get("analysis_payload"), dict) else {}
     )
     yield {
         "type": "awaiting_location",

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Generator
+from collections.abc import Generator, Sequence
 from datetime import date, datetime
 from typing import Any
 
@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.ai.tools.map.osm_public_provider import MapProviderError, OSMPublicMapProvider
 from app.core.config import get_settings
+from app.models.ai import AIConversation
 from app.repositories.ai import conversation_repository, recycling_case_repository
 from app.services.ai.ai_decision_engine import persist_message_decision
 from app.services.ai.conversation_context_builder import build_runtime_reply_context
@@ -301,6 +302,7 @@ def _restore_session_from_persisted_context(
     if not session_id or user_id is None:
         return None
 
+    conversation_candidates: Sequence[AIConversation | None]
     if conversation_id is not None:
         conversation_candidates = [
             conversation_repository.get_conversation(db_session, conversation_id, user_id)
@@ -489,7 +491,7 @@ def _persist_recycling_assistant_message(
     nearby_locations: list[dict[str, Any]] | None = None,
     location_state: dict[str, Any] | None = None,
 ) -> Any:
-    content_json = {
+    content_json: dict[str, Any] = {
         "stream_stage": stream_stage,
         "analysis_payload": analysis_payload,
     }

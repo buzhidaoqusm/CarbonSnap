@@ -186,9 +186,14 @@ def _normalize_selected_audit_attempt(
     if not isinstance(raw, dict):
         return None
 
+    raw_case_id = raw.get("case_id")
+    raw_attempt_no = raw.get("attempt_no")
+    if raw_case_id is None or raw_attempt_no is None:
+        return None
+
     try:
-        case_id = int(raw.get("case_id"))
-        attempt_no = int(raw.get("attempt_no"))
+        case_id = int(raw_case_id)
+        attempt_no = int(raw_attempt_no)
     except (TypeError, ValueError):
         return None
 
