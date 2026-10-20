@@ -9,6 +9,7 @@ from app.models.project import Project
 from app.repositories.project import project_repository
 from app.repositories.recommendation import behavior_event_repository, preference_profile_repository
 from app.services.recommendation import preference_profile_service
+from app.services.recommendation.merge import merge_ranked
 
 NOVELTY_UNSEEN_SCORE = 1.0
 NOVELTY_VIEW_SCORE = 0.8
@@ -248,45 +249,6 @@ def _sort_projects_with_scores(
     )
 
 
-def _would_violate_diversity_guard(
-    *,
-    candidate: Project,
-    merged_projects: list[Project],
-    ranking_context: dict,
-) -> bool:
-    if len(merged_projects) < MAX_CONSECUTIVE_DOMINANT_TOPIC_PROJECTS:
-        return False
-    candidate_topic = _dominant_topic_for_project(candidate, ranking_context)
-    recent_topics = [
-        _dominant_topic_for_project(project, ranking_context)
-        for project in merged_projects[-MAX_CONSECUTIVE_DOMINANT_TOPIC_PROJECTS:]
-    ]
-    return all(topic == candidate_topic for topic in recent_topics)
-
-
-def _pop_next_candidate_from_pools(
-    *,
-    pools: list[list[Project]],
-    used_project_ids: set[int],
-    merged_projects: list[Project],
-    ranking_context: dict,
-    enforce_diversity_guard: bool,
-) -> Project | None:
-    for pool in pools:
-        for index, project in enumerate(pool):
-            project_id = int(project.id)
-            if project_id in used_project_ids:
-                continue
-            if enforce_diversity_guard and _would_violate_diversity_guard(
-                candidate=project,
-                merged_projects=merged_projects,
-                ranking_context=ranking_context,
-            ):
-                continue
-            return pool.pop(index)
-    return None
-
-
 def merge_ranked_projects(
     *,
     exploit_projects: list[Project],
@@ -295,40 +257,16 @@ def merge_ranked_projects(
     ranking_context: dict,
     target_size: int,
 ) -> list[Project]:
-    exploit_pool = list(exploit_projects)
-    explore_pool = list(explore_projects)
-    fallback_pool = list(fallback_projects or [])
-    merged_projects: list[Project] = []
-    used_project_ids: set[int] = set()
-
-    while len(merged_projects) < target_size:
-        preferred_source = MERGE_PATTERN[len(merged_projects) % len(MERGE_PATTERN)]
-        if preferred_source == "explore":
-            preferred_pools = [explore_pool, exploit_pool, fallback_pool]
-        else:
-            preferred_pools = [exploit_pool, fallback_pool, explore_pool]
-
-        candidate = _pop_next_candidate_from_pools(
-            pools=preferred_pools,
-            used_project_ids=used_project_ids,
-            merged_projects=merged_projects,
-            ranking_context=ranking_context,
-            enforce_diversity_guard=True,
-        )
-        if candidate is None:
-            candidate = _pop_next_candidate_from_pools(
-                pools=preferred_pools,
-                used_project_ids=used_project_ids,
-                merged_projects=merged_projects,
-                ranking_context=ranking_context,
-                enforce_diversity_guard=False,
-            )
-        if candidate is None:
-            break
-        merged_projects.append(candidate)
-        used_project_ids.add(int(candidate.id))
-
-    return merged_projects
+    return merge_ranked(
+        exploit=exploit_projects,
+        explore=explore_projects,
+        fallback=fallback_projects or [],
+        pattern=MERGE_PATTERN,
+        max_run=MAX_CONSECUTIVE_DOMINANT_TOPIC_PROJECTS,
+        topic_of=lambda project: _dominant_topic_for_project(project, ranking_context),
+        id_of=lambda project: int(project.id),
+        target_size=target_size,
+    )
 
 
 def build_ranking_context(session: Session, *, user_id: int, projects: list[Project]) -> dict:

@@ -271,7 +271,9 @@ docs/adr/
 >   - #13 已登录列表的候选集 ✅（2026-10-18）。forum、project、market 只取默认 SQL 顺序的前 200 行做个性化排序，
 >     第 200 行以后按同一个顺序用 SQL 分页。全站 2 万行、有画像的用户拉第 1 页：forum 18.3 s → 49 ms，
 >     project 14.6 s → 183 ms，market 15.3 s → 41 ms；内存峰值约 70 MB → 0.7 MB。
->     修之前的耗时近似平方增长，原因是 merge 要把全部候选合并一遍。merge 本身仍是 O(N²)，只是 N 被固定在 200 了。
+>     修之前的耗时近似平方增长，原因是 merge 要把全部候选合并一遍。
+>   - #13 后续：merge 改成接近线性 ✅（2026-10-20）。按主 topic 分桶，并且懒删除，输出顺序不变（用原实现做对比的特征测试保证）。
+>     单独测 merge、全部候选属于同一个 topic：N=200 时 47.9 → 0.4 ms，N=2000 时 8.7 s → 4.8 ms；2 万行 project history 102 → 36 ms。
 > - 下一步：ai/chat（SSE），它依赖 P2 的 async LLM 网关，迁完后就可以删除 Flask。
 >   迁 market 和 forum 时，要逐个处理剩下的 `except Exception: pass`：异常吞掉后 session 仍处于失败状态，后面的查询会返回 500。
 >   迁 forum 和 market 时，要把 `notification_service.dispatch` 和 `auth_identity` 剩下的 Flask 依赖一起去掉。

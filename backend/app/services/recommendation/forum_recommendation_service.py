@@ -9,6 +9,7 @@ from app.models.forum import ForumPost
 from app.repositories.forum import forum_repository
 from app.repositories.recommendation import behavior_event_repository, preference_profile_repository
 from app.services.recommendation import preference_profile_service
+from app.services.recommendation.merge import merge_ranked
 
 NOVELTY_UNSEEN_SCORE = 1.0
 NOVELTY_VIEW_SCORE = 0.8
@@ -276,45 +277,6 @@ def _sort_posts_with_scores(
     )
 
 
-def _would_violate_diversity_guard(
-    *,
-    candidate: ForumPost,
-    merged_posts: list[ForumPost],
-    ranking_context: dict,
-) -> bool:
-    if len(merged_posts) < MAX_CONSECUTIVE_DOMINANT_TOPIC_POSTS:
-        return False
-    candidate_topic = _dominant_topic_for_post(candidate, ranking_context)
-    recent_topics = [
-        _dominant_topic_for_post(post, ranking_context)
-        for post in merged_posts[-MAX_CONSECUTIVE_DOMINANT_TOPIC_POSTS:]
-    ]
-    return all(topic == candidate_topic for topic in recent_topics)
-
-
-def _pop_next_candidate_from_pools(
-    *,
-    pools: list[list[ForumPost]],
-    used_post_ids: set[int],
-    merged_posts: list[ForumPost],
-    ranking_context: dict,
-    enforce_diversity_guard: bool,
-) -> ForumPost | None:
-    for pool in pools:
-        for index, post in enumerate(pool):
-            post_id = int(post.id)
-            if post_id in used_post_ids:
-                continue
-            if enforce_diversity_guard and _would_violate_diversity_guard(
-                candidate=post,
-                merged_posts=merged_posts,
-                ranking_context=ranking_context,
-            ):
-                continue
-            return pool.pop(index)
-    return None
-
-
 def merge_ranked_posts(
     *,
     exploit_posts: list[ForumPost],
@@ -323,40 +285,16 @@ def merge_ranked_posts(
     ranking_context: dict,
     target_size: int,
 ) -> list[ForumPost]:
-    exploit_pool = list(exploit_posts)
-    explore_pool = list(explore_posts)
-    fallback_pool = list(fallback_posts or [])
-    merged_posts: list[ForumPost] = []
-    used_post_ids: set[int] = set()
-
-    while len(merged_posts) < target_size:
-        preferred_source = MERGE_PATTERN[len(merged_posts) % len(MERGE_PATTERN)]
-        if preferred_source == "explore":
-            preferred_pools = [explore_pool, exploit_pool, fallback_pool]
-        else:
-            preferred_pools = [exploit_pool, fallback_pool, explore_pool]
-
-        candidate = _pop_next_candidate_from_pools(
-            pools=preferred_pools,
-            used_post_ids=used_post_ids,
-            merged_posts=merged_posts,
-            ranking_context=ranking_context,
-            enforce_diversity_guard=True,
-        )
-        if candidate is None:
-            candidate = _pop_next_candidate_from_pools(
-                pools=preferred_pools,
-                used_post_ids=used_post_ids,
-                merged_posts=merged_posts,
-                ranking_context=ranking_context,
-                enforce_diversity_guard=False,
-            )
-        if candidate is None:
-            break
-        merged_posts.append(candidate)
-        used_post_ids.add(int(candidate.id))
-
-    return merged_posts
+    return merge_ranked(
+        exploit=exploit_posts,
+        explore=explore_posts,
+        fallback=fallback_posts or [],
+        pattern=MERGE_PATTERN,
+        max_run=MAX_CONSECUTIVE_DOMINANT_TOPIC_POSTS,
+        topic_of=lambda post: _dominant_topic_for_post(post, ranking_context),
+        id_of=lambda post: int(post.id),
+        target_size=target_size,
+    )
 
 
 def build_ranking_context(session: Session, *, user_id: int, posts: list[ForumPost]) -> dict:
