@@ -224,16 +224,20 @@ def run_mock_case(case: EvalCase) -> dict[str, Any]:
 
 
 def run_live_graph_agent_case(case: EvalCase) -> dict[str, Any]:
+    from app.db.session import get_sessionmaker
     from app.services.ai.langgraph_agent import complete_graph_agent_message
 
-    return complete_graph_agent_message(
-        user_id=None,
-        message=case["message"],
-        history=None,
-        image_data_url=None,
-        conversation_id=None,
-        client_context=None,
-    )
+    # A runner is called with the case alone, outside any request.
+    with get_sessionmaker()() as session:
+        return complete_graph_agent_message(
+            session,
+            user_id=None,
+            message=case["message"],
+            history=None,
+            image_data_url=None,
+            conversation_id=None,
+            client_context=None,
+        )
 
 
 def _normalize_case(item: dict[str, Any]) -> EvalCase:

@@ -69,6 +69,7 @@ def test_complete_chat_message_uses_real_forum_retrieval_for_chinese_plastic_bot
     monkeypatch.setattr(ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter)
 
     result = ai_conversation_service.complete_chat_message(
+        db.session,
         user_id=user.id,
         message="有没有比较好的回收塑料瓶的方法",
         history=[],

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.extensions.db import db
 from app.services.ai import tool_registry
 
 
@@ -31,7 +32,7 @@ def test_to_openai_tools_exclude_high_risk():
 def test_execute_tool_call_injects_user_id_for_read_user_memory(monkeypatch):
     captured = {}
 
-    def fake_run_tool(name, payload=None, *, allow_high_risk=False):
+    def fake_run_tool(_session, name, payload=None, *, allow_high_risk=False):
         captured["name"] = name
         captured["payload"] = payload
         captured["allow_high_risk"] = allow_high_risk
@@ -45,7 +46,9 @@ def test_execute_tool_call_injects_user_id_for_read_user_memory(monkeypatch):
 
     monkeypatch.setattr(tool_registry, "run_tool", fake_run_tool)
 
-    result = tool_registry.execute_tool_call("read_user_memory", {}, context={"user_id": 7})
+    result = tool_registry.execute_tool_call(
+        db.session, "read_user_memory", {}, context={"user_id": 7}
+    )
 
     assert captured["payload"]["user_id"] == 7
     assert result["arguments"]["user_id"] == 7
@@ -54,7 +57,7 @@ def test_execute_tool_call_injects_user_id_for_read_user_memory(monkeypatch):
 def test_execute_tool_call_does_not_overwrite_provided_user_id(monkeypatch):
     captured = {}
 
-    def fake_run_tool(name, payload=None, *, allow_high_risk=False):
+    def fake_run_tool(_session, name, payload=None, *, allow_high_risk=False):
         captured["payload"] = payload
         return {
             "tool_name": name,
@@ -67,7 +70,7 @@ def test_execute_tool_call_does_not_overwrite_provided_user_id(monkeypatch):
     monkeypatch.setattr(tool_registry, "run_tool", fake_run_tool)
 
     result = tool_registry.execute_tool_call(
-        "recommend_project", {"user_id": 99}, context={"user_id": 7}
+        db.session, "recommend_project", {"user_id": 99}, context={"user_id": 7}
     )
 
     assert captured["payload"]["user_id"] == 99
@@ -77,7 +80,7 @@ def test_execute_tool_call_does_not_overwrite_provided_user_id(monkeypatch):
 def test_execute_tool_call_injects_nearby_coordinates(monkeypatch):
     captured = {}
 
-    def fake_run_tool(name, payload=None, *, allow_high_risk=False):
+    def fake_run_tool(_session, name, payload=None, *, allow_high_risk=False):
         captured["payload"] = payload
         return {
             "tool_name": name,
@@ -90,6 +93,7 @@ def test_execute_tool_call_injects_nearby_coordinates(monkeypatch):
     monkeypatch.setattr(tool_registry, "run_tool", fake_run_tool)
 
     result = tool_registry.execute_tool_call(
+        db.session,
         "find_nearby_recycling_places",
         {},
         context={"client_context": {"location_state": {"coordinates": {"lat": 53.3, "lng": -6.2}}}},
@@ -102,7 +106,9 @@ def test_execute_tool_call_injects_nearby_coordinates(monkeypatch):
 
 
 def test_execute_tool_call_blocks_high_risk_without_allow_flag():
-    result = tool_registry.execute_tool_call("record_recycling_completion", {"case_id": 1})
+    result = tool_registry.execute_tool_call(
+        db.session, "record_recycling_completion", {"case_id": 1}
+    )
 
     assert result["blocked"] is True
     assert result["ok"] is False
@@ -112,7 +118,7 @@ def test_execute_tool_call_blocks_high_risk_without_allow_flag():
 def test_execute_tool_call_handles_none_context(monkeypatch):
     captured = {}
 
-    def fake_run_tool(name, payload=None, *, allow_high_risk=False):
+    def fake_run_tool(_session, name, payload=None, *, allow_high_risk=False):
         captured["payload"] = payload
         return {
             "tool_name": name,
@@ -124,7 +130,9 @@ def test_execute_tool_call_handles_none_context(monkeypatch):
 
     monkeypatch.setattr(tool_registry, "run_tool", fake_run_tool)
 
-    result = tool_registry.execute_tool_call("search_forum", {"query": "plastic"}, context=None)
+    result = tool_registry.execute_tool_call(
+        db.session, "search_forum", {"query": "plastic"}, context=None
+    )
 
     assert captured["payload"] == {"query": "plastic"}
     assert result["arguments"] == {"query": "plastic"}

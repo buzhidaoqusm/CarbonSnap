@@ -4,31 +4,14 @@ import json
 from collections.abc import Generator
 from typing import Any
 
-from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
+from sqlalchemy.orm import Session
 
-from app.extensions.db import db
 from app.repositories.ai import conversation_repository, recycling_case_repository
 from app.repositories.ledger import ledger_repository
 from app.services.ai.image_storage_service import store_data_url_image
 from app.services.ai.memory_service import rebuild_user_preferences_summary
 from app.services.ai.openrouter_service import OpenRouterConfigError, complete_json
 from app.services.recommendation import behavior_event_service, preference_profile_service
-
-
-def _get_authenticated_user_id() -> int | None:
-    try:
-        verify_jwt_in_request(optional=True)
-    except Exception:
-        return None
-
-    identity = get_jwt_identity()
-    if identity is None:
-        return None
-
-    try:
-        return int(identity)
-    except (TypeError, ValueError):
-        return None
 
 
 def _build_audit_prompt(message: str, case_summary: dict[str, Any]) -> str:
@@ -103,23 +86,22 @@ def _normalize_audit_payload(raw: dict[str, Any]) -> dict[str, Any]:
 
 
 def _resolve_case_for_audit(
+    session: Session,
     *,
     user_id: int,
     conversation_id: int,
     recycling_case_id: int | None,
 ) -> Any:
-    conversation = conversation_repository.get_conversation(db.session, conversation_id, user_id)
+    conversation = conversation_repository.get_conversation(session, conversation_id, user_id)
     if conversation is None:
         raise ValueError(f"Conversation {conversation_id} not found.")
 
     if recycling_case_id is not None:
-        case = recycling_case_repository.get_case(db.session, recycling_case_id, user_id)
+        case = recycling_case_repository.get_case(session, recycling_case_id, user_id)
         if case is None:
             raise ValueError(f"Recycling case {recycling_case_id} not found.")
     else:
-        case = recycling_case_repository.get_pending_case_for_conversation(
-            db.session, conversation_id
-        )
+        case = recycling_case_repository.get_pending_case_for_conversation(session, conversation_id)
         if case is None or case.user_id != user_id:
             raise ValueError(
                 f"No pending recycling case was found for conversation {conversation_id}."
@@ -140,12 +122,13 @@ def _resolve_case_for_audit(
 
 
 def _update_conversation_after_audit(
+    session: Session,
     *,
     conversation_id: int,
     completed: bool,
 ) -> None:
     conversation_repository.update_conversation_state(
-        db.session,
+        session,
         conversation_id,
         status="completed" if completed else "active",
         current_pending_action="none",
@@ -153,17 +136,16 @@ def _update_conversation_after_audit(
 
 
 def stream_recycling_audit(
+    session: Session,
     *,
+    user_id: int,
     conversation_id: int,
     recycling_case_id: int | None,
     message: str,
     image_data_url: str,
 ) -> Generator[dict[str, Any], None, None]:
-    user_id = _get_authenticated_user_id()
-    if user_id is None:
-        raise ValueError("Authentication is required for recycling audit.")
-
     case = _resolve_case_for_audit(
+        session,
         user_id=user_id,
         conversation_id=conversation_id,
         recycling_case_id=recycling_case_id,
@@ -171,6 +153,7 @@ def stream_recycling_audit(
     from app.services.ai.demo_seed_replay_service import get_seed_demo_audit_stream
 
     demo_replay_stream = get_seed_demo_audit_stream(
+        session,
         user_id=user_id,
         conversation_id=conversation_id,
         case=case,
@@ -184,7 +167,7 @@ def stream_recycling_audit(
     stored_image_url = store_data_url_image(image_data_url, namespace="recycling-audit")
 
     user_message = conversation_repository.append_message(
-        db.session,
+        session,
         conversation_id=conversation_id,
         role="user",
         message_type="image",
@@ -234,7 +217,7 @@ def stream_recycling_audit(
 
     audit_payload = _normalize_audit_payload(raw_audit)
     audit_attempt = recycling_case_repository.create_audit_attempt(
-        db.session,
+        session,
         recycling_case_id=case.id,
         user_id=user_id,
         conversation_id=conversation_id,
@@ -264,7 +247,7 @@ def stream_recycling_audit(
     finalized_record_id: int | None = None
     if audit_payload["audit_result"] == "passed":
         record, transaction, user = ledger_repository.finalize_approved_recycling_case_and_earn(
-            db.session,
+            session,
             user_id=user_id,
             conversation_id=conversation_id,
             recycling_case_id=case.id,
@@ -287,14 +270,14 @@ def stream_recycling_audit(
         finalized_record_id = record.id
         try:
             behavior_event_service.record_ai_recycling_case_passed_audit(
-                db.session,
+                session,
                 user_id=user_id,
                 recycling_case_id=case.id,
             )
-            preference_profile_service.recompute_user_preference_profiles(db.session, user_id)
+            preference_profile_service.recompute_user_preference_profiles(session, user_id)
         except Exception:
             pass
-        rebuild_user_preferences_summary(db.session, user_id)
+        rebuild_user_preferences_summary(session, user_id)
         assistant_text = (
             f"Audit passed. Your recycling case has been verified, and {record.carbon_points} "
             f"points were awarded."
@@ -313,14 +296,14 @@ def stream_recycling_audit(
     else:
         try:
             behavior_event_service.record_ai_recycling_case_failed_audit(
-                db.session,
+                session,
                 user_id=user_id,
                 recycling_case_id=case.id,
             )
-            preference_profile_service.recompute_user_preference_profiles(db.session, user_id)
+            preference_profile_service.recompute_user_preference_profiles(session, user_id)
         except Exception:
             pass
-        rebuild_user_preferences_summary(db.session, user_id)
+        rebuild_user_preferences_summary(session, user_id)
         assistant_text = f"Audit {audit_payload['audit_result']}. {audit_payload['audit_reason']}"
         assistant_payload = {
             "audit_result": audit_payload,
@@ -332,7 +315,7 @@ def stream_recycling_audit(
         stream_stage = "audit"
 
     assistant_message = conversation_repository.append_message(
-        db.session,
+        session,
         conversation_id=conversation_id,
         role="assistant",
         message_type="audit_result",
@@ -342,6 +325,7 @@ def stream_recycling_audit(
     )
 
     _update_conversation_after_audit(
+        session,
         conversation_id=conversation_id,
         completed=audit_payload["audit_result"] == "passed",
     )

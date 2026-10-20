@@ -19,7 +19,7 @@ _VALID_IMAGE_DATA_URL = (
 )
 
 
-def _fake_general_chat_decision(*, conversation_id=None, **kwargs):
+def _fake_general_chat_decision(_session, *, conversation_id=None, **kwargs):
     return {
         "engine_version": "decision-engine-test",
         "pipeline_label": "test",

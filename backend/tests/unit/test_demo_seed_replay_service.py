@@ -88,7 +88,7 @@ def test_stream_routed_chat_message_replays_seed_without_decision_engine(
 ):
     image_data_url = _seed_image_data_url("dual-case-recycling-chat-message-01-image_url.jpg")
 
-    def fail_decision_engine(**kwargs):
+    def fail_decision_engine(_session, **kwargs):
         raise AssertionError("demo replay should not call the decision engine")
 
     from app.services.ai import ai_decision_engine
@@ -101,6 +101,7 @@ def test_stream_routed_chat_message_replays_seed_without_decision_engine(
 
         events = list(
             ai_conversation_service.stream_routed_chat_message(
+                db.session,
                 user_id=user.id,
                 message="How should I recycle this one",
                 image_data_url=image_data_url,
@@ -160,6 +161,7 @@ def test_stream_recycling_resume_continues_demo_replay_after_location(
 
         initial_events = list(
             ai_conversation_service.stream_routed_chat_message(
+                db.session,
                 user_id=user.id,
                 message="How should I recycle this one",
                 image_data_url=image_data_url,
@@ -171,6 +173,7 @@ def test_stream_recycling_resume_continues_demo_replay_after_location(
         session_id = awaiting_event["data"]["session_id"]
 
         recycling_analysis_service.store_location_context(
+            db.session,
             {
                 "session_id": session_id,
                 "permission_state": "granted",
@@ -178,10 +181,13 @@ def test_stream_recycling_resume_continues_demo_replay_after_location(
                     "lat": 39.87501048850203,
                     "lng": 116.47902238836137,
                 },
-            }
+            },
+            user_id=user.id,
         )
         resume_events = list(
-            recycling_analysis_service.stream_recycling_resume(session_id=session_id)
+            recycling_analysis_service.stream_recycling_resume(
+                db.session, user_id=user.id, session_id=session_id
+            )
         )
         messages = _messages_for_conversation(initial_events[0]["conversation_id"])
         conversation = db.session.get(AIConversation, initial_events[0]["conversation_id"])
@@ -222,10 +228,10 @@ def test_stream_recycling_audit_replays_seed_audit_result(app, monkeypatch, over
     with app.app_context():
         override_settings(ai_demo_replay_enabled=True)
         user = _make_user()
-        monkeypatch.setattr(recycling_audit_service, "_get_authenticated_user_id", lambda: user.id)
 
         initial_events = list(
             ai_conversation_service.stream_routed_chat_message(
+                db.session,
                 user_id=user.id,
                 message="How should I recycle this one",
                 image_data_url=analysis_image_data_url,
@@ -239,6 +245,8 @@ def test_stream_recycling_audit_replays_seed_audit_result(app, monkeypatch, over
 
         audit_events = list(
             recycling_audit_service.stream_recycling_audit(
+                db.session,
+                user_id=user.id,
                 conversation_id=conversation_id,
                 recycling_case_id=case_id,
                 message="Please audit this completion photo.",
@@ -304,10 +312,10 @@ def test_stream_recycling_audit_matches_retry_by_image_when_text_differs(
     with app.app_context():
         override_settings(ai_demo_replay_enabled=True)
         user = _make_user()
-        monkeypatch.setattr(recycling_audit_service, "_get_authenticated_user_id", lambda: user.id)
 
         initial_events = list(
             ai_conversation_service.stream_routed_chat_message(
+                db.session,
                 user_id=user.id,
                 message="How can I recycle this one",
                 image_data_url=analysis_image_data_url,
@@ -321,6 +329,8 @@ def test_stream_recycling_audit_matches_retry_by_image_when_text_differs(
 
         unclear_events = list(
             recycling_audit_service.stream_recycling_audit(
+                db.session,
+                user_id=user.id,
                 conversation_id=conversation_id,
                 recycling_case_id=case_id,
                 message="Please audit this completion photo.",
@@ -329,6 +339,8 @@ def test_stream_recycling_audit_matches_retry_by_image_when_text_differs(
         )
         passed_events = list(
             recycling_audit_service.stream_recycling_audit(
+                db.session,
+                user_id=user.id,
                 conversation_id=conversation_id,
                 recycling_case_id=case_id,
                 message="Please audit this completion photo.",
@@ -369,7 +381,7 @@ def test_stream_routed_chat_message_replays_text_seed_without_stage_start(
     monkeypatch.setattr(
         ai_decision_engine,
         "decide_message",
-        lambda **kwargs: (_ for _ in ()).throw(
+        lambda _session, **kwargs: (_ for _ in ()).throw(
             AssertionError("demo replay should not call AI routing")
         ),
     )
@@ -380,6 +392,7 @@ def test_stream_routed_chat_message_replays_text_seed_without_stage_start(
 
         events = list(
             ai_conversation_service.stream_routed_chat_message(
+                db.session,
                 user_id=user.id,
                 message="Hello",
                 image_data_url=None,
@@ -412,7 +425,7 @@ def test_stream_routed_chat_message_emits_seed_memory_updates_in_meta(
     monkeypatch.setattr(
         ai_decision_engine,
         "decide_message",
-        lambda **kwargs: (_ for _ in ()).throw(
+        lambda _session, **kwargs: (_ for _ in ()).throw(
             AssertionError("demo replay should not call AI routing")
         ),
     )
@@ -423,6 +436,7 @@ def test_stream_routed_chat_message_emits_seed_memory_updates_in_meta(
 
         events = list(
             ai_conversation_service.stream_routed_chat_message(
+                db.session,
                 user_id=user.id,
                 message="From now on, I prefer nearby drop-off suggestions first.",
                 image_data_url=None,
@@ -459,7 +473,7 @@ def test_stream_routed_chat_message_replays_nearby_follow_up_without_extra_stage
     monkeypatch.setattr(
         ai_decision_engine,
         "decide_message",
-        lambda **kwargs: (_ for _ in ()).throw(
+        lambda _session, **kwargs: (_ for _ in ()).throw(
             AssertionError("demo replay should not call AI routing")
         ),
     )
@@ -470,6 +484,7 @@ def test_stream_routed_chat_message_replays_nearby_follow_up_without_extra_stage
 
         events = list(
             ai_conversation_service.stream_routed_chat_message(
+                db.session,
                 user_id=user.id,
                 message="Where can I recycle it near me?",
                 image_data_url=None,
@@ -499,7 +514,7 @@ def test_stream_routed_chat_message_replays_clarification_options(
     monkeypatch.setattr(
         ai_decision_engine,
         "decide_message",
-        lambda **kwargs: (_ for _ in ()).throw(
+        lambda _session, **kwargs: (_ for _ in ()).throw(
             AssertionError("demo replay should not call AI routing")
         ),
     )
@@ -510,6 +525,7 @@ def test_stream_routed_chat_message_replays_clarification_options(
 
         events = list(
             ai_conversation_service.stream_routed_chat_message(
+                db.session,
                 user_id=user.id,
                 message="What should I do with this one now?",
                 image_data_url=None,
@@ -537,7 +553,7 @@ def test_stream_routed_chat_message_falls_through_when_demo_disabled(
     image_data_url = _seed_image_data_url("dual-case-recycling-chat-message-01-image_url.jpg")
     calls = {"count": 0}
 
-    def fake_decision_engine(**kwargs):
+    def fake_decision_engine(_session, **kwargs):
         calls["count"] += 1
         return {
             "intent": "general_chat",
@@ -567,6 +583,7 @@ def test_stream_routed_chat_message_falls_through_when_demo_disabled(
         override_settings(ai_demo_replay_enabled=False)
         events = list(
             ai_conversation_service.stream_routed_chat_message(
+                db.session,
                 user_id=None,
                 message="How should I recycle this one",
                 image_data_url=image_data_url,

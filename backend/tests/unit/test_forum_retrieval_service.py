@@ -73,7 +73,7 @@ def test_retrieve_forum_references_fuses_keyword_and_vector_hits(monkeypatch, ap
         )
 
         result = forum_retrieval_service.retrieve_forum_references(
-            query="How do I recycle a bottle?"
+            db.session, query="How do I recycle a bottle?"
         )
 
         assert result["candidates"]
@@ -154,6 +154,7 @@ def test_retrieve_forum_references_expands_chinese_plastic_bottle_queries(app):
         )
 
         result = forum_retrieval_service.retrieve_forum_references(
+            db.session,
             query="有没有比较好的回收塑料瓶的方法",
         )
 
@@ -189,6 +190,7 @@ def test_retrieve_forum_references_filters_prompt_injection_chunks(app):
         )
 
         result = forum_retrieval_service.retrieve_forum_references(
+            db.session,
             query="battery recycling instructions",
         )
 

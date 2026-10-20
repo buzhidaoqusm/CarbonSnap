@@ -68,6 +68,7 @@ class TestCompleteChatMessage:
         )
 
         result = ai_conversation_service.complete_chat_message(
+            db.session,
             user_id=user.id,
             message="Hello",
             history=[],
@@ -99,6 +100,7 @@ class TestCompleteChatMessage:
 
         image_data_url = _VALID_IMAGE_DATA_URL
         result = ai_conversation_service.complete_chat_message(
+            db.session,
             user_id=user.id,
             message="Please inspect this image",
             history=[],
@@ -127,7 +129,7 @@ class TestCompleteChatMessage:
         monkeypatch.setattr(
             ai_conversation_service,
             "retrieve_forum_references",
-            lambda **kwargs: {
+            lambda _session, **kwargs: {
                 "candidates": [
                     {
                         "reference_id": "forum-post-7",
@@ -142,6 +144,7 @@ class TestCompleteChatMessage:
         )
 
         result = ai_conversation_service.complete_chat_message(
+            db.session,
             user_id=user.id,
             message="How should I recycle a bottle?",
             history=[],
@@ -185,7 +188,7 @@ class TestCompleteChatMessage:
         monkeypatch.setattr(
             ai_conversation_service,
             "retrieve_forum_references",
-            lambda **kwargs: {
+            lambda _session, **kwargs: {
                 "candidates": [
                     {
                         "reference_id": "forum-post-17",
@@ -239,6 +242,7 @@ class TestCompleteChatMessage:
         )
 
         result = ai_conversation_service.complete_chat_message(
+            db.session,
             user_id=user.id,
             message="Where do I drop off batteries?",
             history=[],
@@ -271,7 +275,7 @@ class TestCompleteChatMessage:
         monkeypatch.setattr(
             ai_conversation_service,
             "retrieve_forum_references",
-            lambda **kwargs: {"candidates": []},
+            lambda _session, **kwargs: {"candidates": []},
         )
         monkeypatch.setattr(
             ai_conversation_service,
@@ -317,6 +321,7 @@ class TestCompleteChatMessage:
         )
 
         result = ai_conversation_service.complete_chat_message(
+            db.session,
             user_id=user.id,
             message="plastic bottle lantern ideas",
             history=[],
@@ -365,6 +370,7 @@ class TestCompleteChatMessage:
         )
 
         result = ai_conversation_service.complete_chat_message(
+            db.session,
             user_id=user.id,
             message="Where do I drop off batteries?",
             history=[],
@@ -403,7 +409,7 @@ class TestCompleteChatMessage:
         monkeypatch.setattr(
             ai_conversation_service,
             "_persist_explicit_memory_candidates",
-            lambda **kwargs: [
+            lambda _session, **kwargs: [
                 {
                     "id": 41,
                     "memory_type": "recycling_preference",
@@ -414,6 +420,7 @@ class TestCompleteChatMessage:
         )
 
         result = ai_conversation_service.complete_chat_message(
+            db.session,
             user_id=user.id,
             message="From now on, I prefer nearby drop-off suggestions first.",
             history=[],
@@ -460,11 +467,13 @@ class TestCompleteChatMessage:
         )
 
         first = ai_conversation_service.complete_chat_message(
+            db.session,
             user_id=user.id,
             message="First question",
             history=[],
         )
         second = ai_conversation_service.complete_chat_message(
+            db.session,
             user_id=user.id,
             message="Second question",
             history=[{"role": "user", "content": "Should be ignored"}],
@@ -496,11 +505,13 @@ class TestCompleteChatMessage:
         )
 
         first = ai_conversation_service.complete_chat_message(
+            db.session,
             user_id=user.id,
             message="How should I recycle this bottle?",
             history=[],
         )
         second = ai_conversation_service.complete_chat_message(
+            db.session,
             user_id=user.id,
             message="And what about the cap?",
             history=[],
@@ -536,6 +547,7 @@ class TestCompleteChatMessage:
         conversation_id = None
         for index in range(12):
             result = ai_conversation_service.complete_chat_message(
+                db.session,
                 user_id=user.id,
                 message=f"question {index}",
                 history=[],
@@ -544,6 +556,7 @@ class TestCompleteChatMessage:
             conversation_id = result["conversation_id"]
 
         ai_conversation_service.complete_chat_message(
+            db.session,
             user_id=user.id,
             message="What was my previous message?",
             history=[],
@@ -581,6 +594,7 @@ class TestStreamChatMessage:
 
         events = list(
             ai_conversation_service.stream_chat_message(
+                db.session,
                 user_id=user.id,
                 message="Stream this",
                 history=[],
@@ -619,12 +633,14 @@ class TestStreamChatMessage:
         )
 
         first = ai_conversation_service.complete_chat_message(
+            db.session,
             user_id=user.id,
             message="Please remember this",
             history=[],
         )
         list(
             ai_conversation_service.stream_chat_message(
+                db.session,
                 user_id=user.id,
                 message="What did I just say?",
                 history=[],
@@ -652,7 +668,7 @@ class TestStreamChatMessage:
         monkeypatch.setattr(
             ai_conversation_service,
             "retrieve_forum_references",
-            lambda **kwargs: {
+            lambda _session, **kwargs: {
                 "candidates": [
                     {
                         "reference_id": "forum-post-9",
@@ -668,6 +684,7 @@ class TestStreamChatMessage:
 
         events = list(
             ai_conversation_service.stream_chat_message(
+                db.session,
                 user_id=user.id,
                 message="Need bottle advice",
                 history=[],
@@ -719,11 +736,15 @@ class TestConversationListing:
             ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter
         )
 
-        first = ai_conversation_service.complete_chat_message(user_id=user.id, message="one")
-        second = ai_conversation_service.complete_chat_message(user_id=user.id, message="two")
+        first = ai_conversation_service.complete_chat_message(
+            db.session, user_id=user.id, message="one"
+        )
+        second = ai_conversation_service.complete_chat_message(
+            db.session, user_id=user.id, message="two"
+        )
 
         result = ai_conversation_service.list_user_conversations(
-            user_id=user.id, page=1, per_page=10
+            db.session, user_id=user.id, page=1, per_page=10
         )
 
         assert result["total"] == 2
@@ -746,8 +767,11 @@ class TestConversationListing:
             ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter
         )
 
-        created = ai_conversation_service.complete_chat_message(user_id=user.id, message="hello")
+        created = ai_conversation_service.complete_chat_message(
+            db.session, user_id=user.id, message="hello"
+        )
         payload = ai_conversation_service.get_conversation_messages(
+            db.session,
             user_id=user.id,
             conversation_id=created["conversation_id"],
         )
@@ -766,7 +790,9 @@ class TestConversationListing:
             lambda **kwargs: {"reply": "reply to hello", "model": "test-model", "usage": {}},
         )
 
-        created = ai_conversation_service.complete_chat_message(user_id=user.id, message="hello")
+        created = ai_conversation_service.complete_chat_message(
+            db.session, user_id=user.id, message="hello"
+        )
         conversation = db.session.get(AIConversation, created["conversation_id"])
         user_message = _messages_for_conversation(created["conversation_id"])[0]
 
@@ -811,6 +837,7 @@ class TestConversationListing:
         db.session.commit()
 
         payload = ai_conversation_service.get_conversation_messages(
+            db.session,
             user_id=user.id,
             conversation_id=created["conversation_id"],
         )
@@ -834,6 +861,7 @@ class TestConversationListing:
         )
 
         created = ai_conversation_service.complete_chat_message(
+            db.session,
             user_id=user.id,
             message="temporary chat",
             history=[],
@@ -852,6 +880,7 @@ class TestConversationListing:
         db.session.commit()
 
         result = ai_conversation_service.delete_user_conversation(
+            db.session,
             user_id=user.id,
             conversation_id=created["conversation_id"],
         )
@@ -874,9 +903,6 @@ class TestRecyclingAnalysisPersistence:
     ):
         user = _make_user("recycler", "recycler@example.com")
 
-        monkeypatch.setattr(
-            recycling_analysis_service, "_get_authenticated_user_id", lambda: user.id
-        )
         monkeypatch.setattr(
             recycling_analysis_service,
             "_analyze_stage1",
@@ -901,6 +927,8 @@ class TestRecyclingAnalysisPersistence:
 
         events = list(
             recycling_analysis_service.stream_recycling_analysis(
+                db.session,
+                user_id=user.id,
                 message="Analyze this bottle",
                 image_data_url=_VALID_IMAGE_DATA_URL,
                 session_id="session-pending-case",
@@ -939,9 +967,6 @@ class TestRecyclingAnalysisPersistence:
         user = _make_user("resume", "resume@example.com")
 
         monkeypatch.setattr(
-            recycling_analysis_service, "_get_authenticated_user_id", lambda: user.id
-        )
-        monkeypatch.setattr(
             recycling_analysis_service,
             "_analyze_stage1",
             lambda **kwargs: {
@@ -971,19 +996,27 @@ class TestRecyclingAnalysisPersistence:
 
         list(
             recycling_analysis_service.stream_recycling_analysis(
+                db.session,
+                user_id=user.id,
                 message="Analyze this glass bottle",
                 image_data_url=_VALID_IMAGE_DATA_URL,
                 session_id="session-skip-flow",
             )
         )
         recycling_analysis_service.store_location_context(
+            db.session,
             {
                 "session_id": "session-skip-flow",
                 "skip_nearby_search": True,
                 "permission_state": "denied",
-            }
+            },
+            user_id=user.id,
         )
-        list(recycling_analysis_service.stream_recycling_resume("session-skip-flow"))
+        list(
+            recycling_analysis_service.stream_recycling_resume(
+                db.session, "session-skip-flow", user_id=user.id
+            )
+        )
 
         conversation = db.session.scalar(
             select(AIConversation).where(AIConversation.user_id == user.id)

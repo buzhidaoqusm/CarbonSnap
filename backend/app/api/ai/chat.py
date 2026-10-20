@@ -5,6 +5,7 @@ from typing import Any
 from flask import Blueprint, Response, current_app, jsonify, request, stream_with_context
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
+from app.extensions.db import db
 from app.services.ai.ai_conversation_service import (
     complete_routed_chat_message,
     delete_user_conversation,
@@ -217,6 +218,7 @@ def ai_chat():
     user_id = int(get_jwt_identity())
     try:
         result = complete_routed_chat_message(
+            db.session,
             user_id=user_id,
             message=parsed["message"],
             history=parsed["history"],
@@ -247,6 +249,7 @@ def ai_chat_stream():
     user_id = int(get_jwt_identity())
     return _json_sse_response(
         lambda: stream_routed_chat_message(
+            db.session,
             user_id=user_id,
             message=parsed["message"],
             history=parsed["history"],
@@ -266,6 +269,8 @@ def ai_analyze_image():
 
     return _json_sse_response(
         lambda: stream_recycling_analysis(
+            db.session,
+            user_id=int(get_jwt_identity()),
             message=parsed["message"],
             image_data_url=parsed["image"],
             session_id=parsed["session_id"],
@@ -279,7 +284,7 @@ def ai_analyze_image():
 def ai_location_context():
     payload = request.get_json(silent=True) or {}
     try:
-        result = store_location_context(payload)
+        result = store_location_context(db.session, payload, user_id=int(get_jwt_identity()))
     except ValueError as exc:
         return _error_response(40001, str(exc), 400)
     except Exception:
@@ -297,7 +302,10 @@ def ai_chat_resume():
     if not session_id:
         return _error_response(40001, "Field 'session_id' is required.", 400)
 
-    return _json_sse_response(lambda: stream_recycling_resume(session_id=session_id))
+    user_id = int(get_jwt_identity())
+    return _json_sse_response(
+        lambda: stream_recycling_resume(db.session, session_id=session_id, user_id=user_id)
+    )
 
 
 @ai_bp.post("/ai/audit-recycling")
@@ -309,6 +317,8 @@ def ai_audit_recycling():
 
     return _json_sse_response(
         lambda: stream_recycling_audit(
+            db.session,
+            user_id=int(get_jwt_identity()),
             conversation_id=parsed["conversation_id"],
             recycling_case_id=parsed["recycling_case_id"],
             message=parsed["message"],
@@ -326,7 +336,9 @@ def ai_conversations():
         {
             "code": 0,
             "message": "ok",
-            "data": list_user_conversations(user_id=user_id, page=page, per_page=per_page),
+            "data": list_user_conversations(
+                db.session, user_id=user_id, page=page, per_page=per_page
+            ),
         }
     )
 
@@ -336,7 +348,9 @@ def ai_conversations():
 def ai_conversation_messages(conversation_id: int):
     user_id = int(get_jwt_identity())
     try:
-        data = get_conversation_messages(user_id=user_id, conversation_id=conversation_id)
+        data = get_conversation_messages(
+            db.session, user_id=user_id, conversation_id=conversation_id
+        )
     except ValueError as exc:
         return _error_response(40400, str(exc), 404)
     return jsonify({"code": 0, "message": "ok", "data": data})
@@ -347,7 +361,9 @@ def ai_conversation_messages(conversation_id: int):
 def ai_delete_conversation(conversation_id: int):
     user_id = int(get_jwt_identity())
     try:
-        data = delete_user_conversation(user_id=user_id, conversation_id=conversation_id)
+        data = delete_user_conversation(
+            db.session, user_id=user_id, conversation_id=conversation_id
+        )
     except ValueError as exc:
         return _error_response(40400, str(exc), 404)
 

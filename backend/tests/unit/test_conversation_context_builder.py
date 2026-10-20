@@ -70,7 +70,7 @@ class TestConversationContextBuilder:
             other, role="user", message_type="text", content_text="other chat", sequence_no=1
         )
 
-        bundle = build_context_bundle(conversation_id=conversation.id, max_turns=5)
+        bundle = build_context_bundle(db.session, conversation_id=conversation.id, max_turns=5)
 
         assert bundle["recent_history"] == [
             {"role": "user", "content": "hello"},
@@ -109,6 +109,7 @@ class TestConversationContextBuilder:
         db.session.flush()
 
         runtime_context = build_runtime_reply_context(
+            db.session,
             conversation_id=conversation.id,
             user_id=user.id,
             max_turns=5,

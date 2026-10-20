@@ -19,7 +19,10 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from functools import partial
 from typing import Any, TypedDict
+
+from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 
@@ -48,6 +51,7 @@ class AgentLoopState(TypedDict, total=False):
 
 
 def run_tool_calling_agent(
+    session: Session,
     *,
     messages: list[dict[str, Any]],
     context: dict[str, Any] | None = None,
@@ -79,7 +83,7 @@ def run_tool_calling_agent(
         ordered list of graph ``nodes`` that ran.
     """
     resolved_completion = completion_fn or _default_completion_fn
-    resolved_execute = execute_fn or _default_execute_fn
+    resolved_execute = execute_fn or partial(_default_execute_fn, session)
     resolved_tools = (
         tools if tools is not None else _default_tools_schema(exclude_high_risk=exclude_high_risk)
     )
@@ -267,6 +271,7 @@ def _default_completion_fn(
 
 
 def _default_execute_fn(
+    session: Session,
     name: str,
     arguments: dict[str, Any],
     *,
@@ -275,7 +280,9 @@ def _default_execute_fn(
 ) -> dict[str, Any]:
     from app.services.ai.tool_registry import execute_tool_call
 
-    return execute_tool_call(name, arguments, context=context, allow_high_risk=allow_high_risk)
+    return execute_tool_call(
+        session, name, arguments, context=context, allow_high_risk=allow_high_risk
+    )
 
 
 def _default_tools_schema(*, exclude_high_risk: bool) -> list[dict[str, Any]]:

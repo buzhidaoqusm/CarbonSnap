@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.extensions.db import db
 from app.services.ai.agent_trace_service import build_trace_shell
 from app.services.ai.langgraph_agent import (
     complete_graph_agent_message,
@@ -44,11 +45,11 @@ def test_is_langgraph_available():
 def test_complete_graph_agent_routes_general_chat(monkeypatch):
     monkeypatch.setattr(
         "app.services.ai.ai_decision_engine.decide_message",
-        lambda **kwargs: _decision(intent="general_chat", should_retrieve_forum=True),
+        lambda _session, **kwargs: _decision(intent="general_chat", should_retrieve_forum=True),
     )
     monkeypatch.setattr(
         "app.services.ai.ai_conversation_service.complete_chat_message",
-        lambda **kwargs: {
+        lambda _session, **kwargs: {
             "reply": "Graph answer",
             "model": "test-model",
             "usage": {},
@@ -56,7 +57,7 @@ def test_complete_graph_agent_routes_general_chat(monkeypatch):
         },
     )
 
-    result = complete_graph_agent_message(user_id=1, message="hello")
+    result = complete_graph_agent_message(db.session, user_id=1, message="hello")
 
     assert result["reply"] == "Graph answer"
     assert result["graph_agent"]["enabled"] is True
@@ -71,11 +72,11 @@ def test_complete_graph_agent_routes_general_chat(monkeypatch):
 def test_complete_graph_agent_routes_recycling(monkeypatch):
     monkeypatch.setattr(
         "app.services.ai.ai_decision_engine.decide_message",
-        lambda **kwargs: _decision(intent="recycling_analysis"),
+        lambda _session, **kwargs: _decision(intent="recycling_analysis"),
     )
     monkeypatch.setattr(
         "app.services.ai.recycling_analysis_service.complete_recycling_analysis",
-        lambda **kwargs: {
+        lambda _session, **kwargs: {
             "reply": "Recycling result",
             "model": None,
             "usage": {},
@@ -83,7 +84,9 @@ def test_complete_graph_agent_routes_recycling(monkeypatch):
         },
     )
 
-    result = complete_graph_agent_message(user_id=1, message="How do I recycle batteries?")
+    result = complete_graph_agent_message(
+        db.session, user_id=1, message="How do I recycle batteries?"
+    )
 
     assert result["reply"] == "Recycling result"
     assert result["graph_agent"]["route"] == "recycling"
@@ -95,10 +98,10 @@ def test_complete_graph_agent_routes_recycling(monkeypatch):
 def test_stream_graph_agent_keeps_general_chat_streaming(monkeypatch):
     monkeypatch.setattr(
         "app.services.ai.ai_decision_engine.decide_message",
-        lambda **kwargs: _decision(intent="general_chat"),
+        lambda _session, **kwargs: _decision(intent="general_chat"),
     )
 
-    def fake_stream_chat_message(**kwargs):
+    def fake_stream_chat_message(_session, **kwargs):
         yield {"type": "meta", "conversation_id": 1}
         yield {"type": "delta", "content": "hello"}
         yield {"type": "done", "stream_stage": "completed"}
@@ -108,7 +111,7 @@ def test_stream_graph_agent_keeps_general_chat_streaming(monkeypatch):
         fake_stream_chat_message,
     )
 
-    events = list(stream_graph_agent_message(user_id=1, message="hello"))
+    events = list(stream_graph_agent_message(db.session, user_id=1, message="hello"))
 
     assert [event["type"] for event in events] == ["meta", "delta", "done"]
     assert events[0]["graph_agent"]["framework"] == "langgraph"

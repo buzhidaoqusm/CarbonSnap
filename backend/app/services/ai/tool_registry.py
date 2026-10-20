@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any, Literal, TypedDict
 
+from sqlalchemy.orm import Session
+
 from app.core.config import get_settings
 
 RiskLevel = Literal["low", "medium", "high"]
@@ -14,7 +16,8 @@ class ToolDefinition(TypedDict):
     input_schema: dict[str, Any]
     risk_level: RiskLevel
     auto_execute: bool
-    handler: Callable[[dict[str, Any]], dict[str, Any]]
+    # (session, payload): every handler gets the session, used or not.
+    handler: Callable[[Session, dict[str, Any]], dict[str, Any]]
 
 
 def list_tool_definitions(*, include_handlers: bool = False) -> list[dict[str, Any]]:
@@ -36,6 +39,7 @@ def get_tool_definition(name: str) -> dict[str, Any] | None:
 
 
 def run_tool(
+    session: Session,
     name: str,
     payload: dict[str, Any] | None = None,
     *,
@@ -64,7 +68,7 @@ def run_tool(
         }
 
     try:
-        output = tool["handler"](dict(payload or {}))
+        output = tool["handler"](session, dict(payload or {}))
     except Exception as exc:
         return {
             "tool_name": tool["name"],
@@ -103,6 +107,7 @@ def to_openai_tools(*, exclude_high_risk: bool = False) -> list[dict[str, Any]]:
 
 
 def execute_tool_call(
+    session: Session,
     name: str,
     arguments: dict[str, Any] | None = None,
     *,
@@ -128,7 +133,7 @@ def execute_tool_call(
         if merged.get("area") is None and location_state.get("area_label"):
             merged["area"] = location_state.get("area_label")
 
-    result = run_tool(name, merged, allow_high_risk=allow_high_risk)
+    result = run_tool(session, name, merged, allow_high_risk=allow_high_risk)
     return {**result, "arguments": merged}
 
 
@@ -292,16 +297,17 @@ def _tool_definitions() -> list[ToolDefinition]:
     ]
 
 
-def _search_forum(payload: dict[str, Any]) -> dict[str, Any]:
+def _search_forum(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
     from app.services.ai.forum_retrieval_service import retrieve_forum_references
 
     return retrieve_forum_references(
+        session,
         query=str(payload.get("query") or "").strip(),
         limit=_optional_positive_int(payload.get("limit")),
     )
 
 
-def _query_recycling_graph(payload: dict[str, Any]) -> dict[str, Any]:
+def _query_recycling_graph(_session: Session, payload: dict[str, Any]) -> dict[str, Any]:
     from app.services.ai.neo4j_graph_retrieval_service import query_graph_context
 
     return query_graph_context(
@@ -310,7 +316,7 @@ def _query_recycling_graph(payload: dict[str, Any]) -> dict[str, Any]:
     )
 
 
-def _estimate_carbon_saving(payload: dict[str, Any]) -> dict[str, Any]:
+def _estimate_carbon_saving(_session: Session, payload: dict[str, Any]) -> dict[str, Any]:
     item_type = str(payload.get("item_type") or payload.get("waste_type") or "default").strip()
     weight_kg = _clamp_float(payload.get("weight_kg", 0.25), minimum=0.01, maximum=100.0)
     emission_factor = _resolve_emission_factor(item_type)
@@ -324,7 +330,7 @@ def _estimate_carbon_saving(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _find_nearby_recycling_places(payload: dict[str, Any]) -> dict[str, Any]:
+def _find_nearby_recycling_places(_session: Session, payload: dict[str, Any]) -> dict[str, Any]:
     from app.ai.tools.map.osm_public_provider import MapProviderError, OSMPublicMapProvider
 
     provider = OSMPublicMapProvider()
@@ -349,15 +355,12 @@ def _find_nearby_recycling_places(payload: dict[str, Any]) -> dict[str, Any]:
     return {"locations": locations, "area_label": area_label}
 
 
-def _recommend_project(payload: dict[str, Any]) -> dict[str, Any]:
-    from app.extensions.db import db
+def _recommend_project(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
     from app.services.project import project_service
 
     user_id = int(payload["user_id"])
     limit = min(max(int(payload.get("limit") or 5), 1), 20)
-    result = project_service.list_projects(
-        db.session(), page=1, per_page=limit, viewer_user_id=user_id
-    )
+    result = project_service.list_projects(session, page=1, per_page=limit, viewer_user_id=user_id)
     return {
         "items": result.get("items", []),
         "total": result.get("total", 0),
@@ -365,14 +368,13 @@ def _recommend_project(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _read_user_memory(payload: dict[str, Any]) -> dict[str, Any]:
-    from app.extensions.db import db
+def _read_user_memory(session: Session, payload: dict[str, Any]) -> dict[str, Any]:
     from app.services.ai.memory_service import get_prompt_memory_summary
 
-    return {"summary": get_prompt_memory_summary(db.session(), int(payload["user_id"]))}
+    return {"summary": get_prompt_memory_summary(session, int(payload["user_id"]))}
 
 
-def _blocked_business_write(payload: dict[str, Any]) -> dict[str, Any]:
+def _blocked_business_write(_session: Session, payload: dict[str, Any]) -> dict[str, Any]:
     return {
         "status": "blocked",
         "reason": "business_write_requires_explicit_user_action",

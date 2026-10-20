@@ -274,7 +274,23 @@ docs/adr/
 >     修之前的耗时近似平方增长，原因是 merge 要把全部候选合并一遍。
 >   - #13 后续：merge 改成接近线性 ✅（2026-10-20）。按主 topic 分桶，并且懒删除，输出顺序不变（用原实现做对比的特征测试保证）。
 >     单独测 merge、全部候选属于同一个 topic：N=200 时 47.9 → 0.4 ms，N=2000 时 8.7 s → 4.8 ms；2 万行 project history 102 → 36 ms。
-> - 下一步：ai/chat（SSE），它依赖 P2 的 async LLM 网关，迁完后就可以删除 Flask。
+>   - ai/chat 拆成 4 个任务：A 准备工作 → B 5 个 JSON 接口 → C 4 个 SSE 接口 → D 删除 Flask。不等 P2 的 async 网关：
+>     `StreamingResponse` 可以直接迭代同步生成器（在线程池里），等 P2 做网关时只需要改 service 内部。
+>   - A. ai service 显式接收 session 和 user_id ✅（2026-10-20）。
+>     回收分析和审核原来在 service 里调用 `verify_jwt_in_request`，从 Flask 请求里读取用户，外面还包着
+>     `except Exception: return None`，搬到 FastAPI 下会悄悄变成匿名请求。分别对 4 个调用点做变异：分析、续接、
+>     审核分别有 8、2、6 个测试变红，location-context 一个都没有。它的 user_id 用于进程重启后从数据库恢复
+>     暂停中的会话，测试里进程内的 store 一直都在，所以这条分支从来没被执行过。补了 2 个恢复测试后，这个变异会被发现。
+>     `app/services/ai` 里的 `db.session`：90 → 0；`app/services` 里 import Flask 的文件：3 → 0。
+>     AST 脚本给 63 个函数加上了 session 参数，手工处理了脚本覆盖不到的地方：
+>     - LangGraph 节点改用 runtime context（`context_schema=GraphContext`），不放进 state，因为 state 将来要交给 checkpointer 序列化；
+>     - 工具处理函数统一改成 `(session, payload)`；
+>     - tool-calling agent 的默认执行器用 `partial` 绑定 session；
+>     - `recycling_analysis_service` 和 `demo_seed_replay_service` 里原本就有一个叫 `session` 的 dict（回收流程的会话），
+>       所以这两个文件里数据库 session 的参数名改叫 `db_session`。
+>     新测试 `test_ai_services_without_flask` 在没有 app context 的线程里跑回收分析。
+>     另外 5 个 ai 模块加进了 mypy。剩下 6 个模块各有 1–14 个原有的类型错误，留作后续。
+> - 下一步：ai/chat 任务 B（5 个 JSON 接口）。
 >   迁 market 和 forum 时，要逐个处理剩下的 `except Exception: pass`：异常吞掉后 session 仍处于失败状态，后面的查询会返回 500。
 >   迁 forum 和 market 时，要把 `notification_service.dispatch` 和 `auth_identity` 剩下的 Flask 依赖一起去掉。
 

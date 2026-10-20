@@ -1,9 +1,24 @@
 from __future__ import annotations
 
 from collections.abc import Generator
-from typing import Any, Literal, TypedDict
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
+
+from sqlalchemy.orm import Session
+
+if TYPE_CHECKING:
+    from langgraph.runtime import Runtime
 
 GraphRoute = Literal["clarification", "recycling", "general"]
+
+
+@dataclass
+class GraphContext:
+    """What the nodes need besides the state. It goes in through LangGraph's
+    runtime context rather than the state, which a checkpointer would have
+    to serialise."""
+
+    session: Session
 
 
 class GraphAgentState(TypedDict, total=False):
@@ -32,6 +47,7 @@ def is_langgraph_available() -> bool:
 
 
 def complete_graph_agent_message(
+    session: Session,
     *,
     user_id: int | None,
     message: str,
@@ -51,13 +67,15 @@ def complete_graph_agent_message(
             "client_context": client_context,
             "graph_nodes": [],
             "errors": [],
-        }
+        },
+        context=GraphContext(session=session),
     )
     result = dict(final_state.get("result") or {})
     return _attach_graph_metadata(result, final_state)
 
 
 def stream_graph_agent_message(
+    session: Session,
     *,
     user_id: int | None,
     message: str,
@@ -67,6 +85,7 @@ def stream_graph_agent_message(
     client_context: dict[str, Any] | None = None,
 ) -> Generator[dict[str, Any], None, None]:
     route_state = _run_routing_graph(
+        session,
         user_id=user_id,
         message=message,
         history=history,
@@ -80,7 +99,7 @@ def stream_graph_agent_message(
     }
 
     if route_state["route"] == "clarification":
-        result = _execute_clarification_node(route_state)["result"]
+        result = _clarify(session, route_state)["result"]
         yield {
             "type": "meta",
             "conversation_id": result.get("conversation_id"),
@@ -104,6 +123,7 @@ def stream_graph_agent_message(
         from app.services.ai.recycling_analysis_service import stream_recycling_analysis
 
         for event in stream_recycling_analysis(
+            session,
             message=message,
             image_data_url=image_data_url,
             session_id=None,
@@ -125,6 +145,7 @@ def stream_graph_agent_message(
     from app.services.ai.ai_conversation_service import stream_chat_message
 
     for event in stream_chat_message(
+        session,
         user_id=user_id,
         message=message,
         history=history,
@@ -148,7 +169,7 @@ def stream_graph_agent_message(
 def build_graph_agent():
     from langgraph.graph import END, START, StateGraph
 
-    graph = StateGraph(GraphAgentState)
+    graph = StateGraph(GraphAgentState, context_schema=GraphContext)
     graph.add_node("route_intent", _route_intent_node)
     graph.add_node("select_tools", _select_tools_node)
     graph.add_node("clarify", _execute_clarification_node)
@@ -172,6 +193,7 @@ def build_graph_agent():
 
 
 def _run_routing_graph(
+    session: Session,
     *,
     user_id: int | None,
     message: str,
@@ -182,7 +204,7 @@ def _run_routing_graph(
 ) -> GraphAgentState:
     from langgraph.graph import END, START, StateGraph
 
-    graph = StateGraph(GraphAgentState)
+    graph = StateGraph(GraphAgentState, context_schema=GraphContext)
     graph.add_node("route_intent", _route_intent_node)
     graph.add_node("select_tools", _select_tools_node)
     graph.add_edge(START, "route_intent")
@@ -198,14 +220,20 @@ def _run_routing_graph(
             "client_context": client_context,
             "graph_nodes": [],
             "errors": [],
-        }
+        },
+        context=GraphContext(session=session),
     )
 
 
-def _route_intent_node(state: GraphAgentState) -> GraphAgentState:
+def _route_intent_node(state: GraphAgentState, runtime: Runtime[GraphContext]) -> GraphAgentState:
+    return _route_intent(runtime.context.session, state)
+
+
+def _route_intent(session: Session, state: GraphAgentState) -> GraphAgentState:
     from app.services.ai.ai_decision_engine import decide_message
 
     decision = decide_message(
+        session,
         user_id=state.get("user_id"),
         conversation_id=state.get("conversation_id"),
         message=state["message"],
@@ -250,11 +278,18 @@ def _route_from_decision(state: GraphAgentState) -> GraphRoute:
     return "general"
 
 
-def _execute_clarification_node(state: GraphAgentState) -> GraphAgentState:
+def _execute_clarification_node(
+    state: GraphAgentState, runtime: Runtime[GraphContext]
+) -> GraphAgentState:
+    return _clarify(runtime.context.session, state)
+
+
+def _clarify(session: Session, state: GraphAgentState) -> GraphAgentState:
     from app.services.ai.ai_conversation_service import _persist_clarification_request
 
     decision = state["decision"]
     persisted = _persist_clarification_request(
+        session,
         user_id=state.get("user_id"),
         message=state["message"],
         image_data_url=state.get("image_data_url"),
@@ -288,11 +323,18 @@ def _execute_clarification_node(state: GraphAgentState) -> GraphAgentState:
     }
 
 
-def _execute_general_chat_node(state: GraphAgentState) -> GraphAgentState:
+def _execute_general_chat_node(
+    state: GraphAgentState, runtime: Runtime[GraphContext]
+) -> GraphAgentState:
+    return _answer_general(runtime.context.session, state)
+
+
+def _answer_general(session: Session, state: GraphAgentState) -> GraphAgentState:
     from app.services.ai.ai_conversation_service import complete_general_chat_with_mode
 
     decision = state["decision"]
     result = complete_general_chat_with_mode(
+        session,
         user_id=state.get("user_id"),
         message=state["message"],
         history=state.get("history"),
@@ -313,10 +355,17 @@ def _execute_general_chat_node(state: GraphAgentState) -> GraphAgentState:
     }
 
 
-def _execute_recycling_node(state: GraphAgentState) -> GraphAgentState:
+def _execute_recycling_node(
+    state: GraphAgentState, runtime: Runtime[GraphContext]
+) -> GraphAgentState:
+    return _handle_recycling(runtime.context.session, state)
+
+
+def _handle_recycling(session: Session, state: GraphAgentState) -> GraphAgentState:
     from app.services.ai.recycling_analysis_service import complete_recycling_analysis
 
     result = complete_recycling_analysis(
+        session,
         user_id=state.get("user_id"),
         message=state["message"],
         image_data_url=state.get("image_data_url"),

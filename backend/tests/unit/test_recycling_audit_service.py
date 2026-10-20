@@ -288,7 +288,6 @@ def test_failed_audit_keeps_case_open_for_retry(monkeypatch):
     origin_message = _make_origin_message(conversation, text="Analyze this bottle.")
     case = _make_case(user, conversation, origin_message)
 
-    monkeypatch.setattr(recycling_audit_service, "_get_authenticated_user_id", lambda: user.id)
     monkeypatch.setattr(
         recycling_audit_service,
         "complete_json",
@@ -301,6 +300,8 @@ def test_failed_audit_keeps_case_open_for_retry(monkeypatch):
 
     events = list(
         recycling_audit_service.stream_recycling_audit(
+            db.session,
+            user_id=user.id,
             conversation_id=conversation.id,
             recycling_case_id=case.id,
             message="Here is my completion photo.",
@@ -340,7 +341,6 @@ def test_passed_audit_finalizes_case_and_awards_points(monkeypatch):
     origin_message = _make_origin_message(conversation, text="Analyze this bottle.")
     case = _make_case(user, conversation, origin_message)
 
-    monkeypatch.setattr(recycling_audit_service, "_get_authenticated_user_id", lambda: user.id)
     monkeypatch.setattr(
         recycling_audit_service,
         "complete_json",
@@ -353,6 +353,8 @@ def test_passed_audit_finalizes_case_and_awards_points(monkeypatch):
 
     events = list(
         recycling_audit_service.stream_recycling_audit(
+            db.session,
+            user_id=user.id,
             conversation_id=conversation.id,
             recycling_case_id=case.id,
             message="Here is my completion photo.",
@@ -406,8 +408,6 @@ def test_retry_after_failed_audit_can_later_finalize(monkeypatch):
         expected_carbon_points=2.0,
     )
 
-    monkeypatch.setattr(recycling_audit_service, "_get_authenticated_user_id", lambda: user.id)
-
     results = iter(
         [
             {
@@ -426,6 +426,8 @@ def test_retry_after_failed_audit_can_later_finalize(monkeypatch):
 
     list(
         recycling_audit_service.stream_recycling_audit(
+            db.session,
+            user_id=user.id,
             conversation_id=conversation.id,
             recycling_case_id=case.id,
             message="First completion photo.",
@@ -434,6 +436,8 @@ def test_retry_after_failed_audit_can_later_finalize(monkeypatch):
     )
     list(
         recycling_audit_service.stream_recycling_audit(
+            db.session,
+            user_id=user.id,
             conversation_id=conversation.id,
             recycling_case_id=case.id,
             message="Second completion photo.",

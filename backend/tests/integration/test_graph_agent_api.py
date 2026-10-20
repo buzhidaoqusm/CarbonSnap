@@ -54,12 +54,12 @@ def test_ai_chat_uses_langgraph_when_feature_flag_enabled(
     )
     monkeypatch.setattr(
         "app.services.ai.ai_decision_engine.decide_message",
-        lambda **kwargs: _general_decision(),
+        lambda _session, **kwargs: _general_decision(),
     )
     monkeypatch.setattr(
         ai_conversation_service,
         "complete_chat_message",
-        lambda **kwargs: {
+        lambda _session, **kwargs: {
             "reply": "Graph API answer",
             "model": "test-model",
             "usage": {},
@@ -87,10 +87,10 @@ def test_ai_chat_stream_uses_langgraph_when_feature_flag_enabled(
     )
     monkeypatch.setattr(
         "app.services.ai.ai_decision_engine.decide_message",
-        lambda **kwargs: _general_decision(),
+        lambda _session, **kwargs: _general_decision(),
     )
 
-    def fake_stream_chat_message(**kwargs):
+    def fake_stream_chat_message(_session, **kwargs):
         yield {"type": "meta", "conversation_id": 10}
         yield {"type": "delta", "content": "Graph stream"}
         yield {"type": "done", "stream_stage": "completed"}
@@ -121,12 +121,12 @@ def test_ai_chat_keeps_existing_route_when_graph_agent_disabled(
     )
     monkeypatch.setattr(
         "app.services.ai.ai_decision_engine.decide_message",
-        lambda **kwargs: _general_decision(),
+        lambda _session, **kwargs: _general_decision(),
     )
     monkeypatch.setattr(
         ai_conversation_service,
         "complete_chat_message",
-        lambda **kwargs: {
+        lambda _session, **kwargs: {
             "reply": "Classic answer",
             "model": "test-model",
             "usage": {},

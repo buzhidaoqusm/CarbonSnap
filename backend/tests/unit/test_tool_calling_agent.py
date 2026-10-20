@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.extensions.db import db
 from app.services.ai import tool_calling_agent
 
 
@@ -79,6 +80,7 @@ def test_agent_loop_executes_model_selected_tool_then_answers():
     )
 
     result = tool_calling_agent.run_tool_calling_agent(
+        db.session,
         messages=[{"role": "user", "content": "How do I recycle a battery?"}],
         context={"user_id": 42},
         tools=[{"type": "function", "function": {"name": "search_forum"}}],
@@ -119,6 +121,7 @@ def test_agent_loop_forces_final_answer_at_iteration_cap():
     )
 
     result = tool_calling_agent.run_tool_calling_agent(
+        db.session,
         messages=[{"role": "user", "content": "tell me"}],
         tools=[{"type": "function", "function": {"name": "search_forum"}}],
         max_iterations=2,
@@ -140,6 +143,7 @@ def test_agent_loop_answers_without_tools_when_model_declines():
     completion = _ScriptedCompletion([_assistant_text("No tools needed here.")])
 
     result = tool_calling_agent.run_tool_calling_agent(
+        db.session,
         messages=[{"role": "user", "content": "hi"}],
         tools=[{"type": "function", "function": {"name": "search_forum"}}],
         completion_fn=completion,
@@ -162,6 +166,7 @@ def test_agent_loop_runs_multiple_tools_across_turns():
     )
 
     result = tool_calling_agent.run_tool_calling_agent(
+        db.session,
         messages=[{"role": "user", "content": "recycle a glass jar and estimate savings"}],
         tools=[{"type": "function", "function": {"name": "x"}}],
         completion_fn=completion,

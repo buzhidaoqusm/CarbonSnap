@@ -4,9 +4,10 @@ import re
 from collections import defaultdict
 from typing import Any
 
+from sqlalchemy.orm import Session
+
 from app.ai.rag.indexing import build_forum_rag_index
 from app.core.config import get_settings
-from app.extensions.db import db
 from app.repositories.forum import forum_repository
 from app.services.ai.guardrails import scan_retrieved_text_for_injection
 
@@ -24,6 +25,7 @@ _QUERY_EXPANSION_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
 
 
 def retrieve_forum_references(
+    session: Session,
     *,
     query: str,
     limit: int | None = None,
@@ -33,8 +35,8 @@ def retrieve_forum_references(
         return {"query": "", "candidates": []}
 
     effective_query = _expand_retrieval_query(normalized_query)
-    keyword_hits = _keyword_recall(effective_query)
-    vector_hits = _vector_recall(effective_query)
+    keyword_hits = _keyword_recall(session, effective_query)
+    vector_hits = _vector_recall(session, effective_query)
     fused_hits = _fuse_hits(keyword_hits=keyword_hits, vector_hits=vector_hits)
     aggregated = _aggregate_hits_by_post(fused_hits)
     safe_candidates = [item for item in aggregated if item.get("guardrail_status") == "passed"]
@@ -134,9 +136,9 @@ def resolve_explicit_forum_references(
     return resolved
 
 
-def _keyword_recall(query: str) -> list[dict[str, Any]]:
+def _keyword_recall(session: Session, query: str) -> list[dict[str, Any]]:
     scored_hits: list[dict[str, Any]] = []
-    for chunk, post in forum_repository.list_active_chunks(db.session):
+    for chunk, post in forum_repository.list_active_chunks(session):
         score = _score_keyword_match(query=query, title=post.title, text=chunk.chunk_text)
         if score <= 0:
             continue
@@ -168,7 +170,7 @@ def _keyword_recall(query: str) -> list[dict[str, Any]]:
     return scored_hits[:top_k]
 
 
-def _vector_recall(query: str) -> list[dict[str, Any]]:
+def _vector_recall(session: Session, query: str) -> list[dict[str, Any]]:
     try:
         top_k = get_settings().forum_rag_vector_top_k
         matches = build_forum_rag_index().search(query, top_k=top_k)
@@ -178,7 +180,7 @@ def _vector_recall(query: str) -> list[dict[str, Any]]:
         return []
 
     rows = forum_repository.list_active_chunks_by_embedding_ids(
-        db.session,
+        session,
         [str(item.chunk_id).strip() for item in matches if getattr(item, "chunk_id", None)],
     )
     row_by_embedding_id = {

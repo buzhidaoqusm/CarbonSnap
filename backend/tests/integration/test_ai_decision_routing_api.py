@@ -40,7 +40,7 @@ class TestAiDecisionRoutingApi:
 
         monkeypatch.setattr(
             "app.services.ai.ai_decision_engine.decide_message",
-            lambda **kwargs: {
+            lambda _session, **kwargs: {
                 "engine_version": "decision-engine-v1",
                 "intent": "general_chat",
                 "follow_up_type": None,
@@ -57,7 +57,7 @@ class TestAiDecisionRoutingApi:
             },
         )
 
-        def fake_generic_stream(**kwargs):
+        def fake_generic_stream(_session, **kwargs):
             yield {"type": "meta", "conversation_id": 1, "conversation_title": "Hello Greeting"}
             yield {"type": "delta", "content": "Hello there"}
             yield {"type": "done", "stream_stage": "completed"}
@@ -87,7 +87,7 @@ class TestAiDecisionRoutingApi:
 
         monkeypatch.setattr(
             "app.services.ai.ai_decision_engine.decide_message",
-            lambda **kwargs: {
+            lambda _session, **kwargs: {
                 "engine_version": "decision-engine-v1",
                 "intent": "recycling_analysis",
                 "follow_up_type": None,
@@ -104,7 +104,7 @@ class TestAiDecisionRoutingApi:
             },
         )
 
-        def fake_recycling_stream(**kwargs):
+        def fake_recycling_stream(_session, **kwargs):
             yield {"type": "meta", "conversation_id": 2, "conversation_title": "Bottle Recycling"}
             yield {"type": "stage_start", "stage": "analysis"}
             yield {"type": "delta", "content": "Bottle analysis"}
@@ -137,7 +137,7 @@ class TestAiDecisionRoutingApi:
 
         monkeypatch.setattr(
             "app.services.ai.ai_decision_engine.decide_message",
-            lambda **kwargs: {
+            lambda _session, **kwargs: {
                 "engine_version": "decision-engine-v1",
                 "intent": "recycling_follow_up",
                 "follow_up_type": "nearby_search",

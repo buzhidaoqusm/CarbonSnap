@@ -3,7 +3,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from app.extensions.db import db
+from sqlalchemy.orm import Session
+
 from app.models.ai import AIConversation
 from app.repositories.ai import conversation_repository, recycling_case_repository
 from app.services.ai.memory_service import get_prompt_memory_summary
@@ -27,6 +28,7 @@ def _parse_json(text: str | None) -> Any:
 
 
 def build_recent_history(
+    session: Session,
     *,
     conversation_id: int | None,
     supplied_history: list[dict[str, Any]] | None = None,
@@ -36,7 +38,7 @@ def build_recent_history(
         history = supplied_history or []
     else:
         history = history_from_message_records(
-            conversation_repository.list_messages(db.session, conversation_id)
+            conversation_repository.list_messages(session, conversation_id)
         )
 
     cleaned: list[dict[str, str]] = []
@@ -51,11 +53,11 @@ def build_recent_history(
     return cleaned[-(max_turns * 2) :]
 
 
-def build_case_summaries(conversation_id: int | None) -> list[dict[str, Any]]:
+def build_case_summaries(session: Session, conversation_id: int | None) -> list[dict[str, Any]]:
     if conversation_id is None:
         return []
 
-    cases = recycling_case_repository.list_cases_for_conversation(db.session, conversation_id)
+    cases = recycling_case_repository.list_cases_for_conversation(session, conversation_id)
     summaries: list[dict[str, Any]] = []
     for case in cases:
         summaries.append(
@@ -70,19 +72,21 @@ def build_case_summaries(conversation_id: int | None) -> list[dict[str, Any]]:
                 "has_verification_attempts": int(case.latest_audit_attempt_no or 0) > 0,
                 "expected_carbon_points": case.expected_carbon_points,
                 "user_original_request": _resolve_case_origin_request(
-                    conversation_id, case.origin_message_id
+                    session, conversation_id, case.origin_message_id
                 ),
             }
         )
     return summaries
 
 
-def build_conversation_working_memory(conversation_id: int | None) -> dict[str, Any]:
+def build_conversation_working_memory(
+    session: Session, conversation_id: int | None
+) -> dict[str, Any]:
     if conversation_id is None:
         return {}
 
-    messages = conversation_repository.list_messages(db.session, conversation_id)
-    conversation = db.session.get(AIConversation, conversation_id)
+    messages = conversation_repository.list_messages(session, conversation_id)
+    conversation = session.get(AIConversation, conversation_id)
     latest_tool_result = ""
     latest_audit_result = ""
     latest_analysis = ""
@@ -116,6 +120,7 @@ def build_conversation_working_memory(conversation_id: int | None) -> dict[str, 
 
 
 def build_context_bundle(
+    session: Session,
     *,
     conversation_id: int | None,
     supplied_history: list[dict[str, Any]] | None = None,
@@ -123,16 +128,18 @@ def build_context_bundle(
 ) -> dict[str, Any]:
     return {
         "recent_history": build_recent_history(
+            session,
             conversation_id=conversation_id,
             supplied_history=supplied_history,
             max_turns=max_turns,
         ),
-        "case_summaries": build_case_summaries(conversation_id),
-        "working_memory": build_conversation_working_memory(conversation_id),
+        "case_summaries": build_case_summaries(session, conversation_id),
+        "working_memory": build_conversation_working_memory(session, conversation_id),
     }
 
 
 def build_runtime_reply_context(
+    session: Session,
     *,
     conversation_id: int | None,
     user_id: int | None,
@@ -142,6 +149,7 @@ def build_runtime_reply_context(
     client_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     context_bundle = build_context_bundle(
+        session,
         conversation_id=conversation_id,
         supplied_history=supplied_history,
         max_turns=max_turns,
@@ -163,7 +171,7 @@ def build_runtime_reply_context(
         "long_term_memory": (
             dict(prompt_memory)
             if prompt_memory is not None
-            else get_prompt_memory_summary(db.session, user_id)
+            else get_prompt_memory_summary(session, user_id)
         ),
     }
 
@@ -208,8 +216,10 @@ def _case_stage(case: Any) -> str:
     return case.status or "analysis_ready"
 
 
-def _resolve_case_origin_request(conversation_id: int, origin_message_id: int) -> str:
-    messages = conversation_repository.list_messages(db.session, conversation_id)
+def _resolve_case_origin_request(
+    session: Session, conversation_id: int, origin_message_id: int
+) -> str:
+    messages = conversation_repository.list_messages(session, conversation_id)
     for message in messages:
         if getattr(message, "id", None) == origin_message_id:
             return _clip_text(getattr(message, "content_text", "") or "")

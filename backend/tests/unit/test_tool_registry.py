@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from app.extensions.db import db
 from app.services.ai import tool_registry
 
 
@@ -22,7 +23,7 @@ def test_registry_exposes_resume_worthy_ai_tools():
 
 
 def test_run_tool_blocks_high_risk_business_write():
-    result = tool_registry.run_tool("record_recycling_completion", {"case_id": 1})
+    result = tool_registry.run_tool(db.session, "record_recycling_completion", {"case_id": 1})
 
     assert result["ok"] is False
     assert result["blocked"] is True
@@ -33,6 +34,7 @@ def test_run_tool_blocks_high_risk_business_write():
 def test_estimate_carbon_saving_is_deterministic(app):
     with app.app_context():
         result = tool_registry.run_tool(
+            db.session,
             "estimate_carbon_saving",
             {"item_type": "plastic bottle", "weight_kg": 0.5},
         )

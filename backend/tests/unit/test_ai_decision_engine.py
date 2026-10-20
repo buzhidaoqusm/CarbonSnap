@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from app.extensions.db import db
 from app.services.ai import ai_decision_engine
 
 
@@ -117,7 +118,9 @@ class TestDecisionModes:
         monkeypatch.setattr(
             ai_decision_engine,
             "build_context_bundle",
-            lambda **kwargs: _context(case_summaries=[_case(2, "plastic bottle", "audit_passed")]),
+            lambda _session, **kwargs: _context(
+                case_summaries=[_case(2, "plastic bottle", "audit_passed")]
+            ),
         )
 
         def fake_router(**kwargs):
@@ -148,6 +151,7 @@ class TestDecisionModes:
         )
 
         decision = ai_decision_engine.decide_message(
+            db.session,
             user_id=1,
             conversation_id=2,
             message="What did I just recycle?",
@@ -175,7 +179,9 @@ class TestDecisionModes:
         monkeypatch.setattr(
             ai_decision_engine,
             "build_context_bundle",
-            lambda **kwargs: _context(case_summaries=[_case(7, "battery", "awaiting_location")]),
+            lambda _session, **kwargs: _context(
+                case_summaries=[_case(7, "battery", "awaiting_location")]
+            ),
         )
 
         def fake_router(**kwargs):
@@ -224,6 +230,7 @@ class TestDecisionModes:
         )
 
         decision = ai_decision_engine.decide_message(
+            db.session,
             user_id=1,
             conversation_id=2,
             message="Can you find a nearby drop-off point for those batteries?",
@@ -254,7 +261,7 @@ class TestDecisionModes:
         monkeypatch.setattr(
             ai_decision_engine,
             "build_context_bundle",
-            lambda **kwargs: _context(),
+            lambda _session, **kwargs: _context(),
         )
 
         calls: list[bool] = []
@@ -288,6 +295,7 @@ class TestDecisionModes:
         )
 
         decision = ai_decision_engine.decide_message(
+            db.session,
             user_id=1,
             conversation_id=2,
             message="How do I recycle this bottle?",
@@ -317,7 +325,7 @@ class TestDecisionPipeline:
         monkeypatch.setattr(
             ai_decision_engine,
             "build_context_bundle",
-            lambda **kwargs: _context(
+            lambda _session, **kwargs: _context(
                 case_summaries=[
                     _case(1, "plastic bottle", "analysis_ready"),
                     _case(2, "battery", "awaiting_location"),
@@ -345,6 +353,7 @@ class TestDecisionPipeline:
         )
 
         decision = ai_decision_engine.decide_message(
+            db.session,
             user_id=1,
             conversation_id=2,
             message="Continue with the battery one.",
@@ -368,7 +377,7 @@ class TestDecisionPipeline:
         monkeypatch.setattr(
             ai_decision_engine,
             "build_context_bundle",
-            lambda **kwargs: _context(
+            lambda _session, **kwargs: _context(
                 case_summaries=[
                     _case(1, "plastic bottle", "analysis_ready"),
                     _case(2, "battery", "audit_failed"),
@@ -410,6 +419,7 @@ class TestDecisionPipeline:
         )
 
         decision = ai_decision_engine.decide_message(
+            db.session,
             user_id=1,
             conversation_id=2,
             message="Can you help with the recycling task from earlier?",
@@ -437,7 +447,7 @@ class TestDecisionPipeline:
         monkeypatch.setattr(
             ai_decision_engine,
             "build_context_bundle",
-            lambda **kwargs: _context(
+            lambda _session, **kwargs: _context(
                 case_summaries=[
                     _case(1, "plastic bottle", "analysis_ready"),
                     _case(2, "battery", "awaiting_location"),
@@ -465,6 +475,7 @@ class TestDecisionPipeline:
         )
 
         decision = ai_decision_engine.decide_message(
+            db.session,
             user_id=1,
             conversation_id=2,
             message="Continue that one.",
@@ -488,7 +499,7 @@ class TestDecisionPipeline:
         monkeypatch.setattr(
             ai_decision_engine,
             "build_context_bundle",
-            lambda **kwargs: _context(
+            lambda _session, **kwargs: _context(
                 case_summaries=[
                     _case(1, "plastic bottle", "analysis_ready"),
                     _case(2, "battery", "awaiting_location"),
@@ -516,6 +527,7 @@ class TestDecisionPipeline:
         )
 
         decision = ai_decision_engine.decide_message(
+            db.session,
             user_id=1,
             conversation_id=2,
             message="Do you have other recycling suggestions for that bottle?",
@@ -536,7 +548,7 @@ class TestForumRetrieval:
         monkeypatch.setattr(
             ai_decision_engine,
             "build_context_bundle",
-            lambda **kwargs: _context(),
+            lambda _session, **kwargs: _context(),
         )
         monkeypatch.setattr(
             ai_decision_engine,
@@ -550,6 +562,7 @@ class TestForumRetrieval:
         )
 
         decision = ai_decision_engine.decide_message(
+            db.session,
             user_id=1,
             conversation_id=2,
             message="How should I recycle this Oriental Leaf jasmine tea bottle?",
@@ -573,7 +586,7 @@ class TestForumRetrieval:
         monkeypatch.setattr(
             ai_decision_engine,
             "build_context_bundle",
-            lambda **kwargs: _context(),
+            lambda _session, **kwargs: _context(),
         )
         monkeypatch.setattr(
             ai_decision_engine,
@@ -587,6 +600,7 @@ class TestForumRetrieval:
         )
 
         decision = ai_decision_engine.decide_message(
+            db.session,
             user_id=1,
             conversation_id=2,
             message="Forum tips for sorting used batteries safely?",
@@ -604,7 +618,7 @@ class TestForumRetrieval:
         monkeypatch.setattr(
             ai_decision_engine,
             "build_context_bundle",
-            lambda **kwargs: _context(),
+            lambda _session, **kwargs: _context(),
         )
         monkeypatch.setattr(
             ai_decision_engine,
@@ -618,6 +632,7 @@ class TestForumRetrieval:
         )
 
         decision = ai_decision_engine.decide_message(
+            db.session,
             user_id=1,
             conversation_id=2,
             message="Has anyone shared a good battery drawer reset routine?",
@@ -634,7 +649,7 @@ class TestForumRetrieval:
         monkeypatch.setattr(
             ai_decision_engine,
             "build_context_bundle",
-            lambda **kwargs: _context(
+            lambda _session, **kwargs: _context(
                 recent_history=[
                     {
                         "role": "assistant",
@@ -655,6 +670,7 @@ class TestForumRetrieval:
         )
 
         decision = ai_decision_engine.decide_message(
+            db.session,
             user_id=1,
             conversation_id=2,
             message="What else could I do with jars like this?",
@@ -671,7 +687,7 @@ class TestForumRetrieval:
         monkeypatch.setattr(
             ai_decision_engine,
             "build_context_bundle",
-            lambda **kwargs: _context(),
+            lambda _session, **kwargs: _context(),
         )
         monkeypatch.setattr(
             ai_decision_engine,
@@ -685,6 +701,7 @@ class TestForumRetrieval:
         )
 
         decision = ai_decision_engine.decide_message(
+            db.session,
             user_id=1,
             conversation_id=2,
             message="Thanks, that helps a lot.",
@@ -724,6 +741,7 @@ class TestPersistenceAndHelpers:
         }
 
         result = ai_decision_engine.persist_message_decision(
+            db.session,
             conversation_id=4,
             user_message_id=12,
             decision=decision,

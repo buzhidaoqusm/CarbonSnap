@@ -3,8 +3,9 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from sqlalchemy.orm import Session
+
 from app.core.config import get_settings
-from app.extensions.db import db
 from app.repositories.ai import message_decision_repository
 from app.services.ai.agent_trace_service import build_trace_shell
 from app.services.ai.case_resolver import resolve_target_case_detailed
@@ -43,6 +44,7 @@ _FORUM_QUERY_HINTS = (
 
 
 def decide_message(
+    session: Session,
     *,
     user_id: int | None,
     conversation_id: int | None,
@@ -54,6 +56,7 @@ def decide_message(
 
     if mode == "llm_first":
         decision = _run_decision_pipeline(
+            session,
             user_id=user_id,
             conversation_id=conversation_id,
             message=message,
@@ -66,6 +69,7 @@ def decide_message(
         return decision
 
     primary = _run_decision_pipeline(
+        session,
         user_id=user_id,
         conversation_id=conversation_id,
         message=message,
@@ -78,6 +82,7 @@ def decide_message(
 
     if mode == "shadow":
         shadow = _run_decision_pipeline(
+            session,
             user_id=user_id,
             conversation_id=conversation_id,
             message=message,
@@ -92,6 +97,7 @@ def decide_message(
 
 
 def _run_decision_pipeline(
+    session: Session,
     *,
     user_id: int | None,
     conversation_id: int | None,
@@ -102,8 +108,9 @@ def _run_decision_pipeline(
     label: str,
 ) -> dict[str, Any]:
     max_turns = get_settings().ai_short_term_memory_turns
-    prompt_memory = get_prompt_memory_summary(db.session, user_id)
+    prompt_memory = get_prompt_memory_summary(session, user_id)
     context = build_context_bundle(
+        session,
         conversation_id=conversation_id,
         supplied_history=supplied_history,
         max_turns=max_turns,
@@ -321,6 +328,7 @@ def _decide_forum_retrieval(
 
 
 def persist_message_decision(
+    session: Session,
     *,
     conversation_id: int,
     user_message_id: int,
@@ -330,7 +338,7 @@ def persist_message_decision(
         key: value for key, value in decision.items() if key not in {"context", "prompt_memory"}
     }
     return message_decision_repository.create_message_decision(
-        db.session,
+        session,
         conversation_id=conversation_id,
         user_message_id=user_message_id,
         intent=decision["intent"],

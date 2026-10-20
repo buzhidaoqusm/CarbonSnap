@@ -6,11 +6,10 @@ from collections.abc import Generator
 from datetime import date, datetime
 from typing import Any
 
-from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
+from sqlalchemy.orm import Session
 
 from app.ai.tools.map.osm_public_provider import MapProviderError, OSMPublicMapProvider
 from app.core.config import get_settings
-from app.extensions.db import db
 from app.repositories.ai import conversation_repository, recycling_case_repository
 from app.services.ai.ai_decision_engine import persist_message_decision
 from app.services.ai.conversation_context_builder import build_runtime_reply_context
@@ -84,6 +83,7 @@ def _build_forum_query(
 
 
 def _retrieve_forum_candidates(
+    db_session: Session,
     *,
     message: str,
     runtime_context: dict[str, Any] | None = None,
@@ -94,12 +94,13 @@ def _retrieve_forum_candidates(
     if isinstance(decision, dict) and not decision.get("should_retrieve_forum", False):
         return []
     result = retrieve_forum_references(
+        db_session,
         query=_build_forum_query(
             message=message,
             runtime_context=runtime_context,
             analysis_payload=analysis_payload,
             case=case,
-        )
+        ),
     )
     return result.get("candidates") or []
 
@@ -191,12 +192,13 @@ def _extract_attempt_no_from_message(message: str) -> int | None:
 
 
 def _resolve_selected_audit_attempt(
+    db_session: Session,
     *,
     case: Any,
     message: str,
     runtime_context: dict[str, Any] | None = None,
 ):
-    attempts = recycling_case_repository.list_audit_attempts(db.session, case.id)
+    attempts = recycling_case_repository.list_audit_attempts(db_session, case.id)
     if not attempts:
         return None
 
@@ -217,12 +219,14 @@ def _resolve_selected_audit_attempt(
 
 
 def _selected_audit_attempt_note(
+    db_session: Session,
     *,
     case: Any,
     message: str,
     runtime_context: dict[str, Any] | None = None,
 ) -> str:
     selected_attempt = _resolve_selected_audit_attempt(
+        db_session,
         case=case,
         message=message,
         runtime_context=runtime_context,
@@ -249,30 +253,14 @@ def _selected_audit_attempt_note(
     return note
 
 
-def _get_authenticated_user_id() -> int | None:
-    try:
-        verify_jwt_in_request(optional=True)
-    except Exception:
-        return None
-
-    identity = get_jwt_identity()
-    if identity is None:
-        return None
-
-    try:
-        return int(identity)
-    except (TypeError, ValueError):
-        return None
-
-
 def _sync_conversation_session_context(
-    conversation_id: int | None, session: dict[str, Any]
+    db_session: Session, conversation_id: int | None, session: dict[str, Any]
 ) -> None:
     if conversation_id is None:
         return
 
     conversation_repository.update_conversation_state(
-        db.session,
+        db_session,
         conversation_id,
         session_context_json=json.dumps(serialize_session(session), ensure_ascii=False),
     )
@@ -304,6 +292,7 @@ def _location_state_ttl_seconds(location_state: dict[str, Any]) -> int:
 
 
 def _restore_session_from_persisted_context(
+    db_session: Session,
     *,
     session_id: str,
     user_id: int | None,
@@ -314,11 +303,11 @@ def _restore_session_from_persisted_context(
 
     if conversation_id is not None:
         conversation_candidates = [
-            conversation_repository.get_conversation(db.session, conversation_id, user_id)
+            conversation_repository.get_conversation(db_session, conversation_id, user_id)
         ]
     else:
         conversation_candidates = conversation_repository.list_conversations(
-            db.session, user_id=user_id, limit=100
+            db_session, user_id=user_id, limit=100
         )
 
     for conversation in conversation_candidates:
@@ -357,13 +346,14 @@ def _restore_session_from_persisted_context(
                 ttl_seconds=_location_state_ttl_seconds(location_state),
             )
 
-        _sync_conversation_session_context(conversation.id, session)
+        _sync_conversation_session_context(db_session, conversation.id, session)
         return session
 
     return None
 
 
 def _resolve_authenticated_conversation(
+    db_session: Session,
     *,
     session: dict[str, Any],
     user_id: int,
@@ -372,27 +362,27 @@ def _resolve_authenticated_conversation(
 ) -> tuple[Any, dict[str, Any]]:
     if conversation_id is not None:
         conversation = conversation_repository.get_conversation(
-            db.session, conversation_id, user_id
+            db_session, conversation_id, user_id
         )
         if conversation is None:
             raise ValueError(f"Conversation {conversation_id} not found.")
         session = set_workflow_reference(session["session_id"], conversation_id=conversation.id)
-        _sync_conversation_session_context(conversation.id, session)
+        _sync_conversation_session_context(db_session, conversation.id, session)
         return conversation, session
 
     conversation_id = session.get("conversation_id")
     if conversation_id is not None:
         conversation = conversation_repository.get_conversation(
-            db.session, conversation_id, user_id
+            db_session, conversation_id, user_id
         )
         if conversation is not None:
             return conversation, session
 
     conversation = conversation_repository.create_conversation(
-        db.session, user_id=user_id, title=title
+        db_session, user_id=user_id, title=title
     )
     session = set_workflow_reference(session["session_id"], conversation_id=conversation.id)
-    _sync_conversation_session_context(conversation.id, session)
+    _sync_conversation_session_context(db_session, conversation.id, session)
     return conversation, session
 
 
@@ -405,6 +395,7 @@ def _build_recycling_title(message: str, image_data_url: str | None = None) -> s
 
 
 def _create_recycling_case(
+    db_session: Session,
     *,
     session: dict[str, Any],
     user_id: int,
@@ -413,7 +404,7 @@ def _create_recycling_case(
     analysis_payload: dict[str, Any],
 ) -> tuple[Any, dict[str, Any]]:
     case = recycling_case_repository.create_recycling_case(
-        db.session,
+        db_session,
         user_id=user_id,
         conversation_id=conversation_id,
         origin_message_id=origin_message_id,
@@ -425,19 +416,20 @@ def _create_recycling_case(
     )
     try:
         behavior_event_service.record_ai_recycling_case_pending_audit(
-            db.session,
+            db_session,
             user_id=user_id,
             recycling_case_id=case.id,
         )
-        preference_profile_service.recompute_user_preference_profiles(db.session, user_id)
+        preference_profile_service.recompute_user_preference_profiles(db_session, user_id)
     except Exception:
         pass
-    rebuild_user_preferences_summary(db.session, user_id)
+    rebuild_user_preferences_summary(db_session, user_id)
     session = set_workflow_reference(session["session_id"], recycling_case_id=case.id)
     return case, session
 
 
 def _persist_memory_candidates(
+    db_session: Session,
     *,
     user_id: int | None,
     conversation_id: int | None,
@@ -451,7 +443,7 @@ def _persist_memory_candidates(
     for candidate in candidates:
         try:
             item = upsert_memory_item(
-                db.session,
+                db_session,
                 user_id=user_id,
                 memory_type=candidate["memory_type"],
                 memory_key=candidate["memory_key"],
@@ -486,6 +478,7 @@ def _analysis_payload_from_case(case: Any) -> dict[str, Any]:
 
 
 def _persist_recycling_assistant_message(
+    db_session: Session,
     *,
     conversation_id: int,
     message_type: str,
@@ -508,7 +501,7 @@ def _persist_recycling_assistant_message(
         content_json["location_state"] = _make_json_safe(location_state)
 
     return conversation_repository.append_message(
-        db.session,
+        db_session,
         conversation_id=conversation_id,
         role="assistant",
         message_type=message_type,
@@ -518,22 +511,23 @@ def _persist_recycling_assistant_message(
 
 
 def stream_recycling_analysis(
+    db_session: Session,
     *,
     message: str,
     image_data_url: str | None,
     session_id: str | None,
+    user_id: int | None,
     conversation_id: int | None = None,
-    user_id: int | None = None,
     decision: dict[str, Any] | None = None,
     client_context: dict[str, Any] | None = None,
 ) -> Generator[dict[str, Any], None, None]:
     session = create_or_get_session(session_id)
     active_session_id = session["session_id"]
-    effective_user_id = user_id if user_id is not None else _get_authenticated_user_id()
+    effective_user_id = user_id
     prompt_memory = (
         decision.get("prompt_memory")
         if isinstance(decision, dict) and decision.get("prompt_memory") is not None
-        else get_prompt_memory_summary(db.session, effective_user_id)
+        else get_prompt_memory_summary(db_session, effective_user_id)
     )
     conversation = None
     user_message = None
@@ -545,13 +539,14 @@ def stream_recycling_analysis(
 
     if effective_user_id is not None:
         conversation, session = _resolve_authenticated_conversation(
+            db_session,
             session=session,
             user_id=effective_user_id,
             title=_build_recycling_title(message, image_data_url),
             conversation_id=conversation_id,
         )
         user_message = conversation_repository.append_message(
-            db.session,
+            db_session,
             conversation_id=conversation.id,
             role="user",
             message_type="image" if image_data_url else "text",
@@ -568,8 +563,9 @@ def stream_recycling_analysis(
             active_session_id,
             conversation_id=conversation.id,
         )
-        _sync_conversation_session_context(conversation.id, session)
+        _sync_conversation_session_context(db_session, conversation.id, session)
         _persist_memory_candidates(
+            db_session,
             user_id=effective_user_id,
             conversation_id=conversation.id,
             source_message_id=user_message.id,
@@ -577,11 +573,13 @@ def stream_recycling_analysis(
         )
         if decision is not None:
             persist_message_decision(
+                db_session,
                 conversation_id=conversation.id,
                 user_message_id=user_message.id,
                 decision=decision,
             )
     runtime_context = build_runtime_reply_context(
+        db_session,
         conversation_id=conversation.id if conversation is not None else conversation_id,
         user_id=effective_user_id,
         max_turns=get_settings().ai_short_term_memory_turns,
@@ -607,12 +605,12 @@ def stream_recycling_analysis(
         case = None
         if target_case_id and effective_user_id is not None:
             case = recycling_case_repository.get_case(
-                db.session, int(target_case_id), effective_user_id
+                db_session, int(target_case_id), effective_user_id
             )
 
         if case is None and conversation is not None:
             pending_case = recycling_case_repository.get_pending_case_for_conversation(
-                db.session, conversation.id
+                db_session, conversation.id
             )
             case = pending_case
 
@@ -639,6 +637,7 @@ def stream_recycling_analysis(
         analysis_payload = _analysis_payload_from_case(case)
         follow_up_type = decision.get("follow_up_type")
         forum_candidates = _retrieve_forum_candidates(
+            db_session,
             message=message,
             runtime_context=runtime_context,
             analysis_payload=analysis_payload,
@@ -664,9 +663,10 @@ def stream_recycling_analysis(
                     recycling_case_id=case.id,
                 )
                 _sync_conversation_session_context(
-                    conversation.id if conversation is not None else None, session
+                    db_session, conversation.id if conversation is not None else None, session
                 )
                 yield from _stream_nearby_stage(
+                    db_session,
                     session_id=active_session_id,
                     user_id=effective_user_id,
                     conversation_id=conversation.id
@@ -691,9 +691,9 @@ def stream_recycling_analysis(
                 },
             )
             if conversation is not None:
-                _sync_conversation_session_context(conversation.id, session)
+                _sync_conversation_session_context(db_session, conversation.id, session)
                 conversation_repository.update_conversation_state(
-                    db.session,
+                    db_session,
                     conversation.id,
                     status="awaiting_location",
                     current_pending_action="location_permission",
@@ -715,7 +715,11 @@ def stream_recycling_analysis(
             return
 
         if follow_up_type == "task_verification" and image_data_url and conversation is not None:
+            if effective_user_id is None:
+                raise ValueError("Authentication is required for recycling audit.")
             yield from stream_recycling_audit(
+                db_session,
+                user_id=effective_user_id,
                 conversation_id=conversation.id,
                 recycling_case_id=case.id,
                 message=message,
@@ -730,7 +734,7 @@ def stream_recycling_analysis(
                 "Continue the existing recycling case with a helpful Markdown answer.\n"
                 f"User follow-up: {message}\n"
                 f"Case summary: {json.dumps(_make_json_safe(analysis_payload), ensure_ascii=False)}\n"
-                f"{_selected_audit_attempt_note(case=case, message=message, runtime_context=runtime_context)}\n"
+                f"{_selected_audit_attempt_note(db_session, case=case, message=message, runtime_context=runtime_context)}\n"
                 f"{_runtime_context_note(runtime_context)}\n"
                 f"{build_forum_prompt_block(forum_candidates)}\n"
                 f"{build_graph_prompt_block(graph_context)}"
@@ -759,6 +763,7 @@ def stream_recycling_analysis(
 
         if conversation is not None:
             _persist_recycling_assistant_message(
+                db_session,
                 conversation_id=conversation.id,
                 message_type="tool_result",
                 content_text="".join(follow_up_chunks).strip() or "Recycling follow-up completed.",
@@ -767,7 +772,7 @@ def stream_recycling_analysis(
                 recycling_case_id=case.id,
             )
             conversation_repository.update_conversation_state(
-                db.session,
+                db_session,
                 conversation.id,
                 status="completed",
                 current_pending_action="none",
@@ -791,6 +796,7 @@ def stream_recycling_analysis(
         image_data_url=image_data_url,
         prompt_memory=prompt_memory,
         forum_candidates=_retrieve_forum_candidates(
+            db_session,
             message=message,
             runtime_context=runtime_context,
             decision=decision,
@@ -812,6 +818,7 @@ def stream_recycling_analysis(
 
     if effective_user_id is not None and conversation is not None and user_message is not None:
         case, session = _create_recycling_case(
+            db_session,
             session=session,
             user_id=effective_user_id,
             conversation_id=conversation.id,
@@ -823,10 +830,11 @@ def stream_recycling_analysis(
             conversation_id=conversation.id,
             recycling_case_id=case.id,
         )
-        _sync_conversation_session_context(conversation.id, session)
+        _sync_conversation_session_context(db_session, conversation.id, session)
 
         stage1_reply = "".join(stage1_chunks).strip() or "Recycling analysis completed."
         stage1_message = _persist_recycling_assistant_message(
+            db_session,
             conversation_id=conversation.id,
             message_type="analysis_result",
             content_text=stage1_reply,
@@ -853,9 +861,9 @@ def stream_recycling_analysis(
         clear_paused_context(active_session_id)
         if effective_user_id is not None and conversation is not None:
             session = create_or_get_session(active_session_id)
-            _sync_conversation_session_context(conversation.id, session)
+            _sync_conversation_session_context(db_session, conversation.id, session)
             conversation_repository.update_conversation_state(
-                db.session,
+                db_session,
                 conversation.id,
                 status="completed",
                 current_pending_action="none",
@@ -866,6 +874,7 @@ def stream_recycling_analysis(
 
     if valid_location_state and _can_execute_nearby_search(valid_location_state):
         yield from _stream_nearby_stage(
+            db_session,
             session_id=active_session_id,
             user_id=effective_user_id,
             conversation_id=conversation.id if conversation is not None else None,
@@ -889,9 +898,9 @@ def stream_recycling_analysis(
         },
     )
     if effective_user_id is not None and conversation is not None:
-        _sync_conversation_session_context(conversation.id, session)
+        _sync_conversation_session_context(db_session, conversation.id, session)
         conversation_repository.update_conversation_state(
-            db.session,
+            db_session,
             conversation.id,
             status="awaiting_location",
             current_pending_action="location_permission",
@@ -912,6 +921,7 @@ def stream_recycling_analysis(
 
 
 def complete_recycling_analysis(
+    db_session: Session,
     *,
     user_id: int | None,
     message: str,
@@ -926,6 +936,7 @@ def complete_recycling_analysis(
     clarification: dict[str, Any] | None = None
 
     for event in stream_recycling_analysis(
+        db_session,
         message=message,
         image_data_url=image_data_url,
         session_id=None,
@@ -961,15 +972,18 @@ def complete_recycling_analysis(
     }
 
 
-def store_location_context(payload: dict[str, Any]) -> dict[str, Any]:
+def store_location_context(
+    db_session: Session, payload: dict[str, Any], *, user_id: int
+) -> dict[str, Any]:
     session_id = str(payload.get("session_id", "")).strip()
     if not session_id:
         raise ValueError("Field 'session_id' is required.")
 
     conversation_id = _parse_optional_int(payload.get("conversation_id"))
     _restore_session_from_persisted_context(
+        db_session,
         session_id=session_id,
-        user_id=_get_authenticated_user_id(),
+        user_id=user_id,
         conversation_id=conversation_id,
     )
 
@@ -989,7 +1003,7 @@ def store_location_context(payload: dict[str, Any]) -> dict[str, Any]:
             skip_nearby_search=True,
             ttl_seconds=get_settings().ai_browser_location_ttl_minutes * 60,
         )
-        _sync_conversation_session_context(session.get("conversation_id"), session)
+        _sync_conversation_session_context(db_session, session.get("conversation_id"), session)
         return serialize_session(session)
 
     if browser_location is not None:
@@ -1010,7 +1024,7 @@ def store_location_context(payload: dict[str, Any]) -> dict[str, Any]:
             skip_nearby_search=False,
             ttl_seconds=get_settings().ai_browser_location_ttl_minutes * 60,
         )
-        _sync_conversation_session_context(session.get("conversation_id"), session)
+        _sync_conversation_session_context(db_session, session.get("conversation_id"), session)
         return serialize_session(session)
 
     if manual_area:
@@ -1029,7 +1043,7 @@ def store_location_context(payload: dict[str, Any]) -> dict[str, Any]:
             skip_nearby_search=False,
             ttl_seconds=get_settings().ai_manual_location_ttl_hours * 3600,
         )
-        _sync_conversation_session_context(session.get("conversation_id"), session)
+        _sync_conversation_session_context(db_session, session.get("conversation_id"), session)
         return serialize_session(session)
 
     if permission_state == "denied":
@@ -1043,7 +1057,7 @@ def store_location_context(payload: dict[str, Any]) -> dict[str, Any]:
             skip_nearby_search=False,
             ttl_seconds=get_settings().ai_browser_location_ttl_minutes * 60,
         )
-        _sync_conversation_session_context(session.get("conversation_id"), session)
+        _sync_conversation_session_context(db_session, session.get("conversation_id"), session)
         return serialize_session(session)
 
     raise ValueError(
@@ -1051,18 +1065,20 @@ def store_location_context(payload: dict[str, Any]) -> dict[str, Any]:
     )
 
 
-def stream_recycling_resume(session_id: str) -> Generator[dict[str, Any], None, None]:
+def stream_recycling_resume(
+    db_session: Session, session_id: str, *, user_id: int
+) -> Generator[dict[str, Any], None, None]:
     from app.services.ai.demo_seed_replay_service import get_seed_demo_resume_stream
 
-    demo_replay_stream = get_seed_demo_resume_stream(session_id)
+    demo_replay_stream = get_seed_demo_resume_stream(db_session, session_id)
     if demo_replay_stream is not None:
         yield from demo_replay_stream
         return
 
-    user_id = _get_authenticated_user_id()
     paused_context = get_paused_context(session_id)
     if not paused_context:
         restored_session = _restore_session_from_persisted_context(
+            db_session,
             session_id=session_id,
             user_id=user_id,
         )
@@ -1083,17 +1099,19 @@ def stream_recycling_resume(session_id: str) -> Generator[dict[str, Any], None, 
 
     if _can_execute_nearby_search(location_state):
         runtime_context = build_runtime_reply_context(
+            db_session,
             conversation_id=conversation_id,
             user_id=user_id,
-            prompt_memory=get_prompt_memory_summary(db.session, user_id),
+            prompt_memory=get_prompt_memory_summary(db_session, user_id),
         )
         yield from _stream_nearby_stage(
+            db_session,
             session_id=session_id,
             user_id=user_id,
             conversation_id=conversation_id,
             analysis_payload=analysis_payload,
             location_state=location_state,
-            prompt_memory=get_prompt_memory_summary(db.session, user_id),
+            prompt_memory=get_prompt_memory_summary(db_session, user_id),
             runtime_context=runtime_context,
         )
         return
@@ -1104,11 +1122,12 @@ def stream_recycling_resume(session_id: str) -> Generator[dict[str, Any], None, 
     yield from _stream_skip_summary(
         analysis_payload=analysis_payload,
         location_state=location_state,
-        prompt_memory=get_prompt_memory_summary(db.session, user_id),
+        prompt_memory=get_prompt_memory_summary(db_session, user_id),
         runtime_context=build_runtime_reply_context(
+            db_session,
             conversation_id=conversation_id,
             user_id=user_id,
-            prompt_memory=get_prompt_memory_summary(db.session, user_id),
+            prompt_memory=get_prompt_memory_summary(db_session, user_id),
         ),
         collector=completion_chunks,
     )
@@ -1117,6 +1136,7 @@ def stream_recycling_resume(session_id: str) -> Generator[dict[str, Any], None, 
             "".join(completion_chunks).strip() or "Nearby recycling search was skipped."
         )
         _persist_recycling_assistant_message(
+            db_session,
             conversation_id=conversation_id,
             message_type="tool_result",
             content_text=completion_reply,
@@ -1126,7 +1146,7 @@ def stream_recycling_resume(session_id: str) -> Generator[dict[str, Any], None, 
             location_state=location_state,
         )
         conversation_repository.update_conversation_state(
-            db.session,
+            db_session,
             conversation_id,
             status="completed",
             current_pending_action="none",
@@ -1385,6 +1405,7 @@ def _stream_stage1_markdown(
 
 
 def _stream_nearby_stage(
+    db_session: Session,
     *,
     session_id: str,
     user_id: int | None,
@@ -1435,6 +1456,7 @@ def _stream_nearby_stage(
     if user_id is not None and conversation_id is not None:
         summary = "".join(summary_chunks).strip() or "Nearby recycling search completed."
         _persist_recycling_assistant_message(
+            db_session,
             conversation_id=conversation_id,
             message_type="tool_result",
             content_text=summary,
@@ -1448,7 +1470,7 @@ def _stream_nearby_stage(
     cleared_session = clear_paused_context(session_id)
     if user_id is not None and conversation_id is not None:
         conversation_repository.update_conversation_state(
-            db.session,
+            db_session,
             conversation_id,
             status="completed",
             current_pending_action="none",

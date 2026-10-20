@@ -10,10 +10,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from flask import current_app
+from sqlalchemy.orm import Session
 
-from app.core.config import get_settings
-from app.extensions.db import db
+from app.core.config import DATA_ROOT, get_settings
 from app.models.ai import RecyclingCase
 from app.repositories.ai import conversation_repository, recycling_case_repository
 from app.repositories.ledger import ledger_repository
@@ -66,6 +65,7 @@ class SeedAuditReplayMatch:
 
 
 def get_seed_demo_replay_stream(
+    db_session: Session,
     *,
     user_id: int | None,
     message: str,
@@ -80,6 +80,7 @@ def get_seed_demo_replay_stream(
         return None
 
     return stream_seed_demo_replay(
+        db_session,
         user_id=user_id,
         message=message,
         image_data_url=image_data_url,
@@ -116,6 +117,7 @@ def find_seed_replay_match(
 
 
 def stream_seed_demo_replay(
+    db_session: Session,
     *,
     user_id: int | None,
     message: str,
@@ -132,13 +134,13 @@ def stream_seed_demo_replay(
     if user_id is not None:
         if conversation_id is None:
             conversation = conversation_repository.create_conversation(
-                db.session,
+                db_session,
                 user_id=user_id,
                 title=_title_from_conversation_seed(match.user_message.conversation_ref),
             )
         else:
             conversation = conversation_repository.get_conversation(
-                db.session, conversation_id, user_id
+                db_session, conversation_id, user_id
             )
             if conversation is None:
                 raise ValueError(f"Conversation {conversation_id} not found.")
@@ -147,7 +149,7 @@ def stream_seed_demo_replay(
             store_data_url_image(image_data_url, namespace="chat") if image_data_url else None
         )
         user_message = conversation_repository.append_message(
-            db.session,
+            db_session,
             conversation_id=conversation.id,
             role="user",
             message_type="image" if image_data_url else "text",
@@ -163,6 +165,7 @@ def stream_seed_demo_replay(
             ),
         )
         persisted_memory_updates = _persist_seed_memory_updates(
+            db_session,
             user_id=user_id,
             conversation_id=conversation.id,
             source_message_id=user_message.id,
@@ -185,6 +188,7 @@ def stream_seed_demo_replay(
     final_stage = "completed"
     for index, assistant_seed in enumerate(match.assistant_messages):
         content_json = _replace_seed_refs(
+            db_session,
             assistant_seed.content_json,
             user_id=user_id,
             conversation_id=conversation.id if conversation is not None else None,
@@ -196,7 +200,7 @@ def stream_seed_demo_replay(
         assistant_message = None
         if conversation is not None:
             assistant_message = conversation_repository.append_message(
-                db.session,
+                db_session,
                 conversation_id=conversation.id,
                 role="assistant",
                 message_type=assistant_seed.message_type,
@@ -225,6 +229,7 @@ def stream_seed_demo_replay(
             )
             if _analysis_requires_location(content_json):
                 yield from _stream_awaiting_location(
+                    db_session,
                     content_json=content_json,
                     message=message,
                     conversation_id=conversation.id if conversation is not None else None,
@@ -264,7 +269,7 @@ def stream_seed_demo_replay(
 
     if conversation is not None:
         conversation_repository.update_conversation_state(
-            db.session,
+            db_session,
             conversation.id,
             status="completed" if final_stage == "completed" else "active",
             current_pending_action="none",
@@ -277,6 +282,7 @@ def stream_seed_demo_replay(
 
 
 def complete_seed_demo_replay(
+    db_session: Session,
     *,
     user_id: int | None,
     message: str,
@@ -284,6 +290,7 @@ def complete_seed_demo_replay(
     conversation_id: int | None,
 ) -> dict[str, Any] | None:
     stream = get_seed_demo_replay_stream(
+        db_session,
         user_id=user_id,
         message=message,
         image_data_url=image_data_url,
@@ -317,7 +324,9 @@ def complete_seed_demo_replay(
     }
 
 
-def get_seed_demo_resume_stream(session_id: str) -> Generator[dict[str, Any], None, None] | None:
+def get_seed_demo_resume_stream(
+    db_session: Session, session_id: str
+) -> Generator[dict[str, Any], None, None] | None:
     if not get_settings().ai_demo_replay_enabled:
         return None
 
@@ -332,6 +341,7 @@ def get_seed_demo_resume_stream(session_id: str) -> Generator[dict[str, Any], No
         return None
 
     return stream_seed_demo_resume(
+        db_session,
         session_id=session_id,
         paused_context=paused_context,
         assistant_messages=remaining_messages,
@@ -339,6 +349,7 @@ def get_seed_demo_resume_stream(session_id: str) -> Generator[dict[str, Any], No
 
 
 def stream_seed_demo_resume(
+    db_session: Session,
     *,
     session_id: str,
     paused_context: dict[str, Any],
@@ -359,6 +370,7 @@ def stream_seed_demo_resume(
 
     for assistant_seed in assistant_messages:
         content_json = _replace_seed_refs(
+            db_session,
             assistant_seed.content_json,
             user_id=None,
             conversation_id=conversation_id,
@@ -371,7 +383,7 @@ def stream_seed_demo_resume(
         assistant_message = None
         if conversation_id is not None:
             assistant_message = conversation_repository.append_message(
-                db.session,
+                db_session,
                 conversation_id=int(conversation_id),
                 role="assistant",
                 message_type=assistant_seed.message_type,
@@ -413,7 +425,7 @@ def stream_seed_demo_resume(
     cleared_session = clear_paused_context(session_id)
     if conversation_id is not None:
         conversation_repository.update_conversation_state(
-            db.session,
+            db_session,
             int(conversation_id),
             status="completed",
             current_pending_action="none",
@@ -423,6 +435,7 @@ def stream_seed_demo_resume(
 
 
 def get_seed_demo_audit_stream(
+    db_session: Session,
     *,
     user_id: int,
     conversation_id: int,
@@ -434,6 +447,7 @@ def get_seed_demo_audit_stream(
         return None
 
     seed_case_ref = _seed_case_ref_for_replayed_case(
+        db_session,
         conversation_id=conversation_id,
         recycling_case_id=case.id,
     )
@@ -449,6 +463,7 @@ def get_seed_demo_audit_stream(
         return None
 
     return stream_seed_demo_audit(
+        db_session,
         user_id=user_id,
         conversation_id=conversation_id,
         case=case,
@@ -459,6 +474,7 @@ def get_seed_demo_audit_stream(
 
 
 def stream_seed_demo_audit(
+    db_session: Session,
     *,
     user_id: int,
     conversation_id: int,
@@ -469,7 +485,7 @@ def stream_seed_demo_audit(
 ) -> Generator[dict[str, Any], None, None]:
     stored_image_url = store_data_url_image(image_data_url, namespace="recycling-audit")
     user_message = conversation_repository.append_message(
-        db.session,
+        db_session,
         conversation_id=conversation_id,
         role="user",
         message_type="image",
@@ -499,7 +515,7 @@ def stream_seed_demo_audit(
     seed_payload = json.loads(json.dumps(match.assistant_message.content_json))
     audit_payload = dict(seed_payload.get("audit_result") or {})
     audit_attempt = recycling_case_repository.create_audit_attempt(
-        db.session,
+        db_session,
         recycling_case_id=case.id,
         user_id=user_id,
         conversation_id=conversation_id,
@@ -526,7 +542,7 @@ def stream_seed_demo_audit(
 
     if finalized and audit_attempt.audit_result == "passed":
         record, transaction, user = ledger_repository.finalize_approved_recycling_case_and_earn(
-            db.session,
+            db_session,
             user_id=user_id,
             conversation_id=conversation_id,
             recycling_case_id=case.id,
@@ -568,7 +584,7 @@ def stream_seed_demo_audit(
         assistant_payload["retryable"] = True
 
     assistant_message = conversation_repository.append_message(
-        db.session,
+        db_session,
         conversation_id=conversation_id,
         role="assistant",
         message_type="audit_result",
@@ -577,7 +593,7 @@ def stream_seed_demo_audit(
         related_analysis_id=finalized_record_id,
     )
     conversation_repository.update_conversation_state(
-        db.session,
+        db_session,
         conversation_id,
         status="completed" if finalized else "active",
         current_pending_action="none",
@@ -645,6 +661,7 @@ def _stream_nearby_seed_message(
 
 
 def _stream_awaiting_location(
+    db_session: Session,
     *,
     content_json: dict[str, Any],
     message: str,
@@ -676,7 +693,7 @@ def _stream_awaiting_location(
     )
     if conversation_id is not None:
         conversation_repository.update_conversation_state(
-            db.session,
+            db_session,
             conversation_id,
             status="awaiting_location",
             current_pending_action="location_permission",
@@ -772,6 +789,7 @@ def _build_memory_value_from_seed_update(
 
 
 def _persist_seed_memory_updates(
+    db_session: Session,
     *,
     user_id: int,
     conversation_id: int,
@@ -795,7 +813,7 @@ def _persist_seed_memory_updates(
 
         try:
             item = upsert_memory_item(
-                db.session,
+                db_session,
                 user_id=user_id,
                 memory_type=memory_type,
                 memory_key=memory_key,
@@ -825,8 +843,10 @@ def _analysis_requires_location(content_json: dict[str, Any]) -> bool:
     return bool(analysis_payload.get("requires_location_decision"))
 
 
-def _seed_case_ref_for_replayed_case(*, conversation_id: int, recycling_case_id: int) -> str | None:
-    for message in conversation_repository.list_messages(db.session, conversation_id):
+def _seed_case_ref_for_replayed_case(
+    db_session: Session, *, conversation_id: int, recycling_case_id: int
+) -> str | None:
+    for message in conversation_repository.list_messages(db_session, conversation_id):
         if message.role != "assistant":
             continue
         try:
@@ -914,6 +934,7 @@ def _serialize_audit_attempt(attempt: Any) -> dict[str, Any]:
 
 
 def _replace_seed_refs(
+    db_session: Session,
     content_json: dict[str, Any],
     *,
     user_id: int | None,
@@ -933,6 +954,7 @@ def _replace_seed_refs(
             and origin_message_id is not None
         ):
             case = _create_case_from_seed_ref(
+                db_session,
                 case_ref,
                 user_id=user_id,
                 conversation_id=conversation_id,
@@ -948,6 +970,7 @@ def _replace_seed_refs(
 
 
 def _create_case_from_seed_ref(
+    db_session: Session,
     case_ref: str,
     *,
     user_id: int,
@@ -971,8 +994,8 @@ def _create_case_from_seed_ref(
         status="pending_audit",
         latest_audit_attempt_no=0,
     )
-    db.session.add(case)
-    db.session.commit()
+    db_session.add(case)
+    db_session.commit()
     return case
 
 
@@ -1051,7 +1074,7 @@ def _seed_asset_path_from_upload_url(upload_url: str) -> Path | None:
 
 
 def _seeds_root() -> Path:
-    return Path(current_app.root_path).resolve().parents[1] / "data" / "seeds"
+    return DATA_ROOT / "seeds"
 
 
 def _seed_key_from_ref(ref: str) -> str:

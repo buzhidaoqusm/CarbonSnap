@@ -6,9 +6,9 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.extensions.db import db
 from app.models.ai import AIConversation, AIMessage, RecyclingCase
 from app.repositories.ai import conversation_repository, recycling_case_repository
 from app.services.ai.agent_trace_service import (
@@ -130,9 +130,9 @@ def _serialize_recycling_case(
     }
 
 
-def _count_user_conversations(user_id: int) -> int:
+def _count_user_conversations(session: Session, user_id: int) -> int:
     return (
-        db.session.scalar(
+        session.scalar(
             select(func.count(AIConversation.id)).where(AIConversation.user_id == user_id)
         )
         or 0
@@ -140,21 +140,23 @@ def _count_user_conversations(user_id: int) -> int:
 
 
 def _resolve_conversation_for_user(
+    session: Session,
     *,
     user_id: int,
     conversation_id: int | None,
     title: str | None = None,
 ) -> AIConversation:
     if conversation_id is None:
-        return conversation_repository.create_conversation(db.session, user_id=user_id, title=title)
+        return conversation_repository.create_conversation(session, user_id=user_id, title=title)
 
-    conversation = conversation_repository.get_conversation(db.session, conversation_id, user_id)
+    conversation = conversation_repository.get_conversation(session, conversation_id, user_id)
     if conversation is None:
         raise ValueError(f"Conversation {conversation_id} not found.")
     return conversation
 
 
 def _resolve_history_for_request(
+    session: Session,
     *,
     conversation: AIConversation | None,
     supplied_history: list[dict[str, Any]] | None,
@@ -164,7 +166,7 @@ def _resolve_history_for_request(
     if conversation is None:
         return _trim_history_to_recent_turns(supplied_history or [], max_turns=max_turns), None
 
-    persisted_messages = conversation_repository.list_messages(db.session, conversation.id)
+    persisted_messages = conversation_repository.list_messages(session, conversation.id)
     if persisted_messages:
         return _trim_history_to_recent_turns(
             history_from_message_records(persisted_messages),
@@ -316,6 +318,7 @@ def _build_short_term_system_prompt(
 
 
 def _persist_user_message(
+    session: Session,
     *,
     conversation_id: int,
     message: str,
@@ -328,7 +331,7 @@ def _persist_user_message(
         content_payload["image_url"] = store_data_url_image(image_data_url, namespace="chat")
 
     return conversation_repository.append_message(
-        db.session,
+        session,
         conversation_id=conversation_id,
         role="user",
         message_type="image" if image_data_url else "text",
@@ -338,6 +341,7 @@ def _persist_user_message(
 
 
 def _persist_assistant_message(
+    session: Session,
     *,
     conversation_id: int,
     reply: str,
@@ -363,7 +367,7 @@ def _persist_assistant_message(
     content_json = json.dumps(payload, ensure_ascii=False) if payload else None
 
     return conversation_repository.append_message(
-        db.session,
+        session,
         conversation_id=conversation_id,
         role="assistant",
         message_type="text",
@@ -373,6 +377,7 @@ def _persist_assistant_message(
 
 
 def _persist_clarification_assistant_message(
+    session: Session,
     *,
     conversation_id: int,
     clarification_question: str,
@@ -390,7 +395,7 @@ def _persist_clarification_assistant_message(
     if normalized_trace:
         payload["trace"] = normalized_trace
     return conversation_repository.append_message(
-        db.session,
+        session,
         conversation_id=conversation_id,
         role="assistant",
         message_type="tool_result",
@@ -400,6 +405,7 @@ def _persist_clarification_assistant_message(
 
 
 def _persist_explicit_memory_candidates(
+    session: Session,
     *,
     user_id: int,
     conversation_id: int,
@@ -411,7 +417,7 @@ def _persist_explicit_memory_candidates(
     for candidate in candidates:
         try:
             item = upsert_memory_item(
-                db.session,
+                session,
                 user_id=user_id,
                 memory_type=candidate["memory_type"],
                 memory_key=candidate["memory_key"],
@@ -477,6 +483,7 @@ def _build_initial_chat_title(
 
 
 def _persist_clarification_request(
+    session: Session,
     *,
     user_id: int | None,
     message: str,
@@ -495,16 +502,19 @@ def _persist_clarification_request(
         resolved_title = _build_initial_chat_title(message=message, image_data_url=image_data_url)
 
     conversation = _resolve_conversation_for_user(
+        session,
         user_id=user_id,
         conversation_id=conversation_id,
         title=resolved_title,
     )
     user_message = _persist_user_message(
+        session,
         conversation_id=conversation.id,
         message=message,
         image_data_url=image_data_url,
     )
     persist_message_decision(
+        session,
         conversation_id=conversation.id,
         user_message_id=user_message.id,
         decision=decision,
@@ -513,6 +523,7 @@ def _persist_clarification_request(
         "conversation": conversation,
         "user_message": user_message,
         "assistant_message": _persist_clarification_assistant_message(
+            session,
             conversation_id=conversation.id,
             clarification_question=decision.get("clarification_question")
             or "Could you clarify which recycling task you mean?",
@@ -595,12 +606,12 @@ def _build_forum_query(message: str, decision: dict[str, Any] | None) -> str:
 
 
 def _retrieve_forum_candidates(
-    message: str, decision: dict[str, Any] | None
+    session: Session, message: str, decision: dict[str, Any] | None
 ) -> list[dict[str, Any]]:
     if not isinstance(decision, dict) or not decision.get("should_retrieve_forum"):
         return []
 
-    result = retrieve_forum_references(query=_build_forum_query(message, decision))
+    result = retrieve_forum_references(session, query=_build_forum_query(message, decision))
     return result.get("candidates") or []
 
 
@@ -641,6 +652,7 @@ def _resolve_response_forum_references(
 
 
 def complete_chat_message(
+    session: Session,
     *,
     user_id: int | None,
     message: str,
@@ -653,7 +665,7 @@ def complete_chat_message(
     decision: dict[str, Any] | None = None,
     client_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    forum_candidates = _retrieve_forum_candidates(message, decision)
+    forum_candidates = _retrieve_forum_candidates(session, message, decision)
     graph_context = _retrieve_graph_context(message, decision)
 
     if user_id is None:
@@ -688,15 +700,18 @@ def complete_chat_message(
         resolved_title = _build_initial_chat_title(message=message, image_data_url=image_data_url)
 
     conversation = _resolve_conversation_for_user(
+        session,
         user_id=user_id,
         conversation_id=conversation_id,
         title=resolved_title,
     )
     request_history, persisted_messages = _resolve_history_for_request(
+        session,
         conversation=conversation,
         supplied_history=history,
     )
     runtime_context = build_runtime_reply_context(
+        session,
         conversation_id=conversation.id,
         user_id=user_id,
         supplied_history=history,
@@ -713,11 +728,13 @@ def complete_chat_message(
     )
 
     user_message = _persist_user_message(
+        session,
         conversation_id=conversation.id,
         message=message,
         image_data_url=image_data_url,
     )
     memory_updates = _persist_explicit_memory_candidates(
+        session,
         user_id=user_id,
         conversation_id=conversation.id,
         source_message_id=user_message.id,
@@ -725,17 +742,18 @@ def complete_chat_message(
     )
     if decision is not None:
         persist_message_decision(
+            session,
             conversation_id=conversation.id,
             user_message_id=user_message.id,
             decision=decision,
         )
     effective_prompt_memory = (
-        get_prompt_memory_summary(db.session, user_id)
+        get_prompt_memory_summary(session, user_id)
         if memory_updates
         else (
             prompt_memory
             if prompt_memory is not None
-            else get_prompt_memory_summary(db.session, user_id)
+            else get_prompt_memory_summary(session, user_id)
         )
     )
     effective_prompt_memory = _apply_memory_candidates_to_prompt_memory(
@@ -761,6 +779,7 @@ def complete_chat_message(
         graph_context=graph_context,
     )
     assistant_message = _persist_assistant_message(
+        session,
         conversation_id=conversation.id,
         reply=result["reply"],
         model=result.get("model"),
@@ -835,6 +854,7 @@ def _build_agent_loop_trace(
 
 
 def complete_tool_calling_agent_message(
+    session: Session,
     *,
     user_id: int | None,
     message: str,
@@ -873,7 +893,7 @@ def complete_tool_calling_agent_message(
             system_prompt=system_prompt,
             prompt_memory=prompt_memory or {},
         )
-        loop_result = run_tool_calling_agent(messages=messages, context=agent_context)
+        loop_result = run_tool_calling_agent(session, messages=messages, context=agent_context)
         return {
             "reply": loop_result.get("content", ""),
             "model": loop_result.get("model"),
@@ -891,21 +911,25 @@ def complete_tool_calling_agent_message(
         resolved_title = _build_initial_chat_title(message=message, image_data_url=image_data_url)
 
     conversation = _resolve_conversation_for_user(
+        session,
         user_id=user_id,
         conversation_id=conversation_id,
         title=resolved_title,
     )
     request_history, _persisted_messages = _resolve_history_for_request(
+        session,
         conversation=conversation,
         supplied_history=history,
     )
 
     user_message = _persist_user_message(
+        session,
         conversation_id=conversation.id,
         message=message,
         image_data_url=image_data_url,
     )
     memory_updates = _persist_explicit_memory_candidates(
+        session,
         user_id=user_id,
         conversation_id=conversation.id,
         source_message_id=user_message.id,
@@ -913,17 +937,18 @@ def complete_tool_calling_agent_message(
     )
     if decision is not None:
         persist_message_decision(
+            session,
             conversation_id=conversation.id,
             user_message_id=user_message.id,
             decision=decision,
         )
     effective_prompt_memory = (
-        get_prompt_memory_summary(db.session, user_id)
+        get_prompt_memory_summary(session, user_id)
         if memory_updates
         else (
             prompt_memory
             if prompt_memory is not None
-            else get_prompt_memory_summary(db.session, user_id)
+            else get_prompt_memory_summary(session, user_id)
         )
     )
     effective_prompt_memory = _apply_memory_candidates_to_prompt_memory(
@@ -938,7 +963,7 @@ def complete_tool_calling_agent_message(
         system_prompt=system_prompt,
         prompt_memory=effective_prompt_memory,
     )
-    loop_result = run_tool_calling_agent(messages=messages, context=agent_context)
+    loop_result = run_tool_calling_agent(session, messages=messages, context=agent_context)
 
     response_trace = _build_agent_loop_trace(
         decision=decision,
@@ -947,6 +972,7 @@ def complete_tool_calling_agent_message(
         loop_result=loop_result,
     )
     assistant_message = _persist_assistant_message(
+        session,
         conversation_id=conversation.id,
         reply=loop_result.get("content", ""),
         model=loop_result.get("model"),
@@ -1028,6 +1054,7 @@ def _attach_and_log_tool_selection_shadow(
 
 
 def complete_general_chat_with_mode(
+    session: Session,
     *,
     user_id: int | None,
     message: str,
@@ -1061,6 +1088,7 @@ def complete_general_chat_with_mode(
 
     if mode == "model":
         result = complete_tool_calling_agent_message(
+            session,
             user_id=user_id,
             message=message,
             history=history,
@@ -1084,6 +1112,7 @@ def complete_general_chat_with_mode(
         return result
 
     result = complete_chat_message(
+        session,
         user_id=user_id,
         message=message,
         history=history,
@@ -1124,6 +1153,7 @@ def complete_general_chat_with_mode(
 
 
 def stream_chat_message(
+    session: Session,
     *,
     user_id: int | None,
     message: str,
@@ -1136,7 +1166,7 @@ def stream_chat_message(
     decision: dict[str, Any] | None = None,
     client_context: dict[str, Any] | None = None,
 ) -> Generator[dict[str, Any], None, None]:
-    forum_candidates = _retrieve_forum_candidates(message, decision)
+    forum_candidates = _retrieve_forum_candidates(session, message, decision)
     graph_context = _retrieve_graph_context(message, decision)
 
     if user_id is None:
@@ -1183,15 +1213,18 @@ def stream_chat_message(
         resolved_title = _build_initial_chat_title(message=message, image_data_url=image_data_url)
 
     conversation = _resolve_conversation_for_user(
+        session,
         user_id=user_id,
         conversation_id=conversation_id,
         title=resolved_title,
     )
     request_history, persisted_messages = _resolve_history_for_request(
+        session,
         conversation=conversation,
         supplied_history=history,
     )
     runtime_context = build_runtime_reply_context(
+        session,
         conversation_id=conversation.id,
         user_id=user_id,
         supplied_history=history,
@@ -1208,11 +1241,13 @@ def stream_chat_message(
     )
 
     user_message = _persist_user_message(
+        session,
         conversation_id=conversation.id,
         message=message,
         image_data_url=image_data_url,
     )
     memory_updates = _persist_explicit_memory_candidates(
+        session,
         user_id=user_id,
         conversation_id=conversation.id,
         source_message_id=user_message.id,
@@ -1220,17 +1255,18 @@ def stream_chat_message(
     )
     if decision is not None:
         persist_message_decision(
+            session,
             conversation_id=conversation.id,
             user_message_id=user_message.id,
             decision=decision,
         )
     effective_prompt_memory = (
-        get_prompt_memory_summary(db.session, user_id)
+        get_prompt_memory_summary(session, user_id)
         if memory_updates
         else (
             prompt_memory
             if prompt_memory is not None
-            else get_prompt_memory_summary(db.session, user_id)
+            else get_prompt_memory_summary(session, user_id)
         )
     )
     effective_prompt_memory = _apply_memory_candidates_to_prompt_memory(
@@ -1279,6 +1315,7 @@ def stream_chat_message(
                 graph_context=graph_context,
             )
             assistant_message = _persist_assistant_message(
+                session,
                 conversation_id=conversation.id,
                 reply="".join(assistant_reply_parts),
                 model=assistant_model,
@@ -1302,6 +1339,7 @@ def stream_chat_message(
 
 
 def complete_routed_chat_message(
+    session: Session,
     *,
     user_id: int | None,
     message: str,
@@ -1316,6 +1354,7 @@ def complete_routed_chat_message(
     from app.services.ai.recycling_analysis_service import complete_recycling_analysis
 
     demo_replay = complete_seed_demo_replay(
+        session,
         user_id=user_id,
         message=message,
         image_data_url=image_data_url,
@@ -1326,6 +1365,7 @@ def complete_routed_chat_message(
 
     if get_settings().ai_graph_agent_enabled and is_langgraph_available():
         return complete_graph_agent_message(
+            session,
             user_id=user_id,
             message=message,
             history=history,
@@ -1335,6 +1375,7 @@ def complete_routed_chat_message(
         )
 
     decision = decide_message(
+        session,
         user_id=user_id,
         conversation_id=conversation_id,
         message=message,
@@ -1344,6 +1385,7 @@ def complete_routed_chat_message(
 
     if decision["needs_clarification"]:
         persisted = _persist_clarification_request(
+            session,
             user_id=user_id,
             message=message,
             image_data_url=image_data_url,
@@ -1373,6 +1415,7 @@ def complete_routed_chat_message(
 
     if decision["intent"] in {"recycling_analysis", "recycling_follow_up"}:
         return complete_recycling_analysis(
+            session,
             user_id=user_id,
             message=message,
             image_data_url=image_data_url,
@@ -1382,6 +1425,7 @@ def complete_routed_chat_message(
         )
 
     result = complete_chat_message(
+        session,
         user_id=user_id,
         message=message,
         history=history,
@@ -1399,6 +1443,7 @@ def complete_routed_chat_message(
 
 
 def stream_routed_chat_message(
+    session: Session,
     *,
     user_id: int | None,
     message: str,
@@ -1413,6 +1458,7 @@ def stream_routed_chat_message(
     from app.services.ai.recycling_analysis_service import stream_recycling_analysis
 
     demo_replay_stream = get_seed_demo_replay_stream(
+        session,
         user_id=user_id,
         message=message,
         image_data_url=image_data_url,
@@ -1424,6 +1470,7 @@ def stream_routed_chat_message(
 
     if get_settings().ai_graph_agent_enabled and is_langgraph_available():
         yield from stream_graph_agent_message(
+            session,
             user_id=user_id,
             message=message,
             history=history,
@@ -1434,6 +1481,7 @@ def stream_routed_chat_message(
         return
 
     decision = decide_message(
+        session,
         user_id=user_id,
         conversation_id=conversation_id,
         message=message,
@@ -1446,6 +1494,7 @@ def stream_routed_chat_message(
 
     if decision["needs_clarification"]:
         persisted = _persist_clarification_request(
+            session,
             user_id=user_id,
             message=message,
             image_data_url=image_data_url,
@@ -1476,6 +1525,7 @@ def stream_routed_chat_message(
 
     if decision["intent"] in {"recycling_analysis", "recycling_follow_up"}:
         yield from stream_recycling_analysis(
+            session,
             message=message,
             image_data_url=image_data_url,
             session_id=None,
@@ -1487,6 +1537,7 @@ def stream_routed_chat_message(
         return
 
     for event in stream_chat_message(
+        session,
         user_id=user_id,
         message=message,
         history=history,
@@ -1507,6 +1558,7 @@ def stream_routed_chat_message(
 
 
 def list_user_conversations(
+    session: Session,
     *,
     user_id: int,
     page: int = 1,
@@ -1514,12 +1566,12 @@ def list_user_conversations(
 ) -> dict[str, Any]:
     offset = (page - 1) * per_page
     conversations = conversation_repository.list_conversations(
-        db.session,
+        session,
         user_id=user_id,
         limit=per_page,
         offset=offset,
     )
-    total = _count_user_conversations(user_id)
+    total = _count_user_conversations(session, user_id)
     return {
         "items": [serialize_conversation(conversation) for conversation in conversations],
         "total": total,
@@ -1529,24 +1581,25 @@ def list_user_conversations(
 
 
 def get_conversation_messages(
+    session: Session,
     *,
     user_id: int,
     conversation_id: int,
 ) -> dict[str, Any]:
-    conversation = conversation_repository.get_conversation(db.session, conversation_id, user_id)
+    conversation = conversation_repository.get_conversation(session, conversation_id, user_id)
     if conversation is None:
         raise ValueError(f"Conversation {conversation_id} not found.")
 
-    messages = conversation_repository.list_messages(db.session, conversation_id)
+    messages = conversation_repository.list_messages(session, conversation_id)
     recycling_cases = list(
-        db.session.scalars(
+        session.scalars(
             select(RecyclingCase)
             .where(RecyclingCase.conversation_id == conversation_id)
             .order_by(RecyclingCase.created_at.asc(), RecyclingCase.id.asc())
         )
     )
     audit_attempts_by_case_id = {
-        case.id: recycling_case_repository.list_audit_attempts(db.session, case.id)
+        case.id: recycling_case_repository.list_audit_attempts(session, case.id)
         for case in recycling_cases
     }
     case_by_id = {case.id: case for case in recycling_cases}
@@ -1585,11 +1638,12 @@ def get_conversation_messages(
 
 
 def delete_user_conversation(
+    session: Session,
     *,
     user_id: int,
     conversation_id: int,
 ) -> dict[str, Any]:
-    deleted = conversation_repository.delete_conversation(db.session, conversation_id, user_id)
+    deleted = conversation_repository.delete_conversation(session, conversation_id, user_id)
     if not deleted:
         raise ValueError(f"Conversation {conversation_id} not found.")
 

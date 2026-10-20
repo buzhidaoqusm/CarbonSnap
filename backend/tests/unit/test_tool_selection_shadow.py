@@ -6,6 +6,7 @@ import json
 
 import pytest
 
+from app.extensions.db import db
 from app.services.ai import ai_conversation_service, tool_selection_shadow
 
 # ---------------------------------------------------------------------------
@@ -136,18 +137,18 @@ def test_mode_rule_serves_rule_reply_without_shadow(app, monkeypatch, override_s
     override_settings(ai_tool_selection_mode="rule")
     called = {}
 
-    def fake_chat(**kwargs):
+    def fake_chat(_session, **kwargs):
         called["chat"] = True
         return {"reply": "rule-reply", "trace": {}}
 
-    def boom(**kwargs):  # must not be called
+    def boom(_session, **kwargs):  # must not be called
         raise AssertionError("model path should not run in rule mode")
 
     monkeypatch.setattr(ai_conversation_service, "complete_chat_message", fake_chat)
     monkeypatch.setattr(ai_conversation_service, "complete_tool_calling_agent_message", boom)
 
     result = ai_conversation_service.complete_general_chat_with_mode(
-        user_id=1, message="hi", decision=_decision()
+        db.session, user_id=1, message="hi", decision=_decision()
     )
     assert result["reply"] == "rule-reply"
     assert "tool_selection_shadow" not in result
@@ -158,7 +159,7 @@ def test_mode_model_serves_loop_and_attaches_free_comparison(app, monkeypatch, o
     override_settings(ai_tool_selection_mode="model")
     override_settings(ai_tool_selection_shadow_log="")
 
-    def fake_loop(**kwargs):
+    def fake_loop(_session, **kwargs):
         return {
             "reply": "model-reply",
             "trace": {},
@@ -168,7 +169,7 @@ def test_mode_model_serves_loop_and_attaches_free_comparison(app, monkeypatch, o
     monkeypatch.setattr(ai_conversation_service, "complete_tool_calling_agent_message", fake_loop)
 
     result = ai_conversation_service.complete_general_chat_with_mode(
-        user_id=1, message="hi", decision=_decision()
+        db.session, user_id=1, message="hi", decision=_decision()
     )
     assert result["reply"] == "model-reply"
     shadow = result["tool_selection_shadow"]
@@ -184,7 +185,7 @@ def test_mode_shadow_serves_rule_reply_and_logs_model_selection(
     log_path = tmp_path / "shadow.jsonl"
     override_settings(ai_tool_selection_shadow_log=str(log_path))
 
-    def fake_chat(**kwargs):
+    def fake_chat(_session, **kwargs):
         return {"reply": "rule-reply", "trace": {}}
 
     def fake_model_selection(**kwargs):
@@ -199,7 +200,7 @@ def test_mode_shadow_serves_rule_reply_and_logs_model_selection(
     monkeypatch.setattr(tool_selection_shadow, "model_tool_selection", fake_model_selection)
 
     result = ai_conversation_service.complete_general_chat_with_mode(
-        user_id=1, message="where can I recycle?", decision=_decision()
+        db.session, user_id=1, message="where can I recycle?", decision=_decision()
     )
     assert result["reply"] == "rule-reply"  # served by the safe rule path
     shadow = result["tool_selection_shadow"]

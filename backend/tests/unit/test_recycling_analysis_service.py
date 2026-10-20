@@ -150,6 +150,7 @@ def test_selected_audit_attempt_note_uses_first_attempt_reason(app):
         )
 
         note = recycling_analysis_service._selected_audit_attempt_note(
+            db.session,
             case=recycling_case,
             message="Why did the first attempt fail?",
             runtime_context={

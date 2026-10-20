@@ -13,6 +13,7 @@ import json
 from types import SimpleNamespace
 from typing import Any
 
+from app.extensions.db import db
 from app.services.ai import openrouter_service, tool_calling_agent
 
 
@@ -66,6 +67,7 @@ def test_agent_loop_composes_real_provider_registry_and_graph(app, monkeypatch):
 
     with app.app_context():
         result = tool_calling_agent.run_tool_calling_agent(
+            db.session,
             messages=[
                 {"role": "system", "content": "You are a recycling assistant."},
                 {"role": "user", "content": "How much CO2 do I save recycling a plastic bottle?"},
@@ -126,6 +128,7 @@ def test_high_risk_tool_is_blocked_through_real_executor(app, monkeypatch):
 
     with app.app_context():
         result = tool_calling_agent.run_tool_calling_agent(
+            db.session,
             messages=[{"role": "user", "content": "mark it done"}],
             context={"user_id": 1},
             exclude_high_risk=False,  # even if surfaced, execution must be gated
@@ -172,7 +175,9 @@ def test_graph_agent_general_route_runs_tool_calling_agent_with_persistence(
         ai_tool_calling_agent_enabled=True,
         ai_demo_replay_enabled=False,
     )
-    monkeypatch.setattr(ai_decision_engine, "decide_message", lambda **kwargs: _general_decision())
+    monkeypatch.setattr(
+        ai_decision_engine, "decide_message", lambda _session, **kwargs: _general_decision()
+    )
     # New-conversation title generation makes its own LLM call; pin it so the
     # scripted provider turns map cleanly onto the agent loop.
     monkeypatch.setattr(
@@ -186,6 +191,7 @@ def test_graph_agent_general_route_runs_tool_calling_agent_with_persistence(
 
     with app.app_context():
         result = complete_graph_agent_message(
+            db.session,
             user_id=user_id,
             message="How much CO2 do I save recycling a plastic bottle?",
         )
