@@ -4,10 +4,10 @@ from types import SimpleNamespace
 
 from werkzeug.security import generate_password_hash
 
-from app.extensions.db import db
 from app.models.project import Project
 from app.models.user import User
 from app.services.recommendation import project_recommendation_service
+from tests.support.database import db
 
 
 def _make_user(username: str = "ranker", email: str = "ranker@example.com") -> User:

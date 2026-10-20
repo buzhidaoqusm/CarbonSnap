@@ -13,8 +13,8 @@ import json
 from types import SimpleNamespace
 from typing import Any
 
-from app.extensions.db import db
 from app.services.ai import openrouter_service, tool_calling_agent
+from tests.support.database import db
 
 
 class _FakeToolCall:
@@ -61,19 +61,18 @@ class _ScriptedClient:
         )
 
 
-def test_agent_loop_composes_real_provider_registry_and_graph(app, monkeypatch):
+def test_agent_loop_composes_real_provider_registry_and_graph(monkeypatch):
     client = _ScriptedClient()
     monkeypatch.setattr(openrouter_service, "_get_client", lambda: client)
 
-    with app.app_context():
-        result = tool_calling_agent.run_tool_calling_agent(
-            db.session,
-            messages=[
-                {"role": "system", "content": "You are a recycling assistant."},
-                {"role": "user", "content": "How much CO2 do I save recycling a plastic bottle?"},
-            ],
-            context={"user_id": 1, "client_context": None},
-        )
+    result = tool_calling_agent.run_tool_calling_agent(
+        db.session,
+        messages=[
+            {"role": "system", "content": "You are a recycling assistant."},
+            {"role": "user", "content": "How much CO2 do I save recycling a plastic bottle?"},
+        ],
+        context={"user_id": 1, "client_context": None},
+    )
 
     # Final natural-language answer produced after the tool round-trip.
     assert result["content"] == "Recycling that bottle saves CO2. Nice work!"
@@ -104,7 +103,7 @@ def test_agent_loop_composes_real_provider_registry_and_graph(app, monkeypatch):
     assert result["usage_total"]["total_tokens"] == 36
 
 
-def test_high_risk_tool_is_blocked_through_real_executor(app, monkeypatch):
+def test_high_risk_tool_is_blocked_through_real_executor(monkeypatch):
     class _HighRiskClient(_ScriptedClient):
         def _create(self, **kwargs):
             self.captured_kwargs.append(kwargs)
@@ -126,13 +125,12 @@ def test_high_risk_tool_is_blocked_through_real_executor(app, monkeypatch):
     client = _HighRiskClient()
     monkeypatch.setattr(openrouter_service, "_get_client", lambda: client)
 
-    with app.app_context():
-        result = tool_calling_agent.run_tool_calling_agent(
-            db.session,
-            messages=[{"role": "user", "content": "mark it done"}],
-            context={"user_id": 1},
-            exclude_high_risk=False,  # even if surfaced, execution must be gated
-        )
+    result = tool_calling_agent.run_tool_calling_agent(
+        db.session,
+        messages=[{"role": "user", "content": "mark it done"}],
+        context={"user_id": 1},
+        exclude_high_risk=False,  # even if surfaced, execution must be gated
+    )
 
     step = result["tool_trace"][0]
     assert step["name"] == "record_recycling_completion"
@@ -163,7 +161,7 @@ def _general_decision():
 
 
 def test_graph_agent_general_route_runs_tool_calling_agent_with_persistence(
-    app, monkeypatch, make_auth_headers, override_settings
+    monkeypatch, make_auth_headers, override_settings
 ):
     """Full product path: Graph Agent general route -> tool-calling loop ->
     real tool execution -> persisted assistant message + trace."""
@@ -189,12 +187,11 @@ def test_graph_agent_general_route_runs_tool_calling_agent_with_persistence(
 
     user_id, _headers = make_auth_headers()
 
-    with app.app_context():
-        result = complete_graph_agent_message(
-            db.session,
-            user_id=user_id,
-            message="How much CO2 do I save recycling a plastic bottle?",
-        )
+    result = complete_graph_agent_message(
+        db.session,
+        user_id=user_id,
+        message="How much CO2 do I save recycling a plastic bottle?",
+    )
 
     # The reply came from the model-driven loop, not the pre-injection path.
     assert result["reply"] == "Recycling that bottle saves CO2. Nice work!"

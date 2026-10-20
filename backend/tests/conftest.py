@@ -5,15 +5,14 @@ Architecture:
   behaviour (foreign keys, string lengths, types) is what gets tested. Start it
   with ``docker compose up -d postgres``; ``TEST_DATABASE_URL`` points elsewhere.
 - Every run drops and recreates the test database, whose name must end in
-  ``_test``. The environment is pinned *before* ``create_app()`` runs, because
-  Flask-SQLAlchemy 3.x builds the engine inside ``init_app`` — overriding
-  ``SQLALCHEMY_DATABASE_URI`` afterwards has no effect.
-- `app` fixture is session-scoped (created once) and asserts the engine really
-  landed on the test database.
-- Tables are created once per run. `db_session` runs every test inside one
-  outer transaction and rolls it back afterwards, so nothing a test writes is
-  seen by the next one, even though the code under test calls commit().
-- `client` provides a Flask test client.
+  ``_test``. The environment is pinned before the app is imported: settings
+  are read once, so changing DATABASE_URL afterwards would have no effect.
+- `test_database` is session-scoped (created once): it asserts the engine
+  really points at the test database and creates the tables.
+- `db_session` runs every test inside one outer transaction and rolls it back
+  afterwards, so nothing a test writes is seen by the next one, even though
+  the code under test calls commit(). It binds tests.support.database.db.
+- `client` sends requests through the whole ASGI app.
 - `make_auth_headers` is a per-test factory that creates distinct users.
 - `guard_llm_client` fails any test that reaches the LLM provider un-mocked.
   Mock the call, or request `llm_unavailable` to run the provider-down
@@ -31,7 +30,6 @@ from types import SimpleNamespace
 import httpx
 import openai
 import pytest
-from flask_sqlalchemy.session import _app_ctx_id
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, scoped_session, sessionmaker
@@ -107,15 +105,16 @@ for _proxy_var in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"):
     os.environ.pop(_proxy_var, None)
     os.environ.pop(_proxy_var.lower(), None)
 
-from flask_jwt_extended import create_access_token  # noqa: E402
 from werkzeug.security import generate_password_hash  # noqa: E402
 
-from app.extensions.db import db as _db  # noqa: E402
-from app.flask_app import create_app  # noqa: E402
+from app.core.security import create_access_token  # noqa: E402
+from app.db.base import Base  # noqa: E402
+from app.db.session import get_engine  # noqa: E402
 from app.models.user import User  # noqa: E402
+from tests.support.database import db as _db  # noqa: E402
 
 # ---------------------------------------------------------------------------
-# App fixture  (session-scoped — created once per test run)
+# Test database  (session-scoped — created once per test run)
 # ---------------------------------------------------------------------------
 
 
@@ -141,21 +140,16 @@ def _recreate_test_database() -> None:
 
 
 @pytest.fixture(scope="session")
-def app():
+def test_database():
     _recreate_test_database()
-    flask_app = create_app()
-    # Tokens keep the production 7-day expiry: the FastAPI routes reject a
-    # token without "exp", as no deployed instance issues one.
-    flask_app.config.update(TESTING=True)
-    with flask_app.app_context():
-        # Fail loudly rather than writing to a real database.
-        bound = _db.engine.url.database
-        assert bound == _TEST_DATABASE_URL.database, (
-            f"Tests are bound to {bound!r} instead of {_TEST_DATABASE_URL.database!r}. "
-            "Refusing to run."
-        )
-        _db.create_all()
-        yield flask_app
+    engine = get_engine()
+    # Fail loudly rather than writing to a real database.
+    bound = engine.url.database
+    assert bound == _TEST_DATABASE_URL.database, (
+        f"Tests are bound to {bound!r} instead of {_TEST_DATABASE_URL.database!r}. Refusing to run."
+    )
+    Base.metadata.create_all(engine)
+    yield engine
 
 
 # ---------------------------------------------------------------------------
@@ -315,28 +309,17 @@ def cheap_password_hashing():
 
 
 # ---------------------------------------------------------------------------
-# Config isolation  (the app fixture is session-scoped, so feature flags a test
-# flips with app.config.update() would otherwise leak into every later test)
+# Settings
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture(autouse=True)
-def restore_app_config(app):
-    original = dict(app.config)
-    yield
-    app.config.clear()
-    app.config.update(original)
-
-
 @pytest.fixture
-def override_settings(app, monkeypatch):
+def override_settings(monkeypatch):
     """Change settings for one test: ``override_settings(ai_trace_enabled=False)``.
 
-    Updates both get_settings() and the legacy app.config keys, so a test works
-    whether the code under test has moved to get_settings() yet or not. Both
-    are restored when the test ends. Values are used as given, not validated.
+    get_settings() returns the changed copy until the test ends. Values are
+    used as given, not validated.
     """
-    from app.config.settings import legacy_config
     from app.core import config
 
     def apply(**changes):
@@ -346,7 +329,6 @@ def override_settings(app, monkeypatch):
         assert not unknown, f"Unknown settings: {unknown}"
         updated = config.get_settings().model_copy(update=changes)
         monkeypatch.setattr(config, "_override", updated)
-        app.config.update(legacy_config(updated))
         return updated
 
     return apply
@@ -358,11 +340,10 @@ def override_settings(app, monkeypatch):
 
 
 @pytest.fixture()
-def db_connection(app):
+def db_connection(test_database):
     """The one connection a test runs on, inside a transaction rolled back at
-    the end. Flask's db.session and FastAPI's get_db both bind to it."""
-    with app.app_context():
-        connection = _db.engine.connect()
+    the end. The tests' db.session and FastAPI's get_db both bind to it."""
+    connection = test_database.connect()
     outer = connection.begin()
     try:
         yield connection
@@ -372,31 +353,25 @@ def db_connection(app):
 
 
 @pytest.fixture(autouse=True)
-def db_session(app, db_connection):
+def db_session(db_connection):
     """Run the test inside a transaction that is rolled back when it ends.
 
     The code under test commits freely. With join_transaction_mode
     "create_savepoint" each of those commits only releases a SAVEPOINT inside
     the outer transaction, and the final rollback undoes all of them.
 
-    db.session is swapped for a plain SQLAlchemy session bound to that one
-    connection: Flask-SQLAlchemy's own Session.get_bind() always hands back the
-    engine for mapped classes, so a session-level bind would be ignored and
-    queries would quietly run on a fresh, un-rolled-back connection. Scoping
-    stays per app context, as in Flask-SQLAlchemy.
+    db.session is bound to that one connection for the test: one Session per
+    thread, scoped_session's default.
     """
-    with app.app_context():
-        session = scoped_session(
-            sessionmaker(bind=db_connection, join_transaction_mode="create_savepoint"),
-            scopefunc=_app_ctx_id,
-        )
-        original = _db.session
-        _db.session = session
-        try:
-            yield session
-        finally:
-            session.remove()
-            _db.session = original
+    session = scoped_session(
+        sessionmaker(bind=db_connection, join_transaction_mode="create_savepoint")
+    )
+    _db.session = session
+    try:
+        yield session
+    finally:
+        session.remove()
+        del _db.session
 
 
 # ---------------------------------------------------------------------------
@@ -405,8 +380,8 @@ def db_session(app, db_connection):
 
 
 @pytest.fixture(scope="session")
-def api(app):
-    """The ASGI app as it runs in production: FastAPI in front of Flask."""
+def api(test_database):
+    """The ASGI app as it runs in production."""
     from app.main import create_api
 
     return create_api()
@@ -414,14 +389,13 @@ def api(app):
 
 @pytest.fixture()
 def client(api, db_connection):
-    """Requests go through the whole ASGI stack, so a test does not care
-    whether its route has moved from Flask to FastAPI yet."""
+    """Requests go through the whole ASGI stack."""
     from fastapi.testclient import TestClient
 
     from app.db.session import get_db
 
-    # FastAPI routes get a session on the test's connection, so they see what
-    # the test (and Flask) wrote, and their commits are rolled back with it.
+    # Routes get a session on the test's connection, so they see what the
+    # test wrote, and their commits are rolled back with it.
     def _test_db():
         with Session(bind=db_connection, join_transaction_mode="create_savepoint") as session:
             yield session
@@ -440,11 +414,11 @@ def client(api, db_connection):
 
 
 @pytest.fixture()
-def make_user(app):
-    """Factory: make_user(username, email, password) -> (User, token).
+def make_user(db_session):
+    """Factory: make_user(username, email, password) -> (user_id, token).
 
-    Runs inside the current app context so the user is visible to the
-    same db session used by the test.
+    The user is written through the test's session and committed, so
+    requests see it.
     """
 
     def _factory(
@@ -453,20 +427,15 @@ def make_user(app):
         password: str = "password123",
         points: int = 0,
     ):
-        with app.app_context():
-            user = User(
-                username=username,
-                email=email,
-                password_hash=generate_password_hash(password),
-                current_points=points,
-            )
-            _db.session.add(user)
-            _db.session.flush()
-            _db.session.commit()  # commit so HTTP requests see the row
-            token = create_access_token(identity=str(user.id))
-            # Re-fetch to get a detached-safe copy with the real PK.
-            user_id = user.id
-        return user_id, token
+        user = User(
+            username=username,
+            email=email,
+            password_hash=generate_password_hash(password),
+            current_points=points,
+        )
+        _db.session.add(user)
+        _db.session.commit()  # commit so HTTP requests see the row
+        return user.id, create_access_token(user.id)
 
     return _factory
 

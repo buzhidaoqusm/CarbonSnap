@@ -1,7 +1,7 @@
-from app.extensions.db import db
 from app.models.forum import ForumPost
 from app.models.user import User
 from app.repositories.forum import forum_repository
+from tests.support.database import db
 
 
 def _make_user():

@@ -28,10 +28,11 @@ from pathlib import Path
 _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_BACKEND_ROOT))
 
+from sqlalchemy.orm import Session
 from werkzeug.security import generate_password_hash  # noqa: E402 – must be after sys.path
 
-from app.extensions.db import db  # noqa: E402
-from app.flask_app import create_app  # noqa: E402
+from app.db.base import Base  # noqa: E402
+from app.db.session import get_engine, get_sessionmaker  # noqa: E402
 from app.models.ledger import Transaction  # noqa: E402
 from app.models.user import User  # noqa: E402
 
@@ -110,13 +111,13 @@ _SOURCE_TYPE_TAG = "forest_test_seed"
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
 
-def _upsert_user(account: dict) -> tuple[User, bool]:
+def _upsert_user(session: Session, account: dict) -> tuple[User, bool]:
     """Return (user, created). Updates all fields if the user already exists."""
-    user = db.session.query(User).filter_by(email=account["email"]).first()
+    user = session.query(User).filter_by(email=account["email"]).first()
     created = user is None
     if created:
         user = User(email=account["email"])
-        db.session.add(user)
+        session.add(user)
 
     user.username = account["username"]
     user.password_hash = generate_password_hash(_PASSWORD)
@@ -130,9 +131,9 @@ def _upsert_user(account: dict) -> tuple[User, bool]:
     return user, created
 
 
-def _replace_transactions(user: User, txn_defs: list[dict]) -> int:
+def _replace_transactions(session: Session, user: User, txn_defs: list[dict]) -> int:
     """Delete any previous seed transactions for this user, then insert fresh ones."""
-    db.session.query(Transaction).filter_by(
+    session.query(Transaction).filter_by(
         user_id=user.id,
         source_type=_SOURCE_TYPE_TAG,
     ).delete(synchronize_session=False)
@@ -148,7 +149,7 @@ def _replace_transactions(user: User, txn_defs: list[dict]) -> int:
             source_id=index + 1,
             created_at=now - timedelta(days=txn_def["days_ago"]),
         )
-        db.session.add(txn)
+        session.add(txn)
 
     return len(txn_defs)
 
@@ -157,24 +158,23 @@ def _replace_transactions(user: User, txn_defs: list[dict]) -> int:
 
 
 def main() -> None:
-    app = create_app()
-    with app.app_context():
-        db.create_all()
+    with get_sessionmaker()() as session:
+        Base.metadata.create_all(get_engine())
 
         created_count = 0
         updated_count = 0
         txn_count = 0
 
         for account in _TEST_ACCOUNTS:
-            user, created = _upsert_user(account)
-            db.session.flush()  # obtain user.id before inserting transactions
-            txn_count += _replace_transactions(user, account["transactions"])
+            user, created = _upsert_user(session, account)
+            session.flush()  # obtain user.id before inserting transactions
+            txn_count += _replace_transactions(session, user, account["transactions"])
             if created:
                 created_count += 1
             else:
                 updated_count += 1
 
-        db.session.commit()
+        session.commit()
 
         print("Forest test accounts seeded successfully.")
         print(f"  created : {created_count}")

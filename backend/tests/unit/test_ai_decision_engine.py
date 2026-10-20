@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from app.extensions.db import db
 from app.services.ai import ai_decision_engine
+from tests.support.database import db
 
 
 def _context(
@@ -107,7 +107,7 @@ def _case(case_id: int, predicted_item: str, stage: str) -> dict:
 
 class TestDecisionModes:
     def test_llm_first_mode_uses_safe_default_and_disables_business_fallback(
-        self, monkeypatch, app, override_settings
+        self, monkeypatch, override_settings
     ):
         override_settings(ai_decision_engine_mode="llm_first")
 
@@ -168,7 +168,7 @@ class TestDecisionModes:
         }
 
     def test_compat_mode_uses_primary_pipeline_without_shadow_metadata(
-        self, monkeypatch, app, override_settings
+        self, monkeypatch, override_settings
     ):
         override_settings(ai_decision_engine_mode="compat")
 
@@ -250,9 +250,7 @@ class TestDecisionModes:
             "extractor_allow_heuristic_fallback": True,
         }
 
-    def test_shadow_mode_persists_shadow_decision_metadata(
-        self, monkeypatch, app, override_settings
-    ):
+    def test_shadow_mode_persists_shadow_decision_metadata(self, monkeypatch, override_settings):
         override_settings(ai_decision_engine_mode="shadow")
 
         monkeypatch.setattr(
@@ -314,7 +312,7 @@ class TestDecisionModes:
 
 class TestDecisionPipeline:
     def test_follow_up_uses_resolver_and_keeps_target_case_when_confident(
-        self, monkeypatch, app, override_settings
+        self, monkeypatch, override_settings
     ):
         override_settings(ai_decision_engine_mode="llm_first")
         override_settings(ai_decision_confidence_threshold=0.65)
@@ -367,7 +365,7 @@ class TestDecisionPipeline:
         assert decision["should_retrieve_forum"] is True
 
     def test_resolver_clarification_overrides_router_clarification_fields(
-        self, monkeypatch, app, override_settings
+        self, monkeypatch, override_settings
     ):
         override_settings(ai_decision_engine_mode="llm_first")
 
@@ -435,7 +433,7 @@ class TestDecisionPipeline:
         ]
 
     def test_multi_case_low_confidence_follow_up_forces_clarification(
-        self, monkeypatch, app, override_settings
+        self, monkeypatch, override_settings
     ):
         override_settings(ai_decision_engine_mode="llm_first")
         override_settings(ai_decision_confidence_threshold=0.7)
@@ -487,9 +485,7 @@ class TestDecisionPipeline:
         assert decision["target_case_id"] is None
         assert len(decision["clarification_options"]) == 2
 
-    def test_confidence_equal_to_threshold_keeps_target_case(
-        self, monkeypatch, app, override_settings
-    ):
+    def test_confidence_equal_to_threshold_keeps_target_case(self, monkeypatch, override_settings):
         override_settings(ai_decision_engine_mode="llm_first")
         override_settings(ai_decision_confidence_threshold=0.65)
 
@@ -539,7 +535,7 @@ class TestDecisionPipeline:
 
 
 class TestForumRetrieval:
-    def test_recycling_intents_enable_forum_retrieval(self, monkeypatch, app, override_settings):
+    def test_recycling_intents_enable_forum_retrieval(self, monkeypatch, override_settings):
         override_settings(ai_decision_engine_mode="llm_first")
 
         monkeypatch.setattr(
@@ -579,7 +575,7 @@ class TestForumRetrieval:
         assert decision["trace"]["prompt_versions"]["router"] == "router-v1"
         assert decision["trace"]["prompt_versions"]["decision_engine"] == decision["engine_version"]
 
-    def test_general_chat_query_hint_triggers_forum_retrieval(self, monkeypatch, app):
+    def test_general_chat_query_hint_triggers_forum_retrieval(self, monkeypatch):
         monkeypatch.setattr(
             ai_decision_engine, "get_prompt_memory_summary", lambda _session, user_id: {}
         )
@@ -611,7 +607,7 @@ class TestForumRetrieval:
         assert decision["should_retrieve_forum"] is True
         assert decision["forum_retrieval_reason"] == "general_chat_hint"
 
-    def test_general_chat_people_question_triggers_forum_retrieval(self, monkeypatch, app):
+    def test_general_chat_people_question_triggers_forum_retrieval(self, monkeypatch):
         monkeypatch.setattr(
             ai_decision_engine, "get_prompt_memory_summary", lambda _session, user_id: {}
         )
@@ -642,7 +638,7 @@ class TestForumRetrieval:
         assert decision["should_retrieve_forum"] is True
         assert decision["forum_retrieval_reason"] == "general_chat_hint"
 
-    def test_image_with_relevant_history_triggers_forum_retrieval(self, monkeypatch, app):
+    def test_image_with_relevant_history_triggers_forum_retrieval(self, monkeypatch):
         monkeypatch.setattr(
             ai_decision_engine, "get_prompt_memory_summary", lambda _session, user_id: {}
         )
@@ -680,7 +676,7 @@ class TestForumRetrieval:
         assert decision["should_retrieve_forum"] is True
         assert decision["forum_retrieval_reason"] == "general_chat_hint"
 
-    def test_general_chat_without_signals_does_not_trigger_forum_retrieval(self, monkeypatch, app):
+    def test_general_chat_without_signals_does_not_trigger_forum_retrieval(self, monkeypatch):
         monkeypatch.setattr(
             ai_decision_engine, "get_prompt_memory_summary", lambda _session, user_id: {}
         )
@@ -762,7 +758,7 @@ class TestPersistenceAndHelpers:
             "needs_clarification": True,
         }
 
-    def test_get_confidence_threshold_reads_setting(self, app, override_settings):
+    def test_get_confidence_threshold_reads_setting(self, override_settings):
         # Range checks and defaults live in Settings (test_settings_validation).
         override_settings(ai_decision_confidence_threshold=0.4)
         assert ai_decision_engine._get_confidence_threshold() == 0.4

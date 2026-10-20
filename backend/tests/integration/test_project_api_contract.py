@@ -13,8 +13,9 @@ import re
 import jwt as pyjwt
 import pytest
 
-from app.extensions.db import db
+from app.core.config import get_settings
 from app.models.project import Project
+from tests.support.database import db
 
 PNG_DATA_URL = (
     "data:image/png;base64,"
@@ -285,15 +286,14 @@ class TestContribute:
             "This project is already fully funded.",
         )
 
-    def test_expired_project(self, app, client, make_auth_headers):
+    def test_expired_project(self, client, make_auth_headers):
         _, creator = make_auth_headers()
         _, backer = make_auth_headers(points=500)
         project = _create(client, creator)
-        with app.app_context():
-            db.session.get(Project, project["id"]).deadline_at = dt.datetime.now(
-                dt.UTC
-            ) - dt.timedelta(days=1)
-            db.session.commit()
+        db.session.get(Project, project["id"]).deadline_at = dt.datetime.now(dt.UTC) - dt.timedelta(
+            days=1
+        )
+        db.session.commit()
 
         _assert_error(
             _contribute(client, backer, project["id"], 5),
@@ -335,7 +335,7 @@ class TestOptionalLogin:
         assert response.json()["code"] == 40100
 
     @pytest.mark.parametrize("path", ["/api/projects", "/api/projects/{id}"])
-    def test_legacy_username_token(self, app, client, make_user, make_auth_headers, path):
+    def test_legacy_username_token(self, client, make_user, make_auth_headers, path):
         _, headers = make_auth_headers()
         project = _create(client, headers)
         make_user(username="legacy", email="legacy@example.com")
@@ -345,7 +345,7 @@ class TestOptionalLogin:
                 "type": "access",
                 "exp": dt.datetime.now(dt.UTC) + dt.timedelta(hours=1),
             },
-            app.config["JWT_SECRET_KEY"],
+            get_settings().jwt_secret_key,
             algorithm="HS256",
         )
 

@@ -325,7 +325,26 @@ docs/adr/
 >     进程启动：导入加构建应用 2.33 → 2.05 s，常驻内存 126 → 110 MB，Flask 不再被加载。
 >     用 Docker 验证时发现，直接调用 `alembic` 命令行入口不会把 `backend/` 加进 `sys.path`（测试里用的 `python -m alembic` 会），
 >     容器因此启动失败。现在 `alembic.ini` 里设置了 `prepend_sys_path`，测试也改为调用同一个命令行入口。
-> - 下一步：D2，测试不再用 Flask。
+>   - D2 ✅（2026-10-20）：测试和脚本都不再依赖 Flask。
+>     - conftest 改用 `Base.metadata.create_all` 和 `get_engine()`；
+>     - 测试里的 `db.session` 改由 `tests/support/database.py` 提供，每个测试开始时绑定到测试连接，
+>       792 处 `db.session` 不用改；
+>     - 82 处 `with app.app_context():` 用脚本删掉并调整缩进；
+>     - `app.config` 的写入改成 `override_settings`，这些写入原本就不起作用；
+>     - flask_jwt 换成 `core.security`。
+>
+>     原计划放在 D3 的脚本改造提前了：seed 脚本有测试，而脚本里的函数用的是 Flask 的 `db.session`。
+>     9 个脚本里的 26 个函数改成显式接收 session，`truncate_tables` 挪到 `app/db/maintenance.py`。
+>
+>     验证：全量 838 个测试通过；`test_db_isolation` 在两种变异下（提交而不是回滚、session 不连在测试连接上）都会失败；
+>     seed 和 reset 脚本在测试库上都能跑通。
+>     仍然 import Flask 的只剩 `test_config_parity`，它测的是 D3 要删的 `app/config/settings.py`。
+>
+>     **事故**：跑脚本验证时，`reset_all_data` 清空了真实的 `data/uploads` 和 `data/faiss`。
+>     这两个路径是写死在脚本里的，不读 `UPLOAD_ROOT`；我设置了临时目录，却没有先读脚本里用的是什么路径。
+>     随后 seed 脚本恢复了 36 个 seed 文件和 `forum_rag.json`，开发库引用的 32 个上传文件都在。
+>     FAISS 目录里另一个被删的条目无法确认是什么。
+> - 下一步：D3，删除 Flask 相关模块、`app/config/settings.py` 及其测试，以及 7 个依赖包；脚本改为读取 `UPLOAD_ROOT`。
 >   迁 market 和 forum 时，要逐个处理剩下的 `except Exception: pass`：异常吞掉后 session 仍处于失败状态，后面的查询会返回 500。
 >   迁 forum 和 market 时，要把 `notification_service.dispatch` 和 `auth_identity` 剩下的 Flask 依赖一起去掉。
 

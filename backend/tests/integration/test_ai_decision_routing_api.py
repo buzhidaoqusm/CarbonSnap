@@ -3,11 +3,11 @@ from __future__ import annotations
 import json
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 
-from app.extensions.db import db
 from app.models.ai import AIMessageDecision
 from app.services.ai import ai_conversation_service, recycling_analysis_service
+from tests.support.database import db
 
 
 def _post_json(client, url, data, headers=None):
@@ -181,7 +181,7 @@ class TestAiDecisionRoutingApi:
         assert history["items"][1]["content_json"]["clarification_options"][0]["label"] == "Bottle"
 
         decision_count = db.session.scalar(
-            select(db.func.count(AIMessageDecision.id)).where(
+            select(func.count(AIMessageDecision.id)).where(
                 AIMessageDecision.conversation_id == conversation_id
             )
         )

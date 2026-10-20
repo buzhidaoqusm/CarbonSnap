@@ -10,7 +10,6 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
-from flask import has_app_context, has_request_context
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -34,7 +33,6 @@ def test_a_recycling_analysis_is_stored_for_the_user(plain_session, make_auth_he
     user_id, _ = make_auth_headers()
 
     def run():
-        assert not has_app_context() and not has_request_context()
         events = list(
             recycling_analysis_service.stream_recycling_analysis(
                 plain_session,

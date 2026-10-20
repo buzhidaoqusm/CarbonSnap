@@ -6,15 +6,15 @@ import json
 import uuid
 
 import pytest
-from flask_jwt_extended import create_access_token
 from sqlalchemy import func, select
 from werkzeug.security import generate_password_hash
 
-from app.extensions.db import db
+from app.core.security import create_access_token
 from app.models.ai import AIConversation, RecyclingCase, WasteAnalysisRecord
 from app.models.ledger import Transaction
 from app.models.user import User
 from app.services.ai import recycling_analysis_service, recycling_audit_service
+from tests.support.database import db
 
 _VALID_IMAGE_DATA_URL = (
     "data:image/png;base64,"
@@ -48,7 +48,7 @@ def _make_auth_headers(
     )
     db.session.add(user)
     db.session.commit()
-    token = create_access_token(identity=str(user.id))
+    token = create_access_token(str(user.id))
     return user.id, {"Authorization": f"Bearer {token}"}
 
 

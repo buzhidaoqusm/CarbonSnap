@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.extensions.db import db
 from app.services.ai import tool_calling_agent
+from tests.support.database import db
 
 
 def _assistant_tool_call(

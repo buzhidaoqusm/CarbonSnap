@@ -3,11 +3,11 @@ from datetime import UTC, datetime, timedelta
 
 from werkzeug.security import generate_password_hash
 
-from app.extensions.db import db
 from app.models.forum import ForumPost
 from app.models.user import User
 from app.repositories.forum import forum_repository
 from app.repositories.recommendation import behavior_event_repository, preference_profile_repository
+from tests.support.database import db
 
 
 def _make_user(username: str = "rank-loader", email: str = "rank-loader@example.com") -> User:

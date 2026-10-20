@@ -1,7 +1,7 @@
 """Integration tests for Notification API endpoints."""
 
-from app.extensions.db import db
 from app.services.notification import notification_service
+from tests.support.database import db
 
 # ---------------------------------------------------------------------------
 # Helpers

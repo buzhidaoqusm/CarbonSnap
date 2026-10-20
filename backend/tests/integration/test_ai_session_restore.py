@@ -12,13 +12,13 @@ import json
 
 import pytest
 
-from app.extensions.db import db
 from app.models.ai import AIConversation
 from app.services.ai import recycling_analysis_service, recycling_session_service
 from tests.integration.test_ai_persistence_api import (
     _VALID_IMAGE_DATA_URL,
     _extract_sse_payloads,
 )
+from tests.support.database import db
 
 SESSION_ID = "restore-after-restart"
 
@@ -67,9 +67,7 @@ def _lose_the_session_store() -> None:
         recycling_session_service._SESSION_STORE.clear()
 
 
-def test_the_location_step_rebuilds_the_session_from_the_conversation(
-    app, client, make_auth_headers
-):
+def test_the_location_step_rebuilds_the_session_from_the_conversation(client, make_auth_headers):
     _, headers = make_auth_headers()
     conversation_id = _analyze(client, headers)
     _lose_the_session_store()
@@ -82,12 +80,11 @@ def test_the_location_step_rebuilds_the_session_from_the_conversation(
 
     assert response.status_code == 200
     assert response.json()["data"]["conversation_id"] == conversation_id
-    with app.app_context():
-        stored = json.loads(db.session.get(AIConversation, conversation_id).session_context_json)
-        assert stored["location_state"]["skip_nearby_search"] is True
+    stored = json.loads(db.session.get(AIConversation, conversation_id).session_context_json)
+    assert stored["location_state"]["skip_nearby_search"] is True
 
 
-def test_another_user_cannot_pick_up_the_session(app, client, make_auth_headers):
+def test_another_user_cannot_pick_up_the_session(client, make_auth_headers):
     _, owner = make_auth_headers()
     _, other = make_auth_headers()
     conversation_id = _analyze(client, owner)
@@ -101,6 +98,5 @@ def test_another_user_cannot_pick_up_the_session(app, client, make_auth_headers)
 
     assert response.status_code == 200
     assert response.json()["data"]["conversation_id"] is None
-    with app.app_context():
-        stored = json.loads(db.session.get(AIConversation, conversation_id).session_context_json)
-        assert not (stored.get("location_state") or {}).get("skip_nearby_search")
+    stored = json.loads(db.session.get(AIConversation, conversation_id).session_context_json)
+    assert not (stored.get("location_state") or {}).get("skip_nearby_search")

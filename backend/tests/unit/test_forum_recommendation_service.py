@@ -4,11 +4,11 @@ from types import SimpleNamespace
 import pytest
 from werkzeug.security import generate_password_hash
 
-from app.extensions.db import db
 from app.models.forum import ForumComment, ForumPost, Like
 from app.models.user import User
 from app.repositories.recommendation import preference_profile_repository
 from app.services.recommendation import forum_recommendation_service
+from tests.support.database import db
 
 
 def _make_user(username: str = "ranker", email: str = "ranker@example.com") -> User:

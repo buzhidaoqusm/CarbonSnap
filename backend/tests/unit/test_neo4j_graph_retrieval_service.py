@@ -72,7 +72,7 @@ class FailingDriver:
         raise RuntimeError("connection refused")
 
 
-def _enable_neo4j(app, override_settings):
+def _enable_neo4j(override_settings):
     override_settings(
         ai_neo4j_graphrag_enabled=True,
         neo4j_uri="bolt://localhost:7687",
@@ -81,7 +81,7 @@ def _enable_neo4j(app, override_settings):
     )
 
 
-def test_is_configured_requires_flag_and_credentials(app, override_settings):
+def test_is_configured_requires_flag_and_credentials(override_settings):
     override_settings(
         ai_neo4j_graphrag_enabled=False,
         neo4j_uri="bolt://localhost:7687",
@@ -90,14 +90,12 @@ def test_is_configured_requires_flag_and_credentials(app, override_settings):
     )
     assert is_configured() is False
 
-    _enable_neo4j(app, override_settings)
+    _enable_neo4j(override_settings)
     assert is_configured() is True
 
 
-def test_query_graph_context_uses_fake_driver_and_returns_structured_context(
-    app, override_settings
-):
-    _enable_neo4j(app, override_settings)
+def test_query_graph_context_uses_fake_driver_and_returns_structured_context(override_settings):
+    _enable_neo4j(override_settings)
     records = [
         {
             "item_name": "battery",
@@ -150,8 +148,8 @@ def test_query_graph_context_uses_fake_driver_and_returns_structured_context(
     assert driver.session_obj.queries[0][1]["items"] == ["battery"]
 
 
-def test_query_graph_context_extracts_entities_when_not_supplied(app, override_settings):
-    _enable_neo4j(app, override_settings)
+def test_query_graph_context_extracts_entities_when_not_supplied(override_settings):
+    _enable_neo4j(override_settings)
     driver = FakeDriver(
         [
             {
@@ -174,7 +172,7 @@ def test_query_graph_context_extracts_entities_when_not_supplied(app, override_s
     ]
 
 
-def test_query_graph_context_returns_fallback_when_feature_disabled(app, override_settings):
+def test_query_graph_context_returns_fallback_when_feature_disabled(override_settings):
     override_settings(ai_neo4j_graphrag_enabled=False)
 
     result = query_graph_context(
@@ -187,8 +185,8 @@ def test_query_graph_context_returns_fallback_when_feature_disabled(app, overrid
     assert result["paths"] == []
 
 
-def test_query_graph_context_returns_fallback_when_connection_fails(app, override_settings):
-    _enable_neo4j(app, override_settings)
+def test_query_graph_context_returns_fallback_when_connection_fails(override_settings):
+    _enable_neo4j(override_settings)
 
     result = query_graph_context(
         "Can I recycle batteries?",
@@ -251,10 +249,8 @@ def test_build_graph_prompt_block_formats_evidence_without_raw_records():
     assert "{'enabled'" not in prompt
 
 
-def test_query_graph_context_returns_open_relation_facts_and_forum_citations(
-    app, override_settings
-):
-    _enable_neo4j(app, override_settings)
+def test_query_graph_context_returns_open_relation_facts_and_forum_citations(override_settings):
+    _enable_neo4j(override_settings)
     driver = RoutingFakeDriver(
         fixed_records=[],
         open_records=[
@@ -318,8 +314,8 @@ def test_query_graph_context_returns_open_relation_facts_and_forum_citations(
     ]
 
 
-def test_query_graph_context_expands_chinese_open_graph_alias_terms(app, override_settings):
-    _enable_neo4j(app, override_settings)
+def test_query_graph_context_expands_chinese_open_graph_alias_terms(override_settings):
+    _enable_neo4j(override_settings)
     driver = RoutingFakeDriver(
         fixed_records=[],
         open_records=[

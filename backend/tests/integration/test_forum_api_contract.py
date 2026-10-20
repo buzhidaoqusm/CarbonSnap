@@ -13,6 +13,8 @@ import re
 import jwt as pyjwt
 import pytest
 
+from app.core.config import get_settings
+
 PNG_DATA_URL = (
     "data:image/png;base64,"
     + base64.b64encode(
@@ -412,7 +414,7 @@ class TestOptionalLogin:
         assert response.json()["code"] == 40100
 
     @pytest.mark.parametrize("path", OPTIONAL_LOGIN_PATHS)
-    def test_token_for_an_unknown_user_is_a_401(self, app, client, make_auth_headers, path):
+    def test_token_for_an_unknown_user_is_a_401(self, client, make_auth_headers, path):
         # Was served as anonymous; now the same rule as every optional route.
         _, author = make_auth_headers()
         post_id = _post(client, author)["id"]
@@ -422,7 +424,7 @@ class TestOptionalLogin:
                 "type": "access",
                 "exp": dt.datetime.now(dt.UTC) + dt.timedelta(hours=1),
             },
-            app.config["JWT_SECRET_KEY"],
+            get_settings().jwt_secret_key,
             algorithm="HS256",
         )
 

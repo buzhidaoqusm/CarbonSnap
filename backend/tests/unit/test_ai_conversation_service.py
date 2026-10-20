@@ -6,16 +6,16 @@ import json
 import uuid
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 from werkzeug.security import generate_password_hash
 
-from app.extensions.db import db
 from app.models.ai import AIConversation, AIMessage, RecyclingAuditAttempt, RecyclingCase
 from app.models.ledger import Transaction
 from app.models.memory import UserMemoryItem
 from app.models.user import User
 from app.services.ai import ai_conversation_service, recycling_analysis_service
 from app.services.ai.agent_trace_service import build_trace_shell
+from tests.support.database import db
 
 _VALID_IMAGE_DATA_URL = (
     "data:image/png;base64,"
@@ -351,9 +351,9 @@ class TestCompleteChatMessage:
 
     @pytest.mark.usefixtures("llm_unavailable")
     def test_complete_chat_message_records_graph_fallback_when_feature_disabled(
-        self, monkeypatch, app
+        self, monkeypatch, override_settings
     ):
-        app.config["AI_NEO4J_GRAPHRAG_ENABLED"] = False
+        override_settings(ai_neo4j_graphrag_enabled=False)
         user = _make_user("graphoff", "graphoff@example.com")
         captured_request = {}
 
@@ -942,7 +942,7 @@ class TestRecyclingAnalysisPersistence:
         case = db.session.scalar(
             select(RecyclingCase).where(RecyclingCase.conversation_id == conversation.id)
         )
-        transaction_count = db.session.scalar(select(db.func.count(Transaction.id))) or 0
+        transaction_count = db.session.scalar(select(func.count(Transaction.id))) or 0
 
         assert [event["type"] for event in events] == [
             "meta",
@@ -1022,7 +1022,7 @@ class TestRecyclingAnalysisPersistence:
             select(AIConversation).where(AIConversation.user_id == user.id)
         )
         messages = _messages_for_conversation(conversation.id)
-        transaction_count = db.session.scalar(select(db.func.count(Transaction.id))) or 0
+        transaction_count = db.session.scalar(select(func.count(Transaction.id))) or 0
 
         assert conversation.status == "completed"
         assert conversation.current_pending_action == "none"

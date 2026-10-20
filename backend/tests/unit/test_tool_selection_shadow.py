@@ -6,27 +6,27 @@ import json
 
 import pytest
 
-from app.extensions.db import db
 from app.services.ai import ai_conversation_service, tool_selection_shadow
+from tests.support.database import db
 
 # ---------------------------------------------------------------------------
 # Mode resolution
 # ---------------------------------------------------------------------------
 
 
-def test_resolve_mode_defaults_to_rule(app, monkeypatch, override_settings):
+def test_resolve_mode_defaults_to_rule(monkeypatch, override_settings):
     override_settings(ai_tool_selection_mode="")
     override_settings(ai_tool_calling_agent_enabled=False)
     assert tool_selection_shadow.resolve_tool_selection_mode() == "rule"
 
 
-def test_resolve_mode_legacy_flag_maps_to_model(app, monkeypatch, override_settings):
+def test_resolve_mode_legacy_flag_maps_to_model(monkeypatch, override_settings):
     override_settings(ai_tool_selection_mode="")
     override_settings(ai_tool_calling_agent_enabled=True)
     assert tool_selection_shadow.resolve_tool_selection_mode() == "model"
 
 
-def test_resolve_mode_explicit_overrides_legacy(app, monkeypatch, override_settings):
+def test_resolve_mode_explicit_overrides_legacy(monkeypatch, override_settings):
     override_settings(ai_tool_selection_mode="shadow")
     override_settings(ai_tool_calling_agent_enabled=True)
     assert tool_selection_shadow.resolve_tool_selection_mode() == "shadow"
@@ -72,12 +72,12 @@ def test_compare_both_empty_is_full_agreement():
 # ---------------------------------------------------------------------------
 
 
-def test_rule_tool_selection_reads_decision(app):
+def test_rule_tool_selection_reads_decision():
     tools = tool_selection_shadow.rule_tool_selection({"should_retrieve_forum": True})
     assert tools == ["search_forum"]
 
 
-def test_model_tool_selection_extracts_and_dedups(app):
+def test_model_tool_selection_extracts_and_dedups():
     def fake_completion(*, messages, tools, tool_choice):
         assert tool_choice == "auto"
         return {
@@ -104,7 +104,7 @@ def test_model_tool_selection_extracts_and_dedups(app):
 # ---------------------------------------------------------------------------
 
 
-def test_record_shadow_comparison_writes_jsonl(app, monkeypatch, tmp_path, override_settings):
+def test_record_shadow_comparison_writes_jsonl(monkeypatch, tmp_path, override_settings):
     log_path = tmp_path / "shadow.jsonl"
     override_settings(ai_tool_selection_shadow_log=str(log_path))
     tool_selection_shadow.record_shadow_comparison({"mode": "shadow", "jaccard": 0.5})
@@ -115,9 +115,7 @@ def test_record_shadow_comparison_writes_jsonl(app, monkeypatch, tmp_path, overr
     assert json.loads(lines[0])["jaccard"] == 0.5
 
 
-def test_record_shadow_comparison_noop_when_unconfigured(
-    app, monkeypatch, tmp_path, override_settings
-):
+def test_record_shadow_comparison_noop_when_unconfigured(monkeypatch, tmp_path, override_settings):
     override_settings(ai_tool_selection_shadow_log="")
     # Should not raise and should not create anything.
     tool_selection_shadow.record_shadow_comparison({"mode": "shadow"})
@@ -133,7 +131,7 @@ def _decision():
     return {"should_retrieve_forum": True, "prompt_memory": {}, "memory_candidates": []}
 
 
-def test_mode_rule_serves_rule_reply_without_shadow(app, monkeypatch, override_settings):
+def test_mode_rule_serves_rule_reply_without_shadow(monkeypatch, override_settings):
     override_settings(ai_tool_selection_mode="rule")
     called = {}
 
@@ -155,7 +153,7 @@ def test_mode_rule_serves_rule_reply_without_shadow(app, monkeypatch, override_s
     assert called.get("chat") is True
 
 
-def test_mode_model_serves_loop_and_attaches_free_comparison(app, monkeypatch, override_settings):
+def test_mode_model_serves_loop_and_attaches_free_comparison(monkeypatch, override_settings):
     override_settings(ai_tool_selection_mode="model")
     override_settings(ai_tool_selection_shadow_log="")
 
@@ -179,7 +177,7 @@ def test_mode_model_serves_loop_and_attaches_free_comparison(app, monkeypatch, o
 
 
 def test_mode_shadow_serves_rule_reply_and_logs_model_selection(
-    app, monkeypatch, tmp_path, override_settings
+    monkeypatch, tmp_path, override_settings
 ):
     override_settings(ai_tool_selection_mode="shadow")
     log_path = tmp_path / "shadow.jsonl"

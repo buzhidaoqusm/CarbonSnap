@@ -10,8 +10,8 @@ import json
 import pytest
 
 from app.core.security import create_access_token
-from app.extensions.db import db
 from app.models.user import User
+from tests.support.database import db
 
 URL = "/api/ai/memory"
 ITEM_FIELDS = {
@@ -99,7 +99,7 @@ class TestList:
 
 
 class TestCreate:
-    def test_returns_the_item_and_the_new_summary(self, app, client, make_auth_headers):
+    def test_returns_the_item_and_the_new_summary(self, client, make_auth_headers):
         user_id, headers = make_auth_headers()
 
         response = client.post(URL, json=CONCISE, headers=headers)
@@ -110,9 +110,8 @@ class TestCreate:
         assert set(data["item"]) == ITEM_FIELDS
         assert data["item"]["memory_key"] == "response_style"
         _assert_summary(data["summary"], "concise")
-        with app.app_context():
-            stored = json.loads(db.session.get(User, user_id).preferences_json)
-            assert stored["action_preferences"]["response_style"] == "concise"
+        stored = json.loads(db.session.get(User, user_id).preferences_json)
+        assert stored["action_preferences"]["response_style"] == "concise"
 
     def test_the_same_key_replaces_the_item(self, client, make_auth_headers):
         _, headers = make_auth_headers()

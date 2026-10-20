@@ -1,9 +1,8 @@
 """Integration tests for C2C Marketplace API endpoints."""
 
-from flask_jwt_extended import create_access_token
-
-from app.extensions.db import db
+from app.core.security import create_access_token
 from app.repositories.ledger.ledger_repository import earn_points
+from tests.support.database import db
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -144,13 +143,12 @@ class TestListActiveItems:
         assert bought_item["id"] not in ids
         assert visible_item["id"] in ids
 
-    def test_legacy_username_token_still_lists_market_items(self, client, app, make_auth_headers):
+    def test_legacy_username_token_still_lists_market_items(self, client, make_auth_headers):
         _, seller_headers = make_auth_headers(username="seller")
         _, _viewer_headers = make_auth_headers(username="test1")
         item = _create_item(client, seller_headers, title="Legacy market item")
 
-        with app.app_context():
-            legacy_token = create_access_token(identity="test1")
+        legacy_token = create_access_token("test1")
 
         resp = client.get(
             "/api/market/items",
@@ -433,14 +431,13 @@ def _get_data(client, url, headers):
     return resp.json()["data"]
 
 
-def _recycle_then_buy_and_cancel(app, client, make_auth_headers, *, times):
+def _recycle_then_buy_and_cancel(client, make_auth_headers, *, times):
     """A buyer earns 100 points recycling, then buys a 100-point item and
     cancels the order, `times` times over. Returns the buyer's headers."""
     _, seller_headers = make_auth_headers()
     buyer_id, buyer_headers = make_auth_headers()
-    with app.app_context():
-        earn_points(db.session, user_id=buyer_id, points=100, source_type="waste_analysis")
-        db.session.commit()
+    earn_points(db.session, user_id=buyer_id, points=100, source_type="waste_analysis")
+    db.session.commit()
     item = _create_item(client, seller_headers, price_points=100)
     for _ in range(times):
         order = _place_order(client, buyer_headers, item["id"])
@@ -454,8 +451,8 @@ class TestOrderPointsInLedger:
     # earned. Before it was told apart, buying and cancelling the same item
     # raised lifetime earned points and the weekly gain by the price each time.
 
-    def test_refunds_are_not_lifetime_earned_points(self, app, client, make_auth_headers):
-        headers = _recycle_then_buy_and_cancel(app, client, make_auth_headers, times=3)
+    def test_refunds_are_not_lifetime_earned_points(self, client, make_auth_headers):
+        headers = _recycle_then_buy_and_cancel(client, make_auth_headers, times=3)
 
         summary = _get_data(client, "/api/ledger/summary", headers)
         assert summary["current_points"] == 100
@@ -465,14 +462,14 @@ class TestOrderPointsInLedger:
         assert gamification["total_points_earned"] == 100
         assert gamification["level"] == 1
 
-    def test_refunds_are_not_weekly_leaderboard_gains(self, app, client, make_auth_headers):
-        headers = _recycle_then_buy_and_cancel(app, client, make_auth_headers, times=3)
+    def test_refunds_are_not_weekly_leaderboard_gains(self, client, make_auth_headers):
+        headers = _recycle_then_buy_and_cancel(client, make_auth_headers, times=3)
 
         leaderboard = _get_data(client, "/api/ledger/leaderboard/weekly", headers)
         assert leaderboard["current_user_rank"]["weekly_points_gain"] == 100
 
-    def test_refunds_are_recorded_as_market_refunds(self, app, client, make_auth_headers):
-        headers = _recycle_then_buy_and_cancel(app, client, make_auth_headers, times=1)
+    def test_refunds_are_recorded_as_market_refunds(self, client, make_auth_headers):
+        headers = _recycle_then_buy_and_cancel(client, make_auth_headers, times=1)
 
         transactions = _get_data(client, "/api/ledger/transactions", headers)["items"]
         assert sorted((t["type"], t["source_type"]) for t in transactions) == [

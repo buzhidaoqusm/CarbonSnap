@@ -46,7 +46,7 @@ def _general_decision():
 
 
 def test_ai_chat_uses_langgraph_when_feature_flag_enabled(
-    client, app, make_auth_headers, monkeypatch, override_settings
+    client, make_auth_headers, monkeypatch, override_settings
 ):
     override_settings(
         ai_graph_agent_enabled=True,
@@ -79,7 +79,7 @@ def test_ai_chat_uses_langgraph_when_feature_flag_enabled(
 
 
 def test_ai_chat_stream_uses_langgraph_when_feature_flag_enabled(
-    client, app, make_auth_headers, monkeypatch, override_settings
+    client, make_auth_headers, monkeypatch, override_settings
 ):
     override_settings(
         ai_graph_agent_enabled=True,
@@ -113,7 +113,7 @@ def test_ai_chat_stream_uses_langgraph_when_feature_flag_enabled(
 
 
 def test_ai_chat_keeps_existing_route_when_graph_agent_disabled(
-    client, app, make_auth_headers, monkeypatch, override_settings
+    client, make_auth_headers, monkeypatch, override_settings
 ):
     override_settings(
         ai_graph_agent_enabled=False,

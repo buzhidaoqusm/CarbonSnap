@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from app.extensions.db import db
 from app.services.ai import tool_registry
+from tests.support.database import db
 
 
 def test_to_openai_tools_matches_tool_definitions():

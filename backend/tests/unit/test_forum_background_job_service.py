@@ -1,17 +1,17 @@
 from __future__ import annotations
 
 import logging
+import threading
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
-from flask import has_app_context
 from sqlalchemy.orm import sessionmaker
 from werkzeug.security import generate_password_hash
 
-from app.extensions.db import db
 from app.models.user import User
 from app.repositories.forum import forum_repository
 from app.services.forum import forum_background_job_service as jobs
+from tests.support.database import db
 
 
 @pytest.fixture
@@ -62,15 +62,16 @@ def test_inline_runs_in_the_callers_session(monkeypatch):
     assert seen == {"session": db.session, "post_id": 12, "title": "Bottle", "content": "Tips"}
 
 
-def test_background_job_indexes_without_an_app_context(background, monkeypatch, llm_unavailable):
-    # The job used db.session, which raised "Working outside of application
-    # context" on the worker thread; the error stayed in the unread Future.
+def test_background_job_indexes_on_the_worker_thread(background, monkeypatch, llm_unavailable):
+    # The job once used Flask's db.session, which raised "Working outside of
+    # application context" on the worker thread; the error stayed in the
+    # unread Future. It opens a session of its own there.
     post_id = _post()
-    contexts = []
+    threads = []
     reindex = jobs.forum_indexing_service.reindex_post
 
     def spy(session, **kwargs):
-        contexts.append(has_app_context())
+        threads.append(threading.current_thread())
         return reindex(session, **kwargs)
 
     monkeypatch.setattr(jobs.forum_indexing_service, "reindex_post", spy)
@@ -81,11 +82,11 @@ def test_background_job_indexes_without_an_app_context(background, monkeypatch, 
     assert future is not None
     future.result(timeout=30)
 
-    assert contexts == [False]
+    assert threads and threads[0] is not threading.main_thread()
     assert forum_repository.get_chunks_by_post(db.session, post_id)
 
 
-def test_background_removal_without_an_app_context(background):
+def test_background_removal_on_the_worker_thread(background):
     post_id = _post()
     forum_repository.save_post_chunks(
         db.session,

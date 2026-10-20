@@ -6,11 +6,11 @@ import uuid
 import pytest
 from werkzeug.security import generate_password_hash
 
-from app.extensions.db import db
 from app.models.forum import ForumPost
 from app.models.user import User
 from app.services.ai import ai_conversation_service
 from app.services.forum import forum_indexing_service
+from tests.support.database import db
 
 
 def _make_user(username: str = "forumflow", email: str = "forumflow@example.com") -> User:

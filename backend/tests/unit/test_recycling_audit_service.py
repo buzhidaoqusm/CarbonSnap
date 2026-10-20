@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy import func, select
 from werkzeug.security import generate_password_hash
 
-from app.extensions.db import db
+from app.db.base import Base
 from app.models.ai import (
     AIConversation,
     AIMessage,
@@ -18,6 +18,7 @@ from app.models.ai import (
 from app.models.ledger import Transaction
 from app.models.user import User
 from app.services.ai import recycling_audit_service
+from tests.support.database import db
 
 _VALID_IMAGE_DATA_URL = (
     "data:image/png;base64,"
@@ -41,7 +42,7 @@ def _make_user(
     carbon_amount: float = 0.0,
 ) -> User:
     unique_suffix = uuid.uuid4().hex[:8]
-    db.metadata.create_all(bind=db.session.connection())
+    Base.metadata.create_all(bind=db.session.connection())
     user = User(
         username=f"{username}_{unique_suffix}",
         email=f"{unique_suffix}_{email}",

@@ -179,13 +179,12 @@ class TestMe:
     def test_requires_token(self, client):
         assert client.get("/api/auth/me").status_code == 401
 
-    def test_legacy_token_with_username_subject(self, app, client, make_user):
+    def test_legacy_token_with_username_subject(self, client, make_user):
         # Early tokens carried the username as the subject.
-        from flask_jwt_extended import create_access_token
+        from app.core.security import create_access_token
 
         user_id, _ = make_user(username="legacy", email="legacy@example.com")
-        with app.app_context():
-            token = create_access_token(identity="legacy")
+        token = create_access_token("legacy")
 
         response = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
 

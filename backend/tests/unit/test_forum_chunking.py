@@ -13,23 +13,21 @@ handling, especially when the bottle body and cap are made from different plasti
 
 
 class TestForumChunking:
-    def test_normalize_forum_text_collapses_whitespace(self, app):
-        with app.app_context():
-            assert normalize_forum_text("  hello \n   world  ") == "hello world"
+    def test_normalize_forum_text_collapses_whitespace(self):
+        assert normalize_forum_text("  hello \n   world  ") == "hello world"
 
-    def test_chunk_post_text_preserves_title_and_generates_metadata(self, app, override_settings):
-        with app.app_context():
-            override_settings(forum_rag_chunk_target_tokens=20)
-            override_settings(forum_rag_chunk_overlap_tokens=3)
+    def test_chunk_post_text_preserves_title_and_generates_metadata(self, override_settings):
+        override_settings(forum_rag_chunk_target_tokens=20)
+        override_settings(forum_rag_chunk_overlap_tokens=3)
 
-            chunks = chunk_forum_post(
-                title="Bottle Recycling",
-                content=LONG_CONTENT,
-                version=3,
-            )
+        chunks = chunk_forum_post(
+            title="Bottle Recycling",
+            content=LONG_CONTENT,
+            version=3,
+        )
 
-            assert len(chunks) >= 2
-            assert chunks[0]["chunk_index"] == 0
-            assert chunks[0]["chunk_version"] == 3
-            assert chunks[0]["section_title"] == "Main"
-            assert "Bottle Recycling" in chunks[0]["chunk_text"]
+        assert len(chunks) >= 2
+        assert chunks[0]["chunk_index"] == 0
+        assert chunks[0]["chunk_version"] == 3
+        assert chunks[0]["section_title"] == "Main"
+        assert "Bottle Recycling" in chunks[0]["chunk_text"]

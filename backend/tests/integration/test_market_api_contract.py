@@ -12,6 +12,8 @@ import re
 import jwt as pyjwt
 import pytest
 
+from app.core.config import get_settings
+
 NAIVE_ISO = r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?"
 ITEM_FIELDS = {
     "id",
@@ -296,7 +298,7 @@ class TestOptionalLogin:
         assert response.json()["code"] == 40100
 
     @pytest.mark.parametrize("path", ["/api/market/items", "/api/market/items/{id}"])
-    def test_token_for_an_unknown_user_is_a_401(self, app, client, trade, path):
+    def test_token_for_an_unknown_user_is_a_401(self, client, trade, path):
         # Was served as anonymous; now the same rule as every optional route:
         # a token that is sent must identify a user.
         token = pyjwt.encode(
@@ -305,7 +307,7 @@ class TestOptionalLogin:
                 "type": "access",
                 "exp": dt.datetime.now(dt.UTC) + dt.timedelta(hours=1),
             },
-            app.config["JWT_SECRET_KEY"],
+            get_settings().jwt_secret_key,
             algorithm="HS256",
         )
 

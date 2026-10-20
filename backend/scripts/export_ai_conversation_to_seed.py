@@ -25,8 +25,7 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 _REPO_ROOT = _BACKEND_ROOT.parent
 sys.path.insert(0, str(_BACKEND_ROOT))
 
-from app.extensions.db import db
-from app.flask_app import create_app
+from app.db.session import get_sessionmaker
 from app.models.ai import (
     AIConversation,
     AIMessage,
@@ -251,14 +250,12 @@ def _export_user_seed(user: User, user_seed_key: str) -> None:
 
 def main() -> None:
     args = _parse_args()
-    app = create_app()
-
-    with app.app_context():
-        conversation = db.session.get(AIConversation, args.conversation_id)
+    with get_sessionmaker()() as session:
+        conversation = session.get(AIConversation, args.conversation_id)
         if conversation is None:
             raise ValueError(f"Conversation {args.conversation_id} not found.")
 
-        user = db.session.get(User, conversation.user_id)
+        user = session.get(User, conversation.user_id)
         if user is None:
             raise ValueError(f"User {conversation.user_id} not found.")
 
@@ -266,35 +263,35 @@ def main() -> None:
             _remove_existing_ai_seed_files()
 
         messages = list(
-            db.session.scalars(
+            session.scalars(
                 select(AIMessage)
                 .where(AIMessage.conversation_id == conversation.id)
                 .order_by(AIMessage.sequence_no.asc(), AIMessage.id.asc())
             )
         )
         cases = list(
-            db.session.scalars(
+            session.scalars(
                 select(RecyclingCase)
                 .where(RecyclingCase.conversation_id == conversation.id)
                 .order_by(RecyclingCase.id.asc())
             )
         )
         audits = list(
-            db.session.scalars(
+            session.scalars(
                 select(RecyclingAuditAttempt)
                 .where(RecyclingAuditAttempt.conversation_id == conversation.id)
                 .order_by(RecyclingAuditAttempt.id.asc())
             )
         )
         records = list(
-            db.session.scalars(
+            session.scalars(
                 select(WasteAnalysisRecord)
                 .where(WasteAnalysisRecord.conversation_id == conversation.id)
                 .order_by(WasteAnalysisRecord.id.asc())
             )
         )
         decisions = list(
-            db.session.scalars(
+            session.scalars(
                 select(AIMessageDecision)
                 .where(AIMessageDecision.conversation_id == conversation.id)
                 .order_by(AIMessageDecision.id.asc())
@@ -303,7 +300,7 @@ def main() -> None:
         record_ids = [record.id for record in records]
         transactions = (
             list(
-                db.session.scalars(
+                session.scalars(
                     select(Transaction)
                     .where(
                         Transaction.source_type == "waste_analysis",

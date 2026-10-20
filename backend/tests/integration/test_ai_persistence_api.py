@@ -5,13 +5,13 @@ from __future__ import annotations
 import json
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 
-from app.extensions.db import db
 from app.models.ai import AIConversation, AIMessage, RecyclingCase
 from app.models.ledger import Transaction
 from app.models.memory import UserMemoryItem
 from app.services.ai import ai_conversation_service, ai_decision_engine, recycling_analysis_service
+from tests.support.database import db
 
 _VALID_IMAGE_DATA_URL = (
     "data:image/png;base64,"
@@ -62,7 +62,7 @@ def _extract_sse_payloads(response) -> list[dict]:
 class TestChatPersistenceApi:
     @pytest.mark.usefixtures("llm_unavailable")
     def test_authenticated_chat_persists_conversation_and_messages(
-        self, client, make_auth_headers, monkeypatch, app, override_settings
+        self, client, make_auth_headers, monkeypatch, override_settings
     ):
         override_settings(ai_demo_replay_enabled=False)
         _, headers = make_auth_headers()
@@ -217,7 +217,7 @@ class TestChatPersistenceApi:
 
     @pytest.mark.usefixtures("llm_unavailable")
     def test_stream_chat_persists_after_completion(
-        self, client, make_auth_headers, monkeypatch, app, override_settings
+        self, client, make_auth_headers, monkeypatch, override_settings
     ):
         override_settings(ai_demo_replay_enabled=False)
         _, headers = make_auth_headers()
@@ -418,7 +418,7 @@ class TestRecyclingPersistenceApi:
 
         conversation = db.session.get(AIConversation, persisted_payload["conversation_id"])
         case = db.session.get(RecyclingCase, persisted_payload["recycling_case_id"])
-        transaction_count = db.session.scalar(select(db.func.count(Transaction.id))) or 0
+        transaction_count = db.session.scalar(select(func.count(Transaction.id))) or 0
 
         assert conversation is not None
         assert conversation.status == "awaiting_location"
@@ -521,6 +521,6 @@ class TestRecyclingPersistenceApi:
         assert history["items"][0]["image_url"].startswith("/api/uploads/recycling-analysis/")
 
         conversation = db.session.get(AIConversation, conversation_id)
-        transaction_count = db.session.scalar(select(db.func.count(Transaction.id))) or 0
+        transaction_count = db.session.scalar(select(func.count(Transaction.id))) or 0
         assert conversation.status == "completed"
         assert transaction_count == 0

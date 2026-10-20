@@ -7,7 +7,6 @@ from pathlib import Path
 from sqlalchemy import select
 from werkzeug.security import generate_password_hash
 
-from app.extensions.db import db
 from app.models.ai import (
     AIConversation,
     AIMessage,
@@ -24,6 +23,7 @@ from app.services.ai import (
     recycling_audit_service,
 )
 from app.services.ai.demo_seed_replay_service import find_seed_replay_match
+from tests.support.database import db
 
 
 def _make_user() -> User:
@@ -57,14 +57,13 @@ def _messages_for_conversation(conversation_id: int) -> list[AIMessage]:
     )
 
 
-def test_find_seed_replay_match_uses_text_and_image_hash(app):
+def test_find_seed_replay_match_uses_text_and_image_hash():
     image_data_url = _seed_image_data_url("dual-case-recycling-chat-message-01-image_url.jpg")
 
-    with app.app_context():
-        match = find_seed_replay_match(
-            message="  how   should i recycle this ONE  ",
-            image_data_url=image_data_url,
-        )
+    match = find_seed_replay_match(
+        message="  how   should i recycle this ONE  ",
+        image_data_url=image_data_url,
+    )
 
     assert match is not None
     assert match.user_message.seed_key == "dual-case-recycling-chat-message-01"
@@ -74,9 +73,8 @@ def test_find_seed_replay_match_uses_text_and_image_hash(app):
     ]
 
 
-def test_find_seed_replay_match_supports_text_only_seed_messages(app):
-    with app.app_context():
-        match = find_seed_replay_match(message=" hello ", image_data_url=None)
+def test_find_seed_replay_match_supports_text_only_seed_messages():
+    match = find_seed_replay_match(message=" hello ", image_data_url=None)
 
     assert match is not None
     assert match.user_message.seed_key == "memory-preference-chat-message-01"
@@ -84,7 +82,7 @@ def test_find_seed_replay_match_supports_text_only_seed_messages(app):
 
 
 def test_stream_routed_chat_message_replays_seed_without_decision_engine(
-    app, monkeypatch, override_settings
+    monkeypatch, override_settings
 ):
     image_data_url = _seed_image_data_url("dual-case-recycling-chat-message-01-image_url.jpg")
 
@@ -95,27 +93,26 @@ def test_stream_routed_chat_message_replays_seed_without_decision_engine(
 
     monkeypatch.setattr(ai_decision_engine, "decide_message", fail_decision_engine)
 
-    with app.app_context():
-        override_settings(ai_demo_replay_enabled=True)
-        user = _make_user()
+    override_settings(ai_demo_replay_enabled=True)
+    user = _make_user()
 
-        events = list(
-            ai_conversation_service.stream_routed_chat_message(
-                db.session,
-                user_id=user.id,
-                message="How should I recycle this one",
-                image_data_url=image_data_url,
-            )
+    events = list(
+        ai_conversation_service.stream_routed_chat_message(
+            db.session,
+            user_id=user.id,
+            message="How should I recycle this one",
+            image_data_url=image_data_url,
         )
+    )
 
-        meta = events[0]
-        conversation = db.session.get(AIConversation, meta["conversation_id"])
-        messages = _messages_for_conversation(conversation.id)
-        cases = list(
-            db.session.scalars(
-                select(RecyclingCase).where(RecyclingCase.conversation_id == conversation.id)
-            )
+    meta = events[0]
+    conversation = db.session.get(AIConversation, meta["conversation_id"])
+    messages = _messages_for_conversation(conversation.id)
+    cases = list(
+        db.session.scalars(
+            select(RecyclingCase).where(RecyclingCase.conversation_id == conversation.id)
         )
+    )
 
     assert meta["type"] == "meta"
     assert meta["demo_replay"] is True
@@ -151,46 +148,45 @@ def test_stream_routed_chat_message_replays_seed_without_decision_engine(
 
 
 def test_stream_recycling_resume_continues_demo_replay_after_location(
-    app, monkeypatch, override_settings
+    monkeypatch, override_settings
 ):
     image_data_url = _seed_image_data_url("dual-case-recycling-chat-message-01-image_url.jpg")
 
-    with app.app_context():
-        override_settings(ai_demo_replay_enabled=True)
-        user = _make_user()
+    override_settings(ai_demo_replay_enabled=True)
+    user = _make_user()
 
-        initial_events = list(
-            ai_conversation_service.stream_routed_chat_message(
-                db.session,
-                user_id=user.id,
-                message="How should I recycle this one",
-                image_data_url=image_data_url,
-            )
-        )
-        awaiting_event = next(
-            event for event in initial_events if event.get("type") == "awaiting_location"
-        )
-        session_id = awaiting_event["data"]["session_id"]
-
-        recycling_analysis_service.store_location_context(
+    initial_events = list(
+        ai_conversation_service.stream_routed_chat_message(
             db.session,
-            {
-                "session_id": session_id,
-                "permission_state": "granted",
-                "browser_location": {
-                    "lat": 39.87501048850203,
-                    "lng": 116.47902238836137,
-                },
-            },
             user_id=user.id,
+            message="How should I recycle this one",
+            image_data_url=image_data_url,
         )
-        resume_events = list(
-            recycling_analysis_service.stream_recycling_resume(
-                db.session, user_id=user.id, session_id=session_id
-            )
+    )
+    awaiting_event = next(
+        event for event in initial_events if event.get("type") == "awaiting_location"
+    )
+    session_id = awaiting_event["data"]["session_id"]
+
+    recycling_analysis_service.store_location_context(
+        db.session,
+        {
+            "session_id": session_id,
+            "permission_state": "granted",
+            "browser_location": {
+                "lat": 39.87501048850203,
+                "lng": 116.47902238836137,
+            },
+        },
+        user_id=user.id,
+    )
+    resume_events = list(
+        recycling_analysis_service.stream_recycling_resume(
+            db.session, user_id=user.id, session_id=session_id
         )
-        messages = _messages_for_conversation(initial_events[0]["conversation_id"])
-        conversation = db.session.get(AIConversation, initial_events[0]["conversation_id"])
+    )
+    messages = _messages_for_conversation(initial_events[0]["conversation_id"])
+    conversation = db.session.get(AIConversation, initial_events[0]["conversation_id"])
 
     nearby_event = next(event for event in resume_events if event.get("type") == "nearby_results")
     replayed_text = "".join(
@@ -213,7 +209,7 @@ def test_stream_recycling_resume_continues_demo_replay_after_location(
     assert resume_events[-1] == {"type": "done", "stream_stage": "completed"}
 
 
-def test_stream_recycling_audit_replays_seed_audit_result(app, monkeypatch, override_settings):
+def test_stream_recycling_audit_replays_seed_audit_result(monkeypatch, override_settings):
     analysis_image_data_url = _seed_image_data_url(
         "dual-case-recycling-chat-message-01-image_url.jpg"
     )
@@ -225,50 +221,45 @@ def test_stream_recycling_audit_replays_seed_audit_result(app, monkeypatch, over
         lambda **kwargs: (_ for _ in ()).throw(AssertionError("demo audit should not call AI")),
     )
 
-    with app.app_context():
-        override_settings(ai_demo_replay_enabled=True)
-        user = _make_user()
+    override_settings(ai_demo_replay_enabled=True)
+    user = _make_user()
 
-        initial_events = list(
-            ai_conversation_service.stream_routed_chat_message(
-                db.session,
-                user_id=user.id,
-                message="How should I recycle this one",
-                image_data_url=analysis_image_data_url,
-            )
+    initial_events = list(
+        ai_conversation_service.stream_routed_chat_message(
+            db.session,
+            user_id=user.id,
+            message="How should I recycle this one",
+            image_data_url=analysis_image_data_url,
         )
-        conversation_id = initial_events[0]["conversation_id"]
-        awaiting_event = next(
-            event for event in initial_events if event.get("type") == "awaiting_location"
-        )
-        case_id = awaiting_event["data"]["recycling_case_id"]
+    )
+    conversation_id = initial_events[0]["conversation_id"]
+    awaiting_event = next(
+        event for event in initial_events if event.get("type") == "awaiting_location"
+    )
+    case_id = awaiting_event["data"]["recycling_case_id"]
 
-        audit_events = list(
-            recycling_audit_service.stream_recycling_audit(
-                db.session,
-                user_id=user.id,
-                conversation_id=conversation_id,
-                recycling_case_id=case_id,
-                message="Please audit this completion photo.",
-                image_data_url=audit_image_data_url,
-            )
+    audit_events = list(
+        recycling_audit_service.stream_recycling_audit(
+            db.session,
+            user_id=user.id,
+            conversation_id=conversation_id,
+            recycling_case_id=case_id,
+            message="Please audit this completion photo.",
+            image_data_url=audit_image_data_url,
         )
+    )
 
-        messages = _messages_for_conversation(conversation_id)
-        refreshed_case = db.session.get(RecyclingCase, case_id)
-        attempts = list(
-            db.session.scalars(
-                select(RecyclingAuditAttempt).where(
-                    RecyclingAuditAttempt.recycling_case_id == case_id
-                )
-            )
+    messages = _messages_for_conversation(conversation_id)
+    refreshed_case = db.session.get(RecyclingCase, case_id)
+    attempts = list(
+        db.session.scalars(
+            select(RecyclingAuditAttempt).where(RecyclingAuditAttempt.recycling_case_id == case_id)
         )
-        record = db.session.scalar(
-            select(WasteAnalysisRecord).where(WasteAnalysisRecord.recycling_case_id == case_id)
-        )
-        transaction = db.session.scalar(
-            select(Transaction).where(Transaction.source_id == record.id)
-        )
+    )
+    record = db.session.scalar(
+        select(WasteAnalysisRecord).where(WasteAnalysisRecord.recycling_case_id == case_id)
+    )
+    transaction = db.session.scalar(select(Transaction).where(Transaction.source_id == record.id))
 
     payload_event = next(event for event in audit_events if event.get("type") == "stage_payload")
     assert [event["type"] for event in audit_events] == [
@@ -291,7 +282,7 @@ def test_stream_recycling_audit_replays_seed_audit_result(app, monkeypatch, over
 
 
 def test_stream_recycling_audit_matches_retry_by_image_when_text_differs(
-    app, monkeypatch, override_settings
+    monkeypatch, override_settings
 ):
     analysis_image_data_url = _seed_image_data_url(
         "dual-case-recycling-chat-message-06-image_url.jpg"
@@ -309,53 +300,52 @@ def test_stream_recycling_audit_matches_retry_by_image_when_text_differs(
         lambda **kwargs: (_ for _ in ()).throw(AssertionError("demo audit should not call AI")),
     )
 
-    with app.app_context():
-        override_settings(ai_demo_replay_enabled=True)
-        user = _make_user()
+    override_settings(ai_demo_replay_enabled=True)
+    user = _make_user()
 
-        initial_events = list(
-            ai_conversation_service.stream_routed_chat_message(
-                db.session,
-                user_id=user.id,
-                message="How can I recycle this one",
-                image_data_url=analysis_image_data_url,
-            )
+    initial_events = list(
+        ai_conversation_service.stream_routed_chat_message(
+            db.session,
+            user_id=user.id,
+            message="How can I recycle this one",
+            image_data_url=analysis_image_data_url,
         )
-        conversation_id = initial_events[0]["conversation_id"]
-        awaiting_event = next(
-            event for event in initial_events if event.get("type") == "awaiting_location"
-        )
-        case_id = awaiting_event["data"]["recycling_case_id"]
+    )
+    conversation_id = initial_events[0]["conversation_id"]
+    awaiting_event = next(
+        event for event in initial_events if event.get("type") == "awaiting_location"
+    )
+    case_id = awaiting_event["data"]["recycling_case_id"]
 
-        unclear_events = list(
-            recycling_audit_service.stream_recycling_audit(
-                db.session,
-                user_id=user.id,
-                conversation_id=conversation_id,
-                recycling_case_id=case_id,
-                message="Please audit this completion photo.",
-                image_data_url=unclear_audit_image_data_url,
-            )
+    unclear_events = list(
+        recycling_audit_service.stream_recycling_audit(
+            db.session,
+            user_id=user.id,
+            conversation_id=conversation_id,
+            recycling_case_id=case_id,
+            message="Please audit this completion photo.",
+            image_data_url=unclear_audit_image_data_url,
         )
-        passed_events = list(
-            recycling_audit_service.stream_recycling_audit(
-                db.session,
-                user_id=user.id,
-                conversation_id=conversation_id,
-                recycling_case_id=case_id,
-                message="Please audit this completion photo.",
-                image_data_url=passed_audit_image_data_url,
-            )
+    )
+    passed_events = list(
+        recycling_audit_service.stream_recycling_audit(
+            db.session,
+            user_id=user.id,
+            conversation_id=conversation_id,
+            recycling_case_id=case_id,
+            message="Please audit this completion photo.",
+            image_data_url=passed_audit_image_data_url,
         )
+    )
 
-        refreshed_case = db.session.get(RecyclingCase, case_id)
-        attempts = list(
-            db.session.scalars(
-                select(RecyclingAuditAttempt)
-                .where(RecyclingAuditAttempt.recycling_case_id == case_id)
-                .order_by(RecyclingAuditAttempt.attempt_no.asc())
-            )
+    refreshed_case = db.session.get(RecyclingCase, case_id)
+    attempts = list(
+        db.session.scalars(
+            select(RecyclingAuditAttempt)
+            .where(RecyclingAuditAttempt.recycling_case_id == case_id)
+            .order_by(RecyclingAuditAttempt.attempt_no.asc())
         )
+    )
 
     unclear_payload = next(
         event for event in unclear_events if event.get("type") == "stage_payload"
@@ -374,7 +364,7 @@ def test_stream_recycling_audit_matches_retry_by_image_when_text_differs(
 
 
 def test_stream_routed_chat_message_replays_text_seed_without_stage_start(
-    app, monkeypatch, override_settings
+    monkeypatch, override_settings
 ):
     from app.services.ai import ai_decision_engine
 
@@ -386,21 +376,20 @@ def test_stream_routed_chat_message_replays_text_seed_without_stage_start(
         ),
     )
 
-    with app.app_context():
-        override_settings(ai_demo_replay_enabled=True)
-        user = _make_user()
+    override_settings(ai_demo_replay_enabled=True)
+    user = _make_user()
 
-        events = list(
-            ai_conversation_service.stream_routed_chat_message(
-                db.session,
-                user_id=user.id,
-                message="Hello",
-                image_data_url=None,
-            )
+    events = list(
+        ai_conversation_service.stream_routed_chat_message(
+            db.session,
+            user_id=user.id,
+            message="Hello",
+            image_data_url=None,
         )
+    )
 
-        meta = events[0]
-        messages = _messages_for_conversation(meta["conversation_id"])
+    meta = events[0]
+    messages = _messages_for_conversation(meta["conversation_id"])
 
     assert not any(event.get("type") == "stage_start" for event in events)
     assert "".join(
@@ -418,7 +407,7 @@ def test_stream_routed_chat_message_replays_text_seed_without_stage_start(
 
 
 def test_stream_routed_chat_message_emits_seed_memory_updates_in_meta(
-    app, monkeypatch, override_settings
+    monkeypatch, override_settings
 ):
     from app.services.ai import ai_decision_engine
 
@@ -430,26 +419,25 @@ def test_stream_routed_chat_message_emits_seed_memory_updates_in_meta(
         ),
     )
 
-    with app.app_context():
-        override_settings(ai_demo_replay_enabled=True)
-        user = _make_user()
+    override_settings(ai_demo_replay_enabled=True)
+    user = _make_user()
 
-        events = list(
-            ai_conversation_service.stream_routed_chat_message(
-                db.session,
-                user_id=user.id,
-                message="From now on, I prefer nearby drop-off suggestions first.",
-                image_data_url=None,
-            )
+    events = list(
+        ai_conversation_service.stream_routed_chat_message(
+            db.session,
+            user_id=user.id,
+            message="From now on, I prefer nearby drop-off suggestions first.",
+            image_data_url=None,
         )
-        messages = _messages_for_conversation(events[0]["conversation_id"])
-        memory_items = list(
-            db.session.scalars(
-                select(UserMemoryItem)
-                .where(UserMemoryItem.user_id == user.id)
-                .order_by(UserMemoryItem.id.asc())
-            )
+    )
+    messages = _messages_for_conversation(events[0]["conversation_id"])
+    memory_items = list(
+        db.session.scalars(
+            select(UserMemoryItem)
+            .where(UserMemoryItem.user_id == user.id)
+            .order_by(UserMemoryItem.id.asc())
         )
+    )
 
     assert len(events[0]["memory_updates"]) == 1
     assert events[0]["memory_updates"][0]["memory_type"] == "recycling_preference"
@@ -466,7 +454,7 @@ def test_stream_routed_chat_message_emits_seed_memory_updates_in_meta(
 
 
 def test_stream_routed_chat_message_replays_nearby_follow_up_without_extra_stage(
-    app, monkeypatch, override_settings
+    monkeypatch, override_settings
 ):
     from app.services.ai import ai_decision_engine
 
@@ -478,18 +466,17 @@ def test_stream_routed_chat_message_replays_nearby_follow_up_without_extra_stage
         ),
     )
 
-    with app.app_context():
-        override_settings(ai_demo_replay_enabled=True)
-        user = _make_user()
+    override_settings(ai_demo_replay_enabled=True)
+    user = _make_user()
 
-        events = list(
-            ai_conversation_service.stream_routed_chat_message(
-                db.session,
-                user_id=user.id,
-                message="Where can I recycle it near me?",
-                image_data_url=None,
-            )
+    events = list(
+        ai_conversation_service.stream_routed_chat_message(
+            db.session,
+            user_id=user.id,
+            message="Where can I recycle it near me?",
+            image_data_url=None,
         )
+    )
 
     nearby_event = next(event for event in events if event.get("type") == "nearby_results")
     replayed_text = "".join(
@@ -506,9 +493,7 @@ def test_stream_routed_chat_message_replays_nearby_follow_up_without_extra_stage
     assert events[-1] == {"type": "done", "stream_stage": "completed"}
 
 
-def test_stream_routed_chat_message_replays_clarification_options(
-    app, monkeypatch, override_settings
-):
+def test_stream_routed_chat_message_replays_clarification_options(monkeypatch, override_settings):
     from app.services.ai import ai_decision_engine
 
     monkeypatch.setattr(
@@ -519,19 +504,18 @@ def test_stream_routed_chat_message_replays_clarification_options(
         ),
     )
 
-    with app.app_context():
-        override_settings(ai_demo_replay_enabled=True)
-        user = _make_user()
+    override_settings(ai_demo_replay_enabled=True)
+    user = _make_user()
 
-        events = list(
-            ai_conversation_service.stream_routed_chat_message(
-                db.session,
-                user_id=user.id,
-                message="What should I do with this one now?",
-                image_data_url=None,
-            )
+    events = list(
+        ai_conversation_service.stream_routed_chat_message(
+            db.session,
+            user_id=user.id,
+            message="What should I do with this one now?",
+            image_data_url=None,
         )
-        messages = _messages_for_conversation(events[0]["conversation_id"])
+    )
+    messages = _messages_for_conversation(events[0]["conversation_id"])
 
     clarification_event = next(event for event in events if event.get("type") == "clarification")
 
@@ -548,7 +532,7 @@ def test_stream_routed_chat_message_replays_clarification_options(
 
 
 def test_stream_routed_chat_message_falls_through_when_demo_disabled(
-    app, monkeypatch, override_settings
+    monkeypatch, override_settings
 ):
     image_data_url = _seed_image_data_url("dual-case-recycling-chat-message-01-image_url.jpg")
     calls = {"count": 0}
@@ -579,16 +563,15 @@ def test_stream_routed_chat_message_falls_through_when_demo_disabled(
         ),
     )
 
-    with app.app_context():
-        override_settings(ai_demo_replay_enabled=False)
-        events = list(
-            ai_conversation_service.stream_routed_chat_message(
-                db.session,
-                user_id=None,
-                message="How should I recycle this one",
-                image_data_url=image_data_url,
-            )
+    override_settings(ai_demo_replay_enabled=False)
+    events = list(
+        ai_conversation_service.stream_routed_chat_message(
+            db.session,
+            user_id=None,
+            message="How should I recycle this one",
+            image_data_url=image_data_url,
         )
+    )
 
     assert calls["count"] == 1
     assert any(event.get("content") == "live reply" for event in events)

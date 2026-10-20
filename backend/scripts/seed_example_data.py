@@ -18,8 +18,11 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 _REPO_ROOT = _BACKEND_ROOT.parent
 sys.path.insert(0, str(_BACKEND_ROOT))
 
-from app.extensions.db import db, truncate_tables
-from app.flask_app import create_app
+from sqlalchemy.orm import Session
+
+from app.db.base import Base
+from app.db.maintenance import truncate_tables
+from app.db.session import get_engine, get_sessionmaker
 from app.models.ai import (
     AIConversation,
     AIMessage,
@@ -105,13 +108,13 @@ FIXED_RESET_TABLES = [
 
 
 def _existing_reset_tables() -> list[str]:
-    existing_table_names = set(db.metadata.tables.keys())
+    existing_table_names = set(Base.metadata.tables.keys())
     return [table_name for table_name in FIXED_RESET_TABLES if table_name in existing_table_names]
 
 
-def _clear_fixed_reset_tables() -> list[str]:
+def _clear_fixed_reset_tables(session: Session) -> list[str]:
     table_names = _existing_reset_tables()
-    truncate_tables(table_names)
+    truncate_tables(session, table_names)
     return table_names
 
 
@@ -312,6 +315,7 @@ def _validate_seeded_forum_rag_assets(*, forum_post_chunk_count: int) -> None:
 
 
 def _seed_table(
+    session: Session,
     *,
     table_name: str,
     model_class,
@@ -329,8 +333,8 @@ def _seed_table(
             registry=registry,
         )
         row = model_class(**payload)
-        db.session.add(row)
-        db.session.flush()
+        session.add(row)
+        session.flush()
         if getattr(row, "id", None) is None:
             raise ValueError(
                 f"Seed insert for table '{table_name}' did not produce a primary key: {seed_path.name}"
@@ -357,11 +361,12 @@ def _seed_table(
             )
         inserted_count += 1
 
-    db.session.commit()
+    session.commit()
     return inserted_count
 
 
 def _apply_deferred_updates(
+    session: Session,
     *,
     deferred_updates: list[dict[str, Any]],
     registry: dict[str, dict[str, int]],
@@ -370,7 +375,7 @@ def _apply_deferred_updates(
         return
 
     for update in deferred_updates:
-        row = db.session.get(update["model_class"], update["row_id"])
+        row = session.get(update["model_class"], update["row_id"])
         if row is None:
             raise ValueError(
                 f"Deferred seed update target not found: {update['model_class'].__name__}#{update['row_id']}"
@@ -391,14 +396,13 @@ def _apply_deferred_updates(
 
         raise ValueError(f"Unknown deferred seed update kind: {update['kind']}")
 
-    db.session.commit()
+    session.commit()
 
 
 def main() -> None:
-    app = create_app()
-    with app.app_context():
-        db.create_all()
-        cleared_tables = _clear_fixed_reset_tables()
+    with get_sessionmaker()() as session:
+        Base.metadata.create_all(get_engine())
+        cleared_tables = _clear_fixed_reset_tables(session)
         restored_upload_assets = _restore_seed_upload_assets()
         restored_faiss_assets = _restore_seed_faiss_assets()
 
@@ -410,6 +414,7 @@ def main() -> None:
         for table_name in TABLE_LOAD_ORDER:
             model_class = TABLE_MODEL_MAP[table_name]
             count = _seed_table(
+                session,
                 table_name=table_name,
                 model_class=model_class,
                 registry=registry,
@@ -418,7 +423,7 @@ def main() -> None:
             inserted_summary.append((table_name, count))
             inserted_counts[table_name] = count
 
-        _apply_deferred_updates(deferred_updates=deferred_updates, registry=registry)
+        _apply_deferred_updates(session, deferred_updates=deferred_updates, registry=registry)
         _validate_seeded_forum_rag_assets(
             forum_post_chunk_count=inserted_counts.get("forum_post_chunks", 0),
         )

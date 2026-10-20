@@ -1,8 +1,7 @@
-"""Repositories must work with a plain Session and no Flask app context.
+"""Repositories work with a plain Session handed to them, on any thread.
 
-That is how FastAPI routes, scripts and workers will call them. Every test
-body runs inside the app context that db_session opens, so the calls here run
-in a fresh thread, which starts without one (Flask keeps it in a contextvar).
+That is how routes, scripts and background workers call them; the calls here
+run on a fresh thread with a Session of their own.
 """
 
 from __future__ import annotations
@@ -10,7 +9,6 @@ from __future__ import annotations
 import threading
 from collections.abc import Callable
 
-from flask import has_app_context
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -25,7 +23,6 @@ def _run_without_app_context(func: Callable[[], object]) -> object:
 
     def target() -> None:
         try:
-            assert not has_app_context()
             outcome["value"] = func()
         except BaseException as exc:  # re-raised in the test thread
             outcome["error"] = exc

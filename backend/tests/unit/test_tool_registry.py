@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from app.extensions.db import db
 from app.services.ai import tool_registry
+from tests.support.database import db
 
 
 def test_registry_exposes_resume_worthy_ai_tools():
@@ -31,13 +31,12 @@ def test_run_tool_blocks_high_risk_business_write():
     assert result["error"] == "high_risk_tool_requires_explicit_user_action"
 
 
-def test_estimate_carbon_saving_is_deterministic(app):
-    with app.app_context():
-        result = tool_registry.run_tool(
-            db.session,
-            "estimate_carbon_saving",
-            {"item_type": "plastic bottle", "weight_kg": 0.5},
-        )
+def test_estimate_carbon_saving_is_deterministic():
+    result = tool_registry.run_tool(
+        db.session,
+        "estimate_carbon_saving",
+        {"item_type": "plastic bottle", "weight_kg": 0.5},
+    )
 
     assert result["ok"] is True
     assert result["output"] == {
@@ -63,13 +62,15 @@ def test_select_tools_for_decision(decision, expected_tool):
     assert expected_tool in {tool["name"] for tool in selected}
 
 
-def test_select_tools_respects_disabled_graph_flag(app):
-    app.config["AI_NEO4J_GRAPHRAG_ENABLED"] = False
-    app.config["NEO4J_URI"] = "bolt://localhost:7687"
-    app.config["NEO4J_USERNAME"] = "neo4j"
-    app.config["NEO4J_PASSWORD"] = "password"
+def test_select_tools_respects_disabled_graph_flag(override_settings):
+    # Credentials alone do not turn the graph tool on.
+    override_settings(
+        ai_neo4j_graphrag_enabled=False,
+        neo4j_uri="bolt://localhost:7687",
+        neo4j_username="neo4j",
+        neo4j_password="password",
+    )
 
-    with app.app_context():
-        selected = tool_registry.select_tools_for_decision({"intent": "recycling_analysis"})
+    selected = tool_registry.select_tools_for_decision({"intent": "recycling_analysis"})
 
     assert "query_recycling_graph" not in {tool["name"] for tool in selected}

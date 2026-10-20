@@ -7,10 +7,10 @@ Covers: create_item, list/get item, remove_item, place_order,
 import pytest
 from werkzeug.security import generate_password_hash
 
-from app.extensions.db import db
 from app.models.user import User
 from app.services.market import market_service
 from app.services.market.market_service import MarketError
+from tests.support.database import db
 
 # ---------------------------------------------------------------------------
 # Helpers

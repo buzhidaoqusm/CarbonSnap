@@ -44,7 +44,7 @@ class _FakeClient:
 
 class TestOSMPublicMapProvider:
     def test_search_nearby_recycling_points_retries_same_endpoint_before_failing_over(
-        self, app, monkeypatch, override_settings
+        self, monkeypatch, override_settings
     ):
         override_settings(osm_overpass_url="https://primary.example/api/interpreter")
         override_settings(
@@ -78,18 +78,17 @@ class TestOSMPublicMapProvider:
 
         monkeypatch.setattr(httpx, "Client", lambda **kwargs: _FakeClient(responses))
 
-        with app.app_context():
-            provider = OSMPublicMapProvider()
-            results = provider.search_nearby_recycling_points(
-                lat=1.3521, lng=103.8198, area_label="Singapore"
-            )
+        provider = OSMPublicMapProvider()
+        results = provider.search_nearby_recycling_points(
+            lat=1.3521, lng=103.8198, area_label="Singapore"
+        )
 
         assert len(results) == 1
         assert results[0]["name"] == "Recovered Primary Recycling Point"
         assert responses["https://primary.example/api/interpreter"] == []
 
     def test_search_nearby_recycling_points_falls_back_when_primary_overpass_fails(
-        self, app, monkeypatch, override_settings
+        self, monkeypatch, override_settings
     ):
         override_settings(osm_overpass_url="https://primary.example/api/interpreter")
         override_settings(
@@ -123,11 +122,10 @@ class TestOSMPublicMapProvider:
 
         monkeypatch.setattr(httpx, "Client", lambda **kwargs: _FakeClient(responses))
 
-        with app.app_context():
-            provider = OSMPublicMapProvider()
-            results = provider.search_nearby_recycling_points(
-                lat=1.3521, lng=103.8198, area_label="Singapore"
-            )
+        provider = OSMPublicMapProvider()
+        results = provider.search_nearby_recycling_points(
+            lat=1.3521, lng=103.8198, area_label="Singapore"
+        )
 
         assert len(results) == 1
         assert results[0]["name"] == "Backup Recycling Point"

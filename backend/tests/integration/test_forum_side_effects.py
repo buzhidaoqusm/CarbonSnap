@@ -10,10 +10,10 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import select
 
-from app.extensions.db import db
 from app.models.forum import ForumPostChunk
 from app.models.notification import Notification
 from app.models.recommendation import ContentTopicAssignment, UserBehaviorEvent
+from tests.support.database import db
 
 
 @pytest.fixture(autouse=True)
@@ -51,26 +51,25 @@ def _post(client, headers) -> int:
     return response.json()["data"]["id"]
 
 
-def test_posting_indexes_and_tags_the_post(app, client, make_auth_headers):
+def test_posting_indexes_and_tags_the_post(client, make_auth_headers):
     _, author = make_auth_headers()
 
     post_id = _post(client, author)
 
-    with app.app_context():
-        chunks = db.session.scalars(
-            select(ForumPostChunk).where(ForumPostChunk.post_id == post_id)
-        ).all()
-        topics = db.session.scalars(
-            select(ContentTopicAssignment.topic_id).where(
-                ContentTopicAssignment.content_type == "post",
-                ContentTopicAssignment.content_id == post_id,
-            )
-        ).all()
-        assert chunks
-        assert topics
+    chunks = db.session.scalars(
+        select(ForumPostChunk).where(ForumPostChunk.post_id == post_id)
+    ).all()
+    topics = db.session.scalars(
+        select(ContentTopicAssignment.topic_id).where(
+            ContentTopicAssignment.content_type == "post",
+            ContentTopicAssignment.content_id == post_id,
+        )
+    ).all()
+    assert chunks
+    assert topics
 
 
-def test_reading_is_recorded(app, client, make_auth_headers):
+def test_reading_is_recorded(client, make_auth_headers):
     _, author = make_auth_headers()
     reader_id, reader = make_auth_headers()
     post_id = _post(client, author)
@@ -78,11 +77,10 @@ def test_reading_is_recorded(app, client, make_auth_headers):
     client.get(f"/api/forum/posts/{post_id}", headers=reader)
     client.post(f"/api/forum/posts/{post_id}/long-view", headers=reader)
 
-    with app.app_context():
-        assert _events(reader_id) == [("view", "post"), ("long_view", "post")]
+    assert _events(reader_id) == [("view", "post"), ("long_view", "post")]
 
 
-def test_comments_and_likes_are_recorded_and_notified(app, client, make_auth_headers):
+def test_comments_and_likes_are_recorded_and_notified(client, make_auth_headers):
     author_id, author = make_auth_headers()
     reader_id, reader = make_auth_headers()
     post_id = _post(client, author)
@@ -104,7 +102,6 @@ def test_comments_and_likes_are_recorded_and_notified(app, client, make_auth_hea
         headers=author,
     )
 
-    with app.app_context():
-        assert _events(reader_id) == [("comment_or_reply", "post"), ("like", "post")]
-        assert _notifications(author_id) == ["post_commented", "post_liked"]
-        assert _notifications(reader_id) == ["comment_replied", "comment_liked"]
+    assert _events(reader_id) == [("comment_or_reply", "post"), ("like", "post")]
+    assert _notifications(author_id) == ["post_commented", "post_liked"]
+    assert _notifications(reader_id) == ["comment_replied", "comment_liked"]

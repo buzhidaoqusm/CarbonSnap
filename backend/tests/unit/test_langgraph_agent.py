@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from app.extensions.db import db
 from app.services.ai.agent_trace_service import build_trace_shell
 from app.services.ai.langgraph_agent import (
     complete_graph_agent_message,
     is_langgraph_available,
     stream_graph_agent_message,
 )
+from tests.support.database import db
 
 
 def _decision(

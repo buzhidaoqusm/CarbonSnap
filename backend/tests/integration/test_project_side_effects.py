@@ -13,13 +13,13 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from sqlalchemy import select
 
-from app.extensions.db import db
 from app.models.recommendation import (
     ContentTopicAssignment,
     UserBehaviorEvent,
     UserPreferenceProfile,
 )
 from app.models.user import User
+from tests.support.database import db
 
 
 @pytest.fixture(autouse=True)
@@ -66,25 +66,24 @@ def _memory_summary(user_id: int) -> dict:
     return json.loads(raw) if raw else {}
 
 
-def test_create_assigns_topics_and_records_the_creator(app, client, make_auth_headers):
+def test_create_assigns_topics_and_records_the_creator(client, make_auth_headers):
     creator_id, headers = make_auth_headers()
 
     project_id = _create(client, headers)
 
-    with app.app_context():
-        topics = db.session.scalars(
-            select(ContentTopicAssignment.topic_id).where(
-                ContentTopicAssignment.content_type == "project",
-                ContentTopicAssignment.content_id == project_id,
-            )
-        ).all()
-        assert topics == ["plastic-recycling"]
-        assert _events(creator_id) == [("project", "project_create", project_id)]
-        assert "plastic-recycling" in _profile_keys(creator_id)
-        assert _memory_summary(creator_id)
+    topics = db.session.scalars(
+        select(ContentTopicAssignment.topic_id).where(
+            ContentTopicAssignment.content_type == "project",
+            ContentTopicAssignment.content_id == project_id,
+        )
+    ).all()
+    assert topics == ["plastic-recycling"]
+    assert _events(creator_id) == [("project", "project_create", project_id)]
+    assert "plastic-recycling" in _profile_keys(creator_id)
+    assert _memory_summary(creator_id)
 
 
-def test_viewing_someone_elses_project_is_recorded(app, client, make_auth_headers):
+def test_viewing_someone_elses_project_is_recorded(client, make_auth_headers):
     _, creator_headers = make_auth_headers()
     viewer_id, viewer_headers = make_auth_headers()
     project_id = _create(client, creator_headers)
@@ -92,23 +91,21 @@ def test_viewing_someone_elses_project_is_recorded(app, client, make_auth_header
     response = client.get(f"/api/projects/{project_id}", headers=viewer_headers)
 
     assert response.status_code == 200
-    with app.app_context():
-        assert _events(viewer_id) == [("project", "view", project_id)]
-        assert "plastic-recycling" in _profile_keys(viewer_id)
-        assert _memory_summary(viewer_id)
+    assert _events(viewer_id) == [("project", "view", project_id)]
+    assert "plastic-recycling" in _profile_keys(viewer_id)
+    assert _memory_summary(viewer_id)
 
 
-def test_viewing_your_own_project_is_not_recorded(app, client, make_auth_headers):
+def test_viewing_your_own_project_is_not_recorded(client, make_auth_headers):
     creator_id, headers = make_auth_headers()
     project_id = _create(client, headers)
 
     client.get(f"/api/projects/{project_id}", headers=headers)
 
-    with app.app_context():
-        assert _events(creator_id) == [("project", "project_create", project_id)]
+    assert _events(creator_id) == [("project", "project_create", project_id)]
 
 
-def test_contributing_is_recorded(app, client, make_auth_headers):
+def test_contributing_is_recorded(client, make_auth_headers):
     _, creator_headers = make_auth_headers()
     backer_id, backer_headers = make_auth_headers(points=50)
     project_id = _create(client, creator_headers)
@@ -118,7 +115,6 @@ def test_contributing_is_recorded(app, client, make_auth_headers):
     )
 
     assert response.status_code == 201
-    with app.app_context():
-        assert _events(backer_id) == [("project", "project_contribute", project_id)]
-        assert "plastic-recycling" in _profile_keys(backer_id)
-        assert _memory_summary(backer_id)
+    assert _events(backer_id) == [("project", "project_contribute", project_id)]
+    assert "plastic-recycling" in _profile_keys(backer_id)
+    assert _memory_summary(backer_id)

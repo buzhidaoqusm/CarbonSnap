@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from sqlalchemy import select
 
-from app.extensions.db import db
 from app.models.user import User
+from tests.support.database import db
 
 MARKER = "isolation-probe"
 

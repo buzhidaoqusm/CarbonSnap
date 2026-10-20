@@ -5,7 +5,6 @@ from datetime import UTC, datetime, timedelta
 
 from werkzeug.security import generate_password_hash
 
-from app.extensions.db import db
 from app.models.ai import AIConversation, AIMessage, RecyclingCase
 from app.models.forum import ForumPost
 from app.models.market import MarketItem, Order
@@ -14,6 +13,7 @@ from app.models.user import User
 from app.repositories.market import market_repository
 from app.repositories.recommendation import preference_profile_repository
 from app.services.recommendation import behavior_event_service, preference_profile_service
+from tests.support.database import db
 
 
 def _make_user(username: str = "alice", email: str = "alice@example.com") -> User:

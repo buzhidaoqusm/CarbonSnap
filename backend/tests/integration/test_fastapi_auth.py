@@ -11,9 +11,11 @@ import datetime as dt
 import jwt as pyjwt
 import pytest
 
+from app.core.config import get_settings
+
 
 def test_token_from_flask_is_accepted_by_fastapi(client, make_auth_headers):
-    # make_auth_headers signs with flask_jwt_extended.
+    # make_auth_headers signs with the claims flask_jwt_extended wrote.
     _, headers = make_auth_headers()
 
     response = client.get("/api/notifications/unread-count", headers=headers)
@@ -33,14 +35,13 @@ def test_token_from_fastapi_is_accepted_by_flask(client, make_user):
     assert response.json()["data"]["user"]["id"] == user_id
 
 
-def test_legacy_token_with_username_subject_still_works(app, client, make_user):
+def test_legacy_token_with_username_subject_still_works(client, make_user):
     # Early tokens carried the username as the subject. forum and market
     # resolve it; the notification routes used int(sub) and failed with a 500.
-    from flask_jwt_extended import create_access_token
+    from app.core.security import create_access_token
 
     make_user(username="legacy", email="legacy@example.com")
-    with app.app_context():
-        token = create_access_token(identity="legacy")
+    token = create_access_token("legacy")
 
     response = client.get(
         "/api/notifications/unread-count", headers={"Authorization": f"Bearer {token}"}
@@ -49,11 +50,11 @@ def test_legacy_token_with_username_subject_still_works(app, client, make_user):
     assert response.status_code == 200
 
 
-def _expired_token(app) -> str:
+def _expired_token() -> str:
     now = dt.datetime.now(dt.UTC)
     claims = {"sub": "1", "type": "access", "iat": now - dt.timedelta(days=8)}
     claims["exp"] = now - dt.timedelta(days=1)
-    return pyjwt.encode(claims, app.config["JWT_SECRET_KEY"], algorithm="HS256")
+    return pyjwt.encode(claims, get_settings().jwt_secret_key, algorithm="HS256")
 
 
 @pytest.mark.parametrize(
@@ -61,10 +62,10 @@ def _expired_token(app) -> str:
     [None, "Bearer not-a-jwt", "Token abc", "expired"],
     ids=["missing", "malformed", "wrong-scheme", "expired"],
 )
-def test_auth_failures_use_the_envelope(app, client, authorization):
+def test_auth_failures_use_the_envelope(client, authorization):
     headers = {}
     if authorization == "expired":
-        headers["Authorization"] = f"Bearer {_expired_token(app)}"
+        headers["Authorization"] = f"Bearer {_expired_token()}"
     elif authorization is not None:
         headers["Authorization"] = authorization
 
@@ -77,12 +78,12 @@ def test_auth_failures_use_the_envelope(app, client, authorization):
     assert body["data"] == {}
 
 
-def test_refresh_type_token_is_rejected(app, client, make_user):
+def test_refresh_type_token_is_rejected(client, make_user):
     user_id, _ = make_user()
     now = dt.datetime.now(dt.UTC)
     token = pyjwt.encode(
         {"sub": str(user_id), "type": "refresh", "iat": now, "exp": now + dt.timedelta(hours=1)},
-        app.config["JWT_SECRET_KEY"],
+        get_settings().jwt_secret_key,
         algorithm="HS256",
     )
 

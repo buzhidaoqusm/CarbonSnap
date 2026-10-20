@@ -16,8 +16,10 @@ from sqlalchemy import text
 _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_BACKEND_ROOT))
 
-from app.extensions.db import db
-from app.flask_app import create_app
+from sqlalchemy.orm import Session
+
+from app.db.base import Base
+from app.db.session import get_engine, get_sessionmaker
 from app.models.user import User
 from scripts import seed_example_data
 
@@ -88,9 +90,9 @@ def _collect_referenced_user_seed_keys() -> list[str]:
     return sorted(refs)
 
 
-def _find_existing_user(*, email: str, username: str) -> User | None:
-    email_match = db.session.query(User).filter(User.email == email).one_or_none()
-    username_match = db.session.query(User).filter(User.username == username).one_or_none()
+def _find_existing_user(session: Session, *, email: str, username: str) -> User | None:
+    email_match = session.query(User).filter(User.email == email).one_or_none()
+    username_match = session.query(User).filter(User.username == username).one_or_none()
 
     if (
         email_match is not None
@@ -106,6 +108,7 @@ def _find_existing_user(*, email: str, username: str) -> User | None:
 
 
 def _sync_seed_user(
+    session: Session,
     *,
     seed_key: str,
     registry: dict[str, dict[str, int]],
@@ -124,43 +127,44 @@ def _sync_seed_user(
         raise ValueError(f"User seed '{seed_key}' contains unsupported deferred references.")
 
     existing_user = _find_existing_user(
+        session,
         email=str(payload["email"]),
         username=str(payload["username"]),
     )
     if existing_user is None:
         row = User(**payload)
-        db.session.add(row)
-        db.session.flush()
+        session.add(row)
+        session.flush()
         registry.setdefault("users", {})[normalized_seed_key] = int(row.id)
         return "created"
 
     for field_name, field_value in payload.items():
         setattr(existing_user, field_name, field_value)
-    db.session.flush()
+    session.flush()
     registry.setdefault("users", {})[normalized_seed_key] = int(existing_user.id)
     return "updated"
 
 
 def _existing_ai_reset_tables() -> list[str]:
-    existing_table_names = set(db.metadata.tables.keys())
+    existing_table_names = set(Base.metadata.tables.keys())
     return [table_name for table_name in AI_RESET_TABLES if table_name in existing_table_names]
 
 
-def _clear_ai_tables() -> dict[str, int]:
+def _clear_ai_tables(session: Session) -> dict[str, int]:
     summary = {
         "transactions": 0,
         "tables": 0,
     }
-    existing_table_names = set(db.metadata.tables.keys())
+    existing_table_names = set(Base.metadata.tables.keys())
 
     if "recycling_cases" in existing_table_names:
-        db.session.execute(
+        session.execute(
             text(
                 "UPDATE recycling_cases SET approved_analysis_id = NULL WHERE approved_analysis_id IS NOT NULL"
             )
         )
     if "waste_analysis_records" in existing_table_names:
-        db.session.execute(
+        session.execute(
             text(
                 "UPDATE waste_analysis_records "
                 "SET approved_audit_attempt_id = NULL "
@@ -168,46 +172,48 @@ def _clear_ai_tables() -> dict[str, int]:
             )
         )
     if "ai_messages" in existing_table_names:
-        db.session.execute(
+        session.execute(
             text(
                 "UPDATE ai_messages SET related_analysis_id = NULL WHERE related_analysis_id IS NOT NULL"
             )
         )
 
     if "transactions" in existing_table_names:
-        result = db.session.execute(
+        result = session.execute(
             text("DELETE FROM transactions WHERE source_type = 'waste_analysis'")
         )
         summary["transactions"] = int(result.rowcount or 0)
 
     for table_name in _existing_ai_reset_tables():
-        db.session.execute(text(f'DELETE FROM "{table_name}"'))
+        session.execute(text(f'DELETE FROM "{table_name}"'))
         summary["tables"] += 1
 
-    db.session.commit()
+    session.commit()
     return summary
 
 
-def _sync_ai_seed_users(*, registry: dict[str, dict[str, int]]) -> tuple[int, int]:
+def _sync_ai_seed_users(
+    session: Session, *, registry: dict[str, dict[str, int]]
+) -> tuple[int, int]:
     created_count = 0
     updated_count = 0
     for seed_key in _collect_referenced_user_seed_keys():
-        result = _sync_seed_user(seed_key=seed_key, registry=registry)
+        result = _sync_seed_user(session, seed_key=seed_key, registry=registry)
         if result == "created":
             created_count += 1
         else:
             updated_count += 1
-    db.session.commit()
+    session.commit()
     return created_count, updated_count
 
 
-def _recalculate_user_balances() -> int:
+def _recalculate_user_balances(session: Session) -> int:
     totals_by_user = {
         int(row.user_id): (
             int(row.points_total or 0),
             float(row.co2_total or 0.0),
         )
-        for row in db.session.execute(
+        for row in session.execute(
             text(
                 """
                 SELECT
@@ -222,32 +228,32 @@ def _recalculate_user_balances() -> int:
     }
 
     updated_count = 0
-    for user in db.session.query(User).all():
+    for user in session.query(User).all():
         points_total, co2_total = totals_by_user.get(int(user.id), (0, 0.0))
         user.current_points = points_total
         user.total_carbon_amount = co2_total
         updated_count += 1
 
-    db.session.commit()
+    session.commit()
     return updated_count
 
 
 def main() -> None:
-    app = create_app()
-    with app.app_context():
-        db.create_all()
-        clear_summary = _clear_ai_tables()
+    with get_sessionmaker()() as session:
+        Base.metadata.create_all(get_engine())
+        clear_summary = _clear_ai_tables(session)
         restored_upload_assets = seed_example_data._restore_seed_upload_assets()
 
         registry: dict[str, dict[str, int]] = {}
         deferred_updates: list[dict[str, Any]] = []
         inserted_summary: list[tuple[str, int]] = []
 
-        created_users, updated_users = _sync_ai_seed_users(registry=registry)
+        created_users, updated_users = _sync_ai_seed_users(session, registry=registry)
 
         for table_name in AI_TABLE_LOAD_ORDER:
             model_class = seed_example_data.TABLE_MODEL_MAP[table_name]
             count = seed_example_data._seed_table(
+                session,
                 table_name=table_name,
                 model_class=model_class,
                 registry=registry,
@@ -256,10 +262,11 @@ def main() -> None:
             inserted_summary.append((table_name, count))
 
         seed_example_data._apply_deferred_updates(
+            session,
             deferred_updates=deferred_updates,
             registry=registry,
         )
-        refreshed_users = _recalculate_user_balances()
+        refreshed_users = _recalculate_user_balances(session)
 
         print("AI example data seed complete.")
         print(f"- cleared AI tables: {clear_summary['tables']}")

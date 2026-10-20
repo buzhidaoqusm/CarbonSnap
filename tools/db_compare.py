@@ -21,8 +21,8 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
-import app.models  # noqa: E402,F401  registers every table on db.metadata
-from app.extensions.db import db  # noqa: E402
+import app.models  # noqa: E402,F401  registers every table on Base.metadata
+from app.db.base import Base  # noqa: E402
 
 url = make_url(sys.argv[1])
 if Path(url.database or "").stem != "compare":
@@ -34,9 +34,9 @@ if url.get_backend_name() == "postgresql":
         conn.execute(text("CREATE DATABASE compare"))
     admin.dispose()
 engine = create_engine(url)
-tables = [db.metadata.tables["users"], db.metadata.tables["ai_conversations"]]
-db.metadata.drop_all(engine, tables=tables)
-db.metadata.create_all(engine, tables=tables)
+tables = [Base.metadata.tables["users"], Base.metadata.tables["ai_conversations"]]
+Base.metadata.drop_all(engine, tables=tables)
+Base.metadata.create_all(engine, tables=tables)
 
 USER_SQL = text(
     "INSERT INTO users (username, email, password_hash, total_carbon_amount,"

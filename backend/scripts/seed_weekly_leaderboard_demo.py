@@ -15,8 +15,9 @@ from pathlib import Path
 _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_BACKEND_ROOT))
 
-from app.extensions.db import db
-from app.flask_app import create_app
+from sqlalchemy.orm import Session
+
+from app.db.session import get_sessionmaker
 from app.models.ledger import Transaction
 from app.models.user import User
 
@@ -40,19 +41,19 @@ def _ensure_avatar(user: User) -> None:
     user.avatar_url = f"{DEMO_AVATAR_BASE}{user.username}"
 
 
-def _rollback_existing_demo_transactions() -> int:
-    existing = db.session.query(Transaction).filter(Transaction.source_type == SOURCE_TYPE).all()
+def _rollback_existing_demo_transactions(session: Session) -> int:
+    existing = session.query(Transaction).filter(Transaction.source_type == SOURCE_TYPE).all()
     deducted = 0
     for txn in existing:
-        user = db.session.get(User, txn.user_id)
+        user = session.get(User, txn.user_id)
         if user is not None and txn.type == "earn":
             user.current_points = max(0, int(user.current_points or 0) - int(txn.points_delta or 0))
-        db.session.delete(txn)
+        session.delete(txn)
         deducted += 1
     return deducted
 
 
-def _seed_demo_transactions(users_by_username: dict[str, User]) -> int:
+def _seed_demo_transactions(session: Session, users_by_username: dict[str, User]) -> int:
     inserted = 0
     now = datetime.now(UTC)
 
@@ -73,7 +74,7 @@ def _seed_demo_transactions(users_by_username: dict[str, User]) -> int:
                 source_id=index + 1,
                 created_at=now - timedelta(days=index * 2, hours=index + 1),
             )
-            db.session.add(txn)
+            session.add(txn)
             user.current_points = int(user.current_points or 0) + int(gain)
             inserted += 1
 
@@ -81,14 +82,13 @@ def _seed_demo_transactions(users_by_username: dict[str, User]) -> int:
 
 
 def main() -> None:
-    app = create_app()
-    with app.app_context():
-        users = db.session.query(User).order_by(User.id.asc()).all()
+    with get_sessionmaker()() as session:
+        users = session.query(User).order_by(User.id.asc()).all()
         users_by_username = {str(user.username): user for user in users}
 
-        removed = _rollback_existing_demo_transactions()
-        inserted = _seed_demo_transactions(users_by_username)
-        db.session.commit()
+        removed = _rollback_existing_demo_transactions(session)
+        inserted = _seed_demo_transactions(session, users_by_username)
+        session.commit()
 
         weekly_totals = defaultdict(int)
         for username, gains in DEMO_WEEKLY_GAINS.items():

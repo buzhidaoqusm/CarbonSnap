@@ -76,22 +76,21 @@ def test_build_seed_statements_are_parameterized_and_rerunnable():
         assert parameters["item_name"] == "battery"
 
 
-def test_app_settings_expose_neo4j_config(app, monkeypatch):
+def test_settings_read_the_neo4j_config_from_the_environment(monkeypatch):
     monkeypatch.setenv("NEO4J_URI", "bolt://localhost:7687")
     monkeypatch.setenv("NEO4J_USERNAME", "neo4j")
     monkeypatch.setenv("NEO4J_PASSWORD", "password")
 
-    from app.config.settings import load_app_settings
-    from app.core.config import clear_settings_cache
+    from app.core.config import clear_settings_cache, get_settings
 
     # Settings are parsed once per process; re-read them for the patched env,
     # and again afterwards so later tests see the original environment.
     clear_settings_cache()
     try:
-        load_app_settings(app)
+        settings = get_settings()
     finally:
         clear_settings_cache()
 
-    assert app.config["NEO4J_URI"] == "bolt://localhost:7687"
-    assert app.config["NEO4J_USERNAME"] == "neo4j"
-    assert app.config["NEO4J_PASSWORD"] == "password"
+    assert settings.neo4j_uri == "bolt://localhost:7687"
+    assert settings.neo4j_username == "neo4j"
+    assert settings.neo4j_password == "password"

@@ -15,16 +15,19 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 _REPO_ROOT = _BACKEND_ROOT.parent
 sys.path.insert(0, str(_BACKEND_ROOT))
 
-from app.extensions.db import db, truncate_tables
-from app.flask_app import create_app
+from sqlalchemy.orm import Session
+
+from app.db.base import Base
+from app.db.maintenance import truncate_tables
+from app.db.session import get_engine, get_sessionmaker
 
 UPLOADS_ROOT = _REPO_ROOT / "data" / "uploads"
 FAISS_ROOT = _REPO_ROOT / "data" / "faiss"
 
 
-def _clear_all_table_data() -> int:
-    table_names = [name for name in db.metadata.tables if name != "alembic_version"]
-    truncate_tables(table_names)
+def _clear_all_table_data(session: Session) -> int:
+    table_names = [name for name in Base.metadata.tables if name != "alembic_version"]
+    truncate_tables(session, table_names)
     return len(table_names)
 
 
@@ -69,10 +72,9 @@ def _clear_faiss_directory() -> int:
 
 
 def main() -> None:
-    app = create_app()
-    with app.app_context():
-        db.create_all()
-        cleared_table_count = _clear_all_table_data()
+    with get_sessionmaker()() as session:
+        Base.metadata.create_all(get_engine())
+        cleared_table_count = _clear_all_table_data(session)
         removed_upload_entries = _clear_uploads_directory()
         removed_faiss_entries = _clear_faiss_directory()
 

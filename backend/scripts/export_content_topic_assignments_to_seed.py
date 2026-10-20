@@ -20,8 +20,9 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 _REPO_ROOT = _BACKEND_ROOT.parent
 sys.path.insert(0, str(_BACKEND_ROOT))
 
-from app.extensions.db import db
-from app.flask_app import create_app
+from sqlalchemy.orm import Session
+
+from app.db.session import get_sessionmaker
 from app.models.forum import ForumPost
 from app.models.market import MarketItem
 from app.models.project import Project
@@ -160,11 +161,12 @@ def _build_project_seed_lookup() -> dict[
 
 
 def _resolve_forum_post_seed_key(
+    session: Session,
     post: ForumPost,
     user_seed_keys: dict[tuple[str, str], str],
     lookup: dict[tuple[str, str, str, tuple[str, ...], str], str],
 ) -> str:
-    author = db.session.get(User, post.author_id)
+    author = session.get(User, post.author_id)
     if author is None:
         raise ValueError(f"Author {post.author_id} not found for forum post {post.id}.")
     author_seed_key = user_seed_keys.get((str(author.username), str(author.email)))
@@ -186,11 +188,12 @@ def _resolve_forum_post_seed_key(
 
 
 def _resolve_market_item_seed_key(
+    session: Session,
     item: MarketItem,
     user_seed_keys: dict[tuple[str, str], str],
     lookup: dict[tuple[str, str, str, tuple[str, ...], int, str], str],
 ) -> str:
-    seller = db.session.get(User, item.seller_id)
+    seller = session.get(User, item.seller_id)
     if seller is None:
         raise ValueError(f"Seller {item.seller_id} not found for market item {item.id}.")
     seller_seed_key = user_seed_keys.get((str(seller.username), str(seller.email)))
@@ -213,11 +216,12 @@ def _resolve_market_item_seed_key(
 
 
 def _resolve_project_seed_key(
+    session: Session,
     project: Project,
     user_seed_keys: dict[tuple[str, str], str],
     lookup: dict[tuple[str, str, str, str | None, int, int, str, str | None], str],
 ) -> str:
-    creator = db.session.get(User, project.creator_user_id)
+    creator = session.get(User, project.creator_user_id)
     if creator is None:
         raise ValueError(f"Creator {project.creator_user_id} not found for project {project.id}.")
     creator_seed_key = user_seed_keys.get((str(creator.username), str(creator.email)))
@@ -251,9 +255,7 @@ def _remove_existing_assignment_seed_files() -> None:
 
 def main() -> None:
     args = _parse_args()
-    app = create_app()
-
-    with app.app_context():
+    with get_sessionmaker()() as session:
         if args.replace_existing:
             _remove_existing_assignment_seed_files()
 
@@ -263,20 +265,20 @@ def main() -> None:
         project_lookup = _build_project_seed_lookup()
 
         forum_seed_keys = {
-            post.id: _resolve_forum_post_seed_key(post, user_seed_keys, forum_lookup)
-            for post in db.session.scalars(select(ForumPost).order_by(ForumPost.id.asc()))
+            post.id: _resolve_forum_post_seed_key(session, post, user_seed_keys, forum_lookup)
+            for post in session.scalars(select(ForumPost).order_by(ForumPost.id.asc()))
         }
         market_seed_keys = {
-            item.id: _resolve_market_item_seed_key(item, user_seed_keys, market_lookup)
-            for item in db.session.scalars(select(MarketItem).order_by(MarketItem.id.asc()))
+            item.id: _resolve_market_item_seed_key(session, item, user_seed_keys, market_lookup)
+            for item in session.scalars(select(MarketItem).order_by(MarketItem.id.asc()))
         }
         project_seed_keys = {
-            project.id: _resolve_project_seed_key(project, user_seed_keys, project_lookup)
-            for project in db.session.scalars(select(Project).order_by(Project.id.asc()))
+            project.id: _resolve_project_seed_key(session, project, user_seed_keys, project_lookup)
+            for project in session.scalars(select(Project).order_by(Project.id.asc()))
         }
 
         assignments = list(
-            db.session.scalars(
+            session.scalars(
                 select(ContentTopicAssignment).order_by(
                     ContentTopicAssignment.domain.asc(),
                     ContentTopicAssignment.content_type.asc(),

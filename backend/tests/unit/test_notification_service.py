@@ -3,10 +3,10 @@
 import pytest
 from werkzeug.security import generate_password_hash
 
-from app.extensions.db import db
 from app.models.user import User
 from app.services.notification import notification_service
 from app.services.notification.notification_service import NotificationError
+from tests.support.database import db
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -2,10 +2,10 @@ import uuid
 
 from werkzeug.security import generate_password_hash
 
-from app.extensions.db import db
 from app.models.memory import UserMemoryItem
 from app.models.user import User
 from app.repositories.ai import memory_repository
+from tests.support.database import db
 
 
 def _make_user(username: str = "memory", email: str = "memory@example.com") -> User:

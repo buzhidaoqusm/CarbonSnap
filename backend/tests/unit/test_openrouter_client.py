@@ -8,15 +8,14 @@ from app.services.ai import intent_router, memory_extractor, openrouter_service
 
 
 @pytest.mark.real_llm_client
-def test_client_applies_configured_timeout(app, override_settings):
+def test_client_applies_configured_timeout(override_settings):
     # Regression: AI_LLM_TIMEOUT_SECONDS used to reach only complete_with_tools,
     # so the main chat path ran on the SDK's 600 s default and a hanging
     # provider held a worker until gunicorn killed it.
-    with app.app_context():
-        override_settings(openrouter_api_key="test-key")
-        override_settings(ai_llm_timeout_seconds=42)
+    override_settings(openrouter_api_key="test-key")
+    override_settings(ai_llm_timeout_seconds=42)
 
-        client = openrouter_service._get_client()
+    client = openrouter_service._get_client()
 
     assert client.timeout.read == 42.0
     assert client.timeout.connect == openrouter_service.LLM_CONNECT_TIMEOUT_SECONDS
@@ -38,28 +37,24 @@ class _RecordingClient:
 
 
 @pytest.fixture
-def recording_client(app, monkeypatch):
+def recording_client(monkeypatch):
     client = _RecordingClient()
     monkeypatch.setattr(openrouter_service, "_get_client", lambda: client)
     monkeypatch.setattr(openrouter_service, "_build_extra_headers", lambda: {})
     return client
 
 
-def test_auxiliary_call_uses_short_timeout_without_retries(
-    app, recording_client, override_settings
-):
-    with app.app_context():
-        override_settings(ai_llm_aux_timeout_seconds=7)
-        openrouter_service.complete_text(user_message="hi", auxiliary=True)
+def test_auxiliary_call_uses_short_timeout_without_retries(recording_client, override_settings):
+    override_settings(ai_llm_aux_timeout_seconds=7)
+    openrouter_service.complete_text(user_message="hi", auxiliary=True)
 
     (options,) = recording_client.options
     assert options["timeout"].read == 7.0
     assert options["max_retries"] == 0
 
 
-def test_regular_call_keeps_client_defaults(app, recording_client):
-    with app.app_context():
-        openrouter_service.complete_text(user_message="hi")
+def test_regular_call_keeps_client_defaults(recording_client):
+    openrouter_service.complete_text(user_message="hi")
 
     assert recording_client.options == []
 
@@ -89,7 +84,7 @@ def test_regular_call_keeps_client_defaults(app, recording_client):
     ],
     ids=["router", "memory_extractor"],
 )
-def test_pre_answer_calls_are_auxiliary(app, monkeypatch, module, call):
+def test_pre_answer_calls_are_auxiliary(monkeypatch, module, call):
     seen: dict = {}
 
     def fake_diagnostic(**kwargs):
@@ -97,13 +92,12 @@ def test_pre_answer_calls_are_auxiliary(app, monkeypatch, module, call):
         return {"payload": None, "raw_reply": None, "error": "x", "model": None, "usage": {}}
 
     monkeypatch.setattr(module, "complete_json_diagnostic", fake_diagnostic)
-    with app.app_context():
-        call()
+    call()
 
     assert seen.get("auxiliary") is True
 
 
-def test_title_generation_is_auxiliary(app, monkeypatch):
+def test_title_generation_is_auxiliary(monkeypatch):
     seen: dict = {}
 
     def fake_complete_text(**kwargs):
@@ -111,7 +105,6 @@ def test_title_generation_is_auxiliary(app, monkeypatch):
         return {"reply": "Bottle Recycling"}
 
     monkeypatch.setattr(openrouter_service, "complete_text", fake_complete_text)
-    with app.app_context():
-        openrouter_service.generate_conversation_title(user_message="plastic bottle?")
+    openrouter_service.generate_conversation_title(user_message="plastic bottle?")
 
     assert seen.get("auxiliary") is True

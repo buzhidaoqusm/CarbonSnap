@@ -10,8 +10,8 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import select
 
-from app.extensions.db import db
 from app.models.recommendation import UserBehaviorEvent, UserPreferenceProfile
+from tests.support.database import db
 
 
 @pytest.fixture(autouse=True)
@@ -49,29 +49,27 @@ def _item(client, headers) -> int:
     return response.json()["data"]["id"]
 
 
-def test_listing_records_the_seller(app, client, make_auth_headers):
+def test_listing_records_the_seller(client, make_auth_headers):
     seller_id, seller = make_auth_headers()
 
     _item(client, seller)
 
-    with app.app_context():
-        assert _events(seller_id) == [("market_item_create", "item")]
-        assert _has_profile(seller_id)
+    assert _events(seller_id) == [("market_item_create", "item")]
+    assert _has_profile(seller_id)
 
 
-def test_viewing_someone_elses_item_is_recorded(app, client, make_auth_headers):
+def test_viewing_someone_elses_item_is_recorded(client, make_auth_headers):
     _, seller = make_auth_headers()
     viewer_id, viewer = make_auth_headers()
     item_id = _item(client, seller)
 
     assert client.get(f"/api/market/items/{item_id}", headers=viewer).status_code == 200
 
-    with app.app_context():
-        assert _events(viewer_id) == [("view", "item")]
-        assert _has_profile(viewer_id)
+    assert _events(viewer_id) == [("view", "item")]
+    assert _has_profile(viewer_id)
 
 
-def test_buying_and_completing_are_recorded(app, client, make_auth_headers):
+def test_buying_and_completing_are_recorded(client, make_auth_headers):
     seller_id, seller = make_auth_headers()
     buyer_id, buyer = make_auth_headers(points=100)
     item_id = _item(client, seller)
@@ -81,9 +79,8 @@ def test_buying_and_completing_are_recorded(app, client, make_auth_headers):
     client.patch(f"/api/market/orders/{order_id}/ship", headers=seller)
     client.patch(f"/api/market/orders/{order_id}/confirm", headers=buyer)
 
-    with app.app_context():
-        assert _events(buyer_id) == [("market_order", "order")]
-        assert _events(seller_id) == [
-            ("market_item_create", "item"),
-            ("market_order_completed_as_seller", "order"),
-        ]
+    assert _events(buyer_id) == [("market_order", "order")]
+    assert _events(seller_id) == [
+        ("market_item_create", "item"),
+        ("market_order_completed_as_seller", "order"),
+    ]

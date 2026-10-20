@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 
 import pytest
-from flask_jwt_extended import create_access_token
 
+from app.core.security import create_access_token
 from app.services.ai import ai_conversation_service, recycling_analysis_service
 
 
@@ -26,10 +26,8 @@ class TestAiMemoryApi:
     def test_get_memory_returns_empty_payload_when_jwt_user_is_missing(
         self,
         client,
-        app,
     ):
-        with app.app_context():
-            token = create_access_token(identity="1")
+        token = create_access_token("1")
 
         response = client.get("/api/ai/memory", headers={"Authorization": f"Bearer {token}"})
 

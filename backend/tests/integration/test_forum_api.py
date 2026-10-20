@@ -3,11 +3,10 @@
 Tests go through the full HTTP stack: Flask test client -> Blueprint -> Service -> Repository -> DB.
 """
 
-from flask_jwt_extended import create_access_token
-
-from app.extensions.db import db
+from app.core.security import create_access_token
 from app.models.user import User
 from app.services.forum import forum_service
+from tests.support.database import db
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -217,12 +216,11 @@ class TestListPosts:
         assert data["total"] == 7
         assert len(data["items"]) == 5
 
-    def test_legacy_username_token_still_lists_posts(self, client, app, make_auth_headers):
+    def test_legacy_username_token_still_lists_posts(self, client, make_auth_headers):
         user_id, headers = make_auth_headers(username="test1")
         created = _create_post(client, headers, title="Legacy token post", content="C")
 
-        with app.app_context():
-            legacy_token = create_access_token(identity="test1")
+        legacy_token = create_access_token("test1")
 
         resp = client.get(
             "/api/forum/posts",

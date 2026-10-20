@@ -1,25 +1,22 @@
 from datetime import UTC, datetime, timedelta
 
-from app.extensions.db import db
 from app.models.ledger import Transaction
 from app.models.user import User
+from tests.support.database import db
 
 
 class TestLedgerSummaryApi:
-    def test_summary_and_gamification_use_lifetime_earned_points(
-        self, app, client, make_auth_headers
-    ):
+    def test_summary_and_gamification_use_lifetime_earned_points(self, client, make_auth_headers):
         user_id, headers = make_auth_headers(points=60)
 
-        with app.app_context():
-            _seed_transaction(user_id=user_id, points_delta=100)
-            _seed_transaction(user_id=user_id, points_delta=120)
-            _seed_transaction(
-                user_id=user_id,
-                points_delta=160,
-                txn_type="spend",
-            )
-            db.session.commit()
+        _seed_transaction(user_id=user_id, points_delta=100)
+        _seed_transaction(user_id=user_id, points_delta=120)
+        _seed_transaction(
+            user_id=user_id,
+            points_delta=160,
+            txn_type="spend",
+        )
+        db.session.commit()
 
         summary_response = client.get("/api/ledger/summary", headers=headers)
         gamification_response = client.get("/api/ledger/gamification", headers=headers)
@@ -65,37 +62,36 @@ class TestLedgerWeeklyLeaderboardApi:
 
         assert response.status_code == 401
 
-    def test_returns_ranked_weekly_points_growth(self, app, client, make_auth_headers):
+    def test_returns_ranked_weekly_points_growth(self, client, make_auth_headers):
         current_user_id, current_headers = make_auth_headers()
         second_user_id, _ = make_auth_headers()
         third_user_id, _ = make_auth_headers()
 
-        with app.app_context():
-            users = {
-                current_user_id: db.session.get(User, current_user_id),
-                second_user_id: db.session.get(User, second_user_id),
-                third_user_id: db.session.get(User, third_user_id),
-            }
-            users[current_user_id].avatar_url = "https://example.com/avatars/current.png"
-            users[second_user_id].avatar_url = "https://example.com/avatars/second.png"
-            users[third_user_id].avatar_url = "https://example.com/avatars/third.png"
+        users = {
+            current_user_id: db.session.get(User, current_user_id),
+            second_user_id: db.session.get(User, second_user_id),
+            third_user_id: db.session.get(User, third_user_id),
+        }
+        users[current_user_id].avatar_url = "https://example.com/avatars/current.png"
+        users[second_user_id].avatar_url = "https://example.com/avatars/second.png"
+        users[third_user_id].avatar_url = "https://example.com/avatars/third.png"
 
-            _seed_transaction(user_id=current_user_id, points_delta=45, days_ago=1)
-            _seed_transaction(user_id=current_user_id, points_delta=25, days_ago=3)
-            _seed_transaction(user_id=current_user_id, points_delta=500, days_ago=10)
-            _seed_transaction(
-                user_id=current_user_id,
-                points_delta=30,
-                txn_type="spend",
-                days_ago=2,
-            )
+        _seed_transaction(user_id=current_user_id, points_delta=45, days_ago=1)
+        _seed_transaction(user_id=current_user_id, points_delta=25, days_ago=3)
+        _seed_transaction(user_id=current_user_id, points_delta=500, days_ago=10)
+        _seed_transaction(
+            user_id=current_user_id,
+            points_delta=30,
+            txn_type="spend",
+            days_ago=2,
+        )
 
-            _seed_transaction(user_id=second_user_id, points_delta=120, hours_ago=2)
-            _seed_transaction(user_id=second_user_id, points_delta=15, days_ago=6)
+        _seed_transaction(user_id=second_user_id, points_delta=120, hours_ago=2)
+        _seed_transaction(user_id=second_user_id, points_delta=15, days_ago=6)
 
-            _seed_transaction(user_id=third_user_id, points_delta=40, days_ago=2)
+        _seed_transaction(user_id=third_user_id, points_delta=40, days_ago=2)
 
-            db.session.commit()
+        db.session.commit()
 
         response = client.get("/api/ledger/leaderboard/weekly", headers=current_headers)
 
@@ -166,17 +162,16 @@ def _seed_record(*, user_id: int, waste_type: str, points: int, days_ago: int = 
 
 
 class TestLedgerListsApi:
-    def test_records_newest_first_with_paging(self, app, client, make_auth_headers):
+    def test_records_newest_first_with_paging(self, client, make_auth_headers):
         import re
 
         user_id, headers = make_auth_headers()
         other_id, _ = make_auth_headers()
-        with app.app_context():
-            _seed_record(user_id=user_id, waste_type="glass", points=5, days_ago=2)
-            _seed_record(user_id=user_id, waste_type="paper", points=3, days_ago=1)
-            _seed_record(user_id=user_id, waste_type="plastic", points=8)
-            _seed_record(user_id=other_id, waste_type="metal", points=9)
-            db.session.commit()
+        _seed_record(user_id=user_id, waste_type="glass", points=5, days_ago=2)
+        _seed_record(user_id=user_id, waste_type="paper", points=3, days_ago=1)
+        _seed_record(user_id=user_id, waste_type="plastic", points=8)
+        _seed_record(user_id=other_id, waste_type="metal", points=9)
+        db.session.commit()
 
         response = client.get("/api/ledger/records?page=1&per_page=2", headers=headers)
 
@@ -200,12 +195,11 @@ class TestLedgerListsApi:
         page_two = client.get("/api/ledger/records?page=2&per_page=2", headers=headers)
         assert [i["waste_type"] for i in page_two.json()["data"]["items"]] == ["glass"]
 
-    def test_transactions_newest_first(self, app, client, make_auth_headers):
+    def test_transactions_newest_first(self, client, make_auth_headers):
         user_id, headers = make_auth_headers()
-        with app.app_context():
-            _seed_transaction(user_id=user_id, points_delta=10, days_ago=1)
-            _seed_transaction(user_id=user_id, points_delta=4, txn_type="spend")
-            db.session.commit()
+        _seed_transaction(user_id=user_id, points_delta=10, days_ago=1)
+        _seed_transaction(user_id=user_id, points_delta=4, txn_type="spend")
+        db.session.commit()
 
         response = client.get("/api/ledger/transactions", headers=headers)
 
@@ -261,11 +255,10 @@ class TestLedgerListsApi:
         }
         assert leaderboard == {"window_days": 7, "top_users": [], "current_user_rank": None}
 
-    def test_badge_fields(self, app, client, make_auth_headers):
+    def test_badge_fields(self, client, make_auth_headers):
         user_id, headers = make_auth_headers()
-        with app.app_context():
-            db.session.get(User, user_id).total_carbon_amount = 12.5
-            db.session.commit()
+        db.session.get(User, user_id).total_carbon_amount = 12.5
+        db.session.commit()
 
         badges = client.get("/api/ledger/gamification", headers=headers).json()["data"]["badges"]
 
@@ -293,12 +286,11 @@ class TestLedgerListsApi:
             assert response.status_code == 404
             assert response.json() == {"code": 40400, "message": "User not found.", "data": {}}
 
-    def test_legacy_token_with_username_subject(self, app, client, make_user):
-        from flask_jwt_extended import create_access_token
+    def test_legacy_token_with_username_subject(self, client, make_user):
+        from app.core.security import create_access_token
 
         make_user(username="legacy", email="legacy@example.com")
-        with app.app_context():
-            token = create_access_token(identity="legacy")
+        token = create_access_token("legacy")
 
         response = client.get("/api/ledger/summary", headers={"Authorization": f"Bearer {token}"})
 

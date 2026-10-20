@@ -17,8 +17,11 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 _REPO_ROOT = _BACKEND_ROOT.parent
 sys.path.insert(0, str(_BACKEND_ROOT))
 
-from app.extensions.db import db, truncate_tables
-from app.flask_app import create_app
+from sqlalchemy.orm import Session
+
+from app.db.base import Base
+from app.db.maintenance import truncate_tables
+from app.db.session import get_engine, get_sessionmaker
 from app.models.ai import (
     AIConversation,
     AIMessage,
@@ -82,13 +85,13 @@ TABLE_MODEL_MAP = {
 
 
 def _existing_reset_tables() -> list[str]:
-    existing_table_names = set(db.metadata.tables.keys())
+    existing_table_names = set(Base.metadata.tables.keys())
     return [table_name for table_name in TARGET_RESET_TABLES if table_name in existing_table_names]
 
 
-def _clear_target_tables() -> list[str]:
+def _clear_target_tables(session: Session) -> list[str]:
     table_names = _existing_reset_tables()
-    truncate_tables(table_names)
+    truncate_tables(session, table_names)
     return table_names
 
 
@@ -120,6 +123,7 @@ def _parse_seed_ref(value: str) -> tuple[str, str]:
 
 
 def _resolve_external_ref(
+    session: Session,
     *,
     ref_table: str,
     ref_key: str,
@@ -142,9 +146,9 @@ def _resolve_external_ref(
 
     user = None
     if username:
-        user = db.session.query(User).filter(User.username == username).one_or_none()
+        user = session.query(User).filter(User.username == username).one_or_none()
     if user is None and email:
-        user = db.session.query(User).filter(User.email == email).one_or_none()
+        user = session.query(User).filter(User.email == email).one_or_none()
     if user is None:
         return None
 
@@ -152,12 +156,13 @@ def _resolve_external_ref(
     return int(user.id)
 
 
-def _resolve_ref(value: str, registry: dict[str, dict[str, int]]) -> int:
+def _resolve_ref(session: Session, value: str, registry: dict[str, dict[str, int]]) -> int:
     ref_table, ref_key = _parse_seed_ref(value)
 
     resolved_id = registry.get(ref_table, {}).get(ref_key)
     if resolved_id is None:
         resolved_id = _resolve_external_ref(
+            session,
             ref_table=ref_table,
             ref_key=ref_key,
             registry=registry,
@@ -168,14 +173,17 @@ def _resolve_ref(value: str, registry: dict[str, dict[str, int]]) -> int:
     return int(resolved_id)
 
 
-def _try_resolve_ref(value: str, registry: dict[str, dict[str, int]]) -> int | None:
+def _try_resolve_ref(
+    session: Session, value: str, registry: dict[str, dict[str, int]]
+) -> int | None:
     try:
-        return _resolve_ref(value, registry)
+        return _resolve_ref(session, value, registry)
     except ValueError:
         return None
 
 
 def _replace_json_seed_refs(
+    session: Session,
     value: Any,
     registry: dict[str, dict[str, int]],
     *,
@@ -186,7 +194,7 @@ def _replace_json_seed_refs(
         has_placeholders = False
         for key, child in value.items():
             if key.endswith("_ref") and isinstance(child, str):
-                resolved_id = _try_resolve_ref(child, registry)
+                resolved_id = _try_resolve_ref(session, child, registry)
                 normalized_key = f"{key[:-4]}_id"
                 if resolved_id is None:
                     ref_table, _ = _parse_seed_ref(child)
@@ -201,6 +209,7 @@ def _replace_json_seed_refs(
                 continue
 
             resolved_child, child_has_placeholders = _replace_json_seed_refs(
+                session,
                 child,
                 registry,
                 target_tables=target_tables,
@@ -214,6 +223,7 @@ def _replace_json_seed_refs(
         has_placeholders = False
         for item in value:
             resolved_item, item_has_placeholders = _replace_json_seed_refs(
+                session,
                 item,
                 registry,
                 target_tables=target_tables,
@@ -225,17 +235,23 @@ def _replace_json_seed_refs(
     return value, False
 
 
-def _resolve_json_placeholders(value: Any, registry: dict[str, dict[str, int]]) -> Any:
+def _resolve_json_placeholders(
+    session: Session, value: Any, registry: dict[str, dict[str, int]]
+) -> Any:
     if isinstance(value, dict):
-        return {key: _resolve_json_placeholders(child, registry) for key, child in value.items()}
+        return {
+            key: _resolve_json_placeholders(session, child, registry)
+            for key, child in value.items()
+        }
     if isinstance(value, list):
-        return [_resolve_json_placeholders(item, registry) for item in value]
+        return [_resolve_json_placeholders(session, item, registry) for item in value]
     if isinstance(value, str) and value.startswith(_SEED_REF_PLACEHOLDER):
-        return _resolve_ref(value[len(_SEED_REF_PLACEHOLDER) :], registry)
+        return _resolve_ref(session, value[len(_SEED_REF_PLACEHOLDER) :], registry)
     return value
 
 
 def _normalize_seed_record(
+    session: Session,
     *,
     table_name: str,
     raw_record: dict[str, Any],
@@ -261,7 +277,7 @@ def _normalize_seed_record(
                 continue
 
             ref_value = str(value)
-            resolved_id = _try_resolve_ref(ref_value, registry)
+            resolved_id = _try_resolve_ref(session, ref_value, registry)
             if resolved_id is not None:
                 payload[target_field] = resolved_id
                 continue
@@ -279,6 +295,7 @@ def _normalize_seed_record(
 
         if key.endswith("_json") and isinstance(value, (list, dict)):
             normalized_json, has_placeholders = _replace_json_seed_refs(
+                session,
                 value,
                 registry,
                 target_tables=target_tables,
@@ -313,6 +330,7 @@ def _load_seed_record_for_key(table_name: str, seed_key: str) -> dict[str, Any]:
 
 
 def _seed_table(
+    session: Session,
     *,
     table_name: str,
     model_class,
@@ -327,6 +345,7 @@ def _seed_table(
         raw_record = _load_seed_record_for_key(table_name, seed_key)
         normalized_seed_key, payload, deferred_ref_fields, deferred_json_fields = (
             _normalize_seed_record(
+                session,
                 table_name=table_name,
                 raw_record=raw_record,
                 registry=registry,
@@ -335,8 +354,8 @@ def _seed_table(
         )
 
         row = model_class(**payload)
-        db.session.add(row)
-        db.session.flush()
+        session.add(row)
+        session.flush()
 
         if getattr(row, "id", None) is None:
             raise ValueError(
@@ -368,11 +387,12 @@ def _seed_table(
 
         inserted_count += 1
 
-    db.session.commit()
+    session.commit()
     return inserted_count
 
 
 def _apply_deferred_updates(
+    session: Session,
     *,
     deferred_updates: list[dict[str, Any]],
     registry: dict[str, dict[str, int]],
@@ -381,14 +401,14 @@ def _apply_deferred_updates(
         return
 
     for update in deferred_updates:
-        row = db.session.get(update["model_class"], update["row_id"])
+        row = session.get(update["model_class"], update["row_id"])
         if row is None:
             raise ValueError(
                 f"Deferred seed update target not found: {update['model_class'].__name__}#{update['row_id']}"
             )
 
         if update["kind"] == "column_ref":
-            setattr(row, update["field_name"], _resolve_ref(update["ref_value"], registry))
+            setattr(row, update["field_name"], _resolve_ref(session, update["ref_value"], registry))
             continue
 
         if update["kind"] == "json_ref":
@@ -396,21 +416,20 @@ def _apply_deferred_updates(
             parsed_value = (
                 json.loads(raw_value) if isinstance(raw_value, str) and raw_value else raw_value
             )
-            resolved_value = _resolve_json_placeholders(parsed_value, registry)
+            resolved_value = _resolve_json_placeholders(session, parsed_value, registry)
             setattr(row, update["field_name"], json.dumps(resolved_value, ensure_ascii=False))
             continue
 
         raise ValueError(f"Unknown deferred seed update kind: {update['kind']}")
 
-    db.session.commit()
+    session.commit()
 
 
 def main() -> None:
-    app = create_app()
-    with app.app_context():
-        db.create_all()
+    with get_sessionmaker()() as session:
+        Base.metadata.create_all(get_engine())
 
-        cleared_tables = _clear_target_tables()
+        cleared_tables = _clear_target_tables(session)
         registry: dict[str, dict[str, int]] = {}
         deferred_updates: list[dict[str, Any]] = []
         inserted_summary: list[tuple[str, int]] = []
@@ -419,6 +438,7 @@ def main() -> None:
         for table_name in TABLE_LOAD_ORDER:
             model_class = TABLE_MODEL_MAP[table_name]
             inserted_count = _seed_table(
+                session,
                 table_name=table_name,
                 model_class=model_class,
                 registry=registry,
@@ -427,7 +447,7 @@ def main() -> None:
             )
             inserted_summary.append((table_name, inserted_count))
 
-        _apply_deferred_updates(deferred_updates=deferred_updates, registry=registry)
+        _apply_deferred_updates(session, deferred_updates=deferred_updates, registry=registry)
 
         print("Plastic bottle real-chat seed complete (messages 1-5).")
         print(f"- cleared tables: {len(cleared_tables)}")

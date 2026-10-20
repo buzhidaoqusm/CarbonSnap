@@ -20,8 +20,9 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 _REPO_ROOT = _BACKEND_ROOT.parent
 sys.path.insert(0, str(_BACKEND_ROOT))
 
-from app.extensions.db import db
-from app.flask_app import create_app
+from sqlalchemy.orm import Session
+
+from app.db.session import get_sessionmaker
 from app.models.forum import ForumPost, ForumPostChunk
 from app.models.user import User
 
@@ -104,12 +105,13 @@ def _load_forum_post_seed_keys_in_load_order() -> list[str]:
 
 
 def _resolve_post_seed_key(
+    session: Session,
     *,
     post: ForumPost,
     user_seed_keys: dict[tuple[str, str], str],
     post_signatures: dict[tuple[str, str, str, tuple[str, ...], str], str],
 ) -> str:
-    user = db.session.get(User, post.author_id)
+    user = session.get(User, post.author_id)
     if user is None:
         raise ValueError(f"Author {post.author_id} not found for forum post {post.id}.")
 
@@ -204,9 +206,7 @@ def _load_manifest_chunk_rows() -> list[dict[str, Any]]:
 
 def main() -> None:
     args = _parse_args()
-    app = create_app()
-
-    with app.app_context():
+    with get_sessionmaker()() as session:
         if args.replace_existing:
             _remove_existing_chunk_seed_files()
 
@@ -214,11 +214,12 @@ def main() -> None:
         post_signatures = _build_forum_post_seed_signature_index(user_seed_keys)
         forum_post_seed_keys_in_load_order = _load_forum_post_seed_keys_in_load_order()
 
-        posts = list(db.session.scalars(select(ForumPost).order_by(ForumPost.id.asc())))
+        posts = list(session.scalars(select(ForumPost).order_by(ForumPost.id.asc())))
         post_seed_keys: dict[int, str] = {}
         if posts:
             post_seed_keys = {
                 post.id: _resolve_post_seed_key(
+                    session,
                     post=post,
                     user_seed_keys=user_seed_keys,
                     post_signatures=post_signatures,
@@ -227,7 +228,7 @@ def main() -> None:
             }
 
         chunks = list(
-            db.session.scalars(
+            session.scalars(
                 select(ForumPostChunk).order_by(
                     ForumPostChunk.post_id.asc(),
                     ForumPostChunk.chunk_version.asc(),

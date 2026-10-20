@@ -3,7 +3,6 @@ import uuid
 import pytest
 from werkzeug.security import generate_password_hash
 
-from app.extensions.db import db
 from app.models.ai import AIConversation, AIMessage, RecyclingCase
 from app.models.user import User
 from app.services.ai.conversation_context_builder import (
@@ -11,6 +10,7 @@ from app.services.ai.conversation_context_builder import (
     build_context_bundle,
     build_runtime_reply_context,
 )
+from tests.support.database import db
 
 
 def _make_user(username: str = "ctx", email: str = "ctx@example.com") -> User:

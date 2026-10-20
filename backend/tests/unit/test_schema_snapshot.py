@@ -20,7 +20,7 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import Column, CreateIndex, CreateTable
 
 import app.models  # noqa: F401  registers every table
-from app.extensions.db import db
+from app.db.base import Base
 
 SNAPSHOT = Path(__file__).resolve().parents[1] / "fixtures" / "schema_snapshot.json"
 
@@ -56,7 +56,7 @@ def _describe_column(column: Column) -> dict[str, object]:
 def _schema() -> dict[str, object]:
     dialect = postgresql.dialect()
     schema: dict[str, object] = {}
-    for name, table in sorted(db.metadata.tables.items()):
+    for name, table in sorted(Base.metadata.tables.items()):
         schema[name] = {
             "ddl": str(CreateTable(table).compile(dialect=dialect)).strip(),
             "indexes": sorted(

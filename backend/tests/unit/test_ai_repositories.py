@@ -10,7 +10,6 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash
 
-from app.extensions.db import db
 from app.models.ai import (
     AIConversation,
     AIMessage,
@@ -25,6 +24,7 @@ from app.repositories.ai import (
     message_decision_repository,
     recycling_case_repository,
 )
+from tests.support.database import db
 
 
 def _make_user(username: str = "alice", email: str = "alice@example.com") -> User:

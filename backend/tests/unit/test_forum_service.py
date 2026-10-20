@@ -2,16 +2,16 @@
 
 Strategy: call service functions directly (no HTTP layer).
 The db_session fixture (autouse=True in conftest.py) provides a clean
-database for every test — no need to wrap calls in app.app_context().
+database for every test.
 """
 
 import pytest
 from werkzeug.security import generate_password_hash
 
-from app.extensions.db import db
 from app.models.user import User
 from app.services.forum import forum_service
 from app.services.forum.forum_service import ForumError
+from tests.support.database import db
 
 # ---------------------------------------------------------------------------
 # Helpers
