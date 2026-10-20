@@ -1,5 +1,10 @@
 # CarbonSnap 远程服务器部署指南
 
+> **⚠️ 已过时，仅供参考（2026-10-20）**：课程 VM 已经停用。本文写于后端还是 Flask + SQLite、
+> 由 Gunicorn 运行 `run.py` 的时候；现在后端是 FastAPI + PostgreSQL，用 uvicorn 运行，`run.py` 已删除，
+> 迁移命令也变成了 `alembic -c migrations/alembic.ini upgrade head`，文中的大部分命令都已经无法执行。
+> 本地运行请看仓库根目录的 `README.md`。
+
 本文档提供了将 CarbonSnap 项目部署到远程服务器（如阿里云、腾讯云、AWS等）的详细步骤。推荐使用 **Docker & Docker Compose** 方式进行容器化部署，这有助于隔离环境、简化配置并提高可移植性。
 
 ## 方案一：使用 Docker 部署（推荐）

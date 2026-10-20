@@ -1,6 +1,6 @@
 # CarbonSnap
 
-CarbonSnap is a full-stack sustainability platform for recycling guidance, community knowledge sharing, reusable goods discovery, project participation, and impact tracking. The application combines a Flask backend, a Vue 3 frontend, seedable demo data, and an optional AI-assisted recycling workflow with retrieval, graph evidence, and traceable decision metadata.
+CarbonSnap is a full-stack sustainability platform for recycling guidance, community knowledge sharing, reusable goods discovery, project participation, and impact tracking. The application combines a FastAPI backend, a Vue 3 frontend, seedable demo data, and an optional AI-assisted recycling workflow with retrieval, graph evidence, and traceable decision metadata.
 
 ## Features
 
@@ -14,14 +14,14 @@ CarbonSnap is a full-stack sustainability platform for recycling guidance, commu
 ## Tech Stack
 
 - **Frontend:** Vue 3, Vite, Vue Router, Vitest, GSAP, Three.js, Leaflet.
-- **Backend:** Flask, Flask-SQLAlchemy, Flask-Migrate, Flask-JWT-Extended, pytest.
+- **Backend:** FastAPI, SQLAlchemy 2.0, Alembic, PyJWT, pytest.
 - **AI and retrieval:** OpenAI-compatible providers, FAISS, optional LangGraph and Neo4j.
 - **Data:** PostgreSQL (the compose `postgres` service), migrated with Alembic.
 
 ## Repository Structure
 
 ```text
-backend/      Flask application, API routes, services, models, migrations, scripts, and tests
+backend/      FastAPI application, API routes, services, models, migrations, scripts, and tests
 frontend/     Vue 3 application, views, components, API clients, styles, and frontend tests
 data/seeds/   Demo data, seed metadata, and seed asset references
 docs/         Project documentation, deployment notes, and design references
@@ -34,13 +34,19 @@ tools/        Tooling placeholders
 
 ### Prerequisites
 
-- Python 3.11 or a compatible Python 3.x runtime.
+- [uv](https://docs.astral.sh/uv/); it installs the Python 3.12 the backend needs.
 - Node.js 20 or a compatible recent Node.js runtime.
-- Optional: Docker, if you want to run Neo4j locally for Graph Agent mode.
+- Docker, for the PostgreSQL database (and optionally Neo4j for Graph Agent mode).
 
 ### Backend Setup
 
-Dependencies are managed with [uv](https://docs.astral.sh/uv/) (Python 3.12):
+Start PostgreSQL from the repository root (the data lives in the `postgres-data` volume):
+
+```powershell
+docker compose up -d postgres
+```
+
+Then, with dependencies managed by [uv](https://docs.astral.sh/uv/) (Python 3.12):
 
 ```powershell
 cd backend
@@ -50,7 +56,7 @@ uv run alembic -c migrations/alembic.ini upgrade head
 uv run uvicorn --factory app.main:create_api --reload --port 5000
 ```
 
-The backend runs at `http://127.0.0.1:5000` by default.
+The backend runs at `http://127.0.0.1:5000` by default; `http://127.0.0.1:5000/docs` lists every endpoint. Without `DATABASE_URL` in `backend/.env` it uses the compose database (`postgresql+psycopg://carbonsnap:carbonsnap@127.0.0.1:5432/carbonsnap`).
 
 Before using external AI providers, edit `backend/.env` and provide the relevant API keys. Keep `backend/.env` local only; do not commit it.
 
@@ -185,5 +191,5 @@ uv run pytest tests/unit/test_eval_suite.py -q
 ## Documentation
 
 - Development spec: `docs/DEVELOPMENT_SPEC.md`
-- Deployment guide: `docs/deployment/DEPLOYMENT_GUIDE_ZH.md`
+- Deployment notes (out of date, kept for reference): `docs/deployment/`
 - Seed data guide: `data/seeds/README.md`
