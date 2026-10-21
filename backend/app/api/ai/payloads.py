@@ -1,4 +1,4 @@
-"""Reading the AI request bodies, shared by the Flask and FastAPI routes.
+"""Reading the AI request bodies.
 
 Each parser takes the JSON body as a dict (only the keys that were sent) and
 raises ApiError with the message the frontend has always shown. Values are

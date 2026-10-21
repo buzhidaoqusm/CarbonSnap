@@ -25,6 +25,7 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 _REPO_ROOT = _BACKEND_ROOT.parent
 sys.path.insert(0, str(_BACKEND_ROOT))
 
+from app.core.config import get_settings
 from app.db.session import get_sessionmaker
 from app.models.ai import (
     AIConversation,
@@ -39,7 +40,14 @@ from app.models.user import User
 
 SEEDS_ROOT = _REPO_ROOT / "data" / "seeds"
 SEED_ASSETS_ROOT = SEEDS_ROOT / "assets" / "seed-ai"
-UPLOADS_ROOT = _REPO_ROOT / "data" / "uploads"
+
+
+def uploads_root() -> Path:
+    # Read at call time: UPLOAD_ROOT (or a test override) decides where the
+    # script reads, writes and deletes.
+    return Path(get_settings().upload_root)
+
+
 UPLOADS_PREFIX = "/api/uploads/"
 AI_SEED_TABLES = [
     "ai_conversations",
@@ -124,7 +132,7 @@ def _copy_upload_asset(
         asset_url_map[normalized] = normalized
         return normalized
 
-    source_path = (UPLOADS_ROOT / relative_upload_path).resolve()
+    source_path = (uploads_root() / relative_upload_path).resolve()
     if not source_path.is_file():
         raise FileNotFoundError(f"Uploaded asset not found for export: {source_path}")
 

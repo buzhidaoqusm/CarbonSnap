@@ -20,6 +20,7 @@ sys.path.insert(0, str(_BACKEND_ROOT))
 
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.db.base import Base
 from app.db.maintenance import truncate_tables
 from app.db.session import get_engine, get_sessionmaker
@@ -41,9 +42,23 @@ from app.models.user import User
 
 SEEDS_ROOT = _REPO_ROOT / "data" / "seeds"
 SEED_UPLOAD_ASSETS_ROOT = SEEDS_ROOT / "assets"
-UPLOADS_ROOT = _REPO_ROOT / "data" / "uploads"
+
+
+def uploads_root() -> Path:
+    # Read at call time: UPLOAD_ROOT (or a test override) decides where the
+    # script reads, writes and deletes.
+    return Path(get_settings().upload_root)
+
+
 SEED_FAISS_ASSETS_ROOT = SEEDS_ROOT / "assets" / "faiss"
-FAISS_ROOT = _REPO_ROOT / "data" / "faiss"
+
+
+def faiss_root() -> Path:
+    # Read at call time: FORUM_RAG_FAISS_DIR (or a test override) decides
+    # where the script reads, writes and deletes.
+    return Path(get_settings().forum_rag_faiss_dir)
+
+
 _SEED_REF_PLACEHOLDER = "__seed_ref__:"
 
 TABLE_LOAD_ORDER = [
@@ -255,7 +270,7 @@ def _restore_seed_upload_assets() -> int:
     if not SEED_UPLOAD_ASSETS_ROOT.exists():
         return 0
 
-    UPLOADS_ROOT.mkdir(parents=True, exist_ok=True)
+    uploads_root().mkdir(parents=True, exist_ok=True)
     restored_count = 0
 
     for source_path in SEED_UPLOAD_ASSETS_ROOT.rglob("*"):
@@ -264,7 +279,7 @@ def _restore_seed_upload_assets() -> int:
         if source_path.is_relative_to(SEED_FAISS_ASSETS_ROOT):
             continue
         relative_path = source_path.relative_to(SEED_UPLOAD_ASSETS_ROOT)
-        target_path = UPLOADS_ROOT / relative_path
+        target_path = uploads_root() / relative_path
         target_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source_path, target_path)
         restored_count += 1
@@ -273,9 +288,9 @@ def _restore_seed_upload_assets() -> int:
 
 
 def _restore_seed_faiss_assets() -> int:
-    FAISS_ROOT.mkdir(parents=True, exist_ok=True)
+    faiss_root().mkdir(parents=True, exist_ok=True)
 
-    for child in FAISS_ROOT.iterdir():
+    for child in faiss_root().iterdir():
         if child.name == ".gitkeep":
             continue
         if child.is_dir():
@@ -285,7 +300,7 @@ def _restore_seed_faiss_assets() -> int:
 
     restored_count = 0
     if not SEED_FAISS_ASSETS_ROOT.exists():
-        gitkeep_path = FAISS_ROOT / ".gitkeep"
+        gitkeep_path = faiss_root() / ".gitkeep"
         if not gitkeep_path.exists():
             gitkeep_path.write_text("", encoding="utf-8")
         return 0
@@ -294,7 +309,7 @@ def _restore_seed_faiss_assets() -> int:
         if not source_path.is_file():
             continue
         relative_path = source_path.relative_to(SEED_FAISS_ASSETS_ROOT)
-        target_path = FAISS_ROOT / relative_path
+        target_path = faiss_root() / relative_path
         target_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source_path, target_path)
         restored_count += 1
@@ -306,7 +321,7 @@ def _validate_seeded_forum_rag_assets(*, forum_post_chunk_count: int) -> None:
     if forum_post_chunk_count <= 0:
         return
 
-    manifest_path = FAISS_ROOT / "forum_rag.json"
+    manifest_path = faiss_root() / "forum_rag.json"
     if not manifest_path.is_file():
         raise FileNotFoundError(
             "Seeded forum_post_chunks were imported, but data/seeds/assets/faiss/forum_rag.json is missing. "

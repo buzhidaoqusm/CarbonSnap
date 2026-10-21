@@ -22,6 +22,7 @@ sys.path.insert(0, str(_BACKEND_ROOT))
 
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.db.session import get_sessionmaker
 from app.models.forum import ForumPost, ForumPostChunk
 from app.models.user import User
@@ -30,7 +31,12 @@ SEEDS_ROOT = _REPO_ROOT / "data" / "seeds"
 FORUM_POST_SEEDS_ROOT = SEEDS_ROOT / "forum_posts"
 FORUM_POST_CHUNK_SEEDS_ROOT = SEEDS_ROOT / "forum_post_chunks"
 SEED_FAISS_ASSETS_ROOT = SEEDS_ROOT / "assets" / "faiss"
-FAISS_ROOT = _REPO_ROOT / "data" / "faiss"
+
+
+def faiss_root() -> Path:
+    # Read at call time: FORUM_RAG_FAISS_DIR (or a test override) decides
+    # where the script reads, writes and deletes.
+    return Path(get_settings().forum_rag_faiss_dir)
 
 
 def _parse_args() -> argparse.Namespace:
@@ -151,13 +157,13 @@ def _export_faiss_assets() -> int:
     SEED_FAISS_ASSETS_ROOT.mkdir(parents=True, exist_ok=True)
 
     exported = 0
-    if not FAISS_ROOT.exists():
+    if not faiss_root().exists():
         return exported
 
-    for source_path in FAISS_ROOT.rglob("*"):
+    for source_path in faiss_root().rglob("*"):
         if not source_path.is_file() or source_path.name == ".gitkeep":
             continue
-        relative_path = source_path.relative_to(FAISS_ROOT)
+        relative_path = source_path.relative_to(faiss_root())
         target_path = SEED_FAISS_ASSETS_ROOT / relative_path
         target_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source_path, target_path)
@@ -166,7 +172,7 @@ def _export_faiss_assets() -> int:
 
 
 def _load_manifest_chunk_rows() -> list[dict[str, Any]]:
-    manifest_path = FAISS_ROOT / "forum_rag.json"
+    manifest_path = faiss_root() / "forum_rag.json"
     if not manifest_path.is_file():
         return []
 

@@ -15,10 +15,10 @@ services:
       LLM_PROVIDER: openrouter
       OPENROUTER_BASE_URL: http://fake-llm:9800/v1
       OPENROUTER_API_KEY: fake
-      # Processes, and threads per process for routes still served by Flask,
-      # e.g. WEB_WORKERS=3 WSGI_THREADS=10 to see what each one buys.
+      # Processes, and threads per process that step the chat streams,
+      # e.g. WEB_WORKERS=3 AI_STREAM_THREADS=10 to see what each one buys.
       WEB_WORKERS: ${WEB_WORKERS:-1}
-      WSGI_THREADS: ${WSGI_THREADS:-40}
+      AI_STREAM_THREADS: ${AI_STREAM_THREADS:-40}
     volumes: !override
       - bench-data:/data
 

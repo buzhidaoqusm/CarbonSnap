@@ -2,7 +2,7 @@
 
 The snapshot in tests/fixtures/config_snapshot.json was recorded from the
 original os.getenv-based loader. Whatever replaces it must turn the same
-environment into the same app.config values: defaults, explicit overrides,
+environment into the same Settings values: defaults, explicit overrides,
 blank values and malformed JSON, including the quirks (trimming, lowercasing,
 blank-means-default) that callers have come to rely on.
 
@@ -19,10 +19,8 @@ from datetime import timedelta
 from pathlib import Path
 
 import pytest
-from flask import Flask
 
-from app.config.settings import load_app_settings
-from app.core.config import clear_settings_cache
+from app.core.config import clear_settings_cache, get_settings
 
 SNAPSHOT = Path(__file__).resolve().parents[1] / "fixtures" / "config_snapshot.json"
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -201,6 +199,10 @@ def _normalize(value: object, tmp: Path) -> object:
     return value
 
 
+# Settings properties derived from a raw field; model_dump() leaves them out.
+DERIVED = ["ai_emission_factors", "ai_osm_recycling_tags", "osm_overpass_fallback_urls"]
+
+
 def _load_config(monkeypatch, tmp_path: Path, env: dict[str, str]) -> dict[str, object]:
     for name in ENV_VARS:
         monkeypatch.delenv(name, raising=False)
@@ -212,16 +214,13 @@ def _load_config(monkeypatch, tmp_path: Path, env: dict[str, str]) -> dict[str, 
 
     # Settings are parsed once and cached; each scenario needs a fresh parse.
     clear_settings_cache()
-    flask_app = Flask("config-parity")
     try:
-        load_app_settings(flask_app)
+        settings = get_settings()
     finally:
         clear_settings_cache()
-    loaded = {key: flask_app.config[key] for key in sorted(flask_app.config)}
-    # Only what load_app_settings owns: drop Flask's built-in defaults.
-    baseline = Flask("baseline").config
-    owned = {key: value for key, value in loaded.items() if key not in baseline}
-    return {key: _normalize(value, tmp_path) for key, value in owned.items()}
+    loaded = settings.model_dump(mode="json")
+    loaded.update({name: getattr(settings, name) for name in DERIVED})
+    return {key: _normalize(loaded[key], tmp_path) for key in sorted(loaded)}
 
 
 @pytest.mark.parametrize("scenario", sorted(SCENARIOS))

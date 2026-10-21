@@ -1,10 +1,8 @@
-"""Database sessions without Flask.
+"""The engine and the sessions everything else is handed.
 
-FastAPI routes, scripts and tests get a Session from here; repositories take
-that Session as an argument instead of reaching for a global. During the move
-off Flask, Flask-SQLAlchemy keeps its own engine for the Flask routes, so a
-process holds two small pools against the same database until 3.4 removes
-the Flask side.
+Routes get a Session from get_db(), scripts and background jobs from
+get_sessionmaker(); repositories and services take it as an argument instead
+of reaching for a global.
 """
 
 from collections.abc import Iterator

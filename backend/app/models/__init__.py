@@ -1,5 +1,5 @@
-# Import all models here so that Flask-Migrate can detect them
-# when building migration scripts.
+# Import all models here so that every table is on Base.metadata, for Alembic
+# and for mappers that name another model by string.
 
 from app.models.ai import (  # noqa: F401
     AIConversation,

@@ -152,6 +152,9 @@ How the defaults were chosen — two configurations that did not work:
   thread count; the real fix, ending the transaction before calling the
   model, belongs to P2 (issue 9 in [PERFORMANCE_ISSUES.md](PERFORMANCE_ISSUES.md)).
 
+> Flask is gone since P1 ended (2026-10-21): `WSGI_THREADS` no longer exists. The
+> threads that step chat streams are `AI_STREAM_THREADS`; see PERFORMANCE_ISSUES #2 and #5.
+
 Reproduce (bench stack as above; `WEB_WORKERS` / `WSGI_THREADS` pick the
 configuration):
 

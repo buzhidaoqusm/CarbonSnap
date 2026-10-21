@@ -1,7 +1,7 @@
-"""Tokens and auth errors while routes move from Flask to FastAPI.
+"""Tokens and auth errors.
 
-Both stacks verify the same tokens: a user logged in before a route moved
-stays logged in after, whichever side issued the token.
+Tokens keep the claims flask_jwt_extended wrote, so a user who logged in
+before the move off Flask stays logged in.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ import pytest
 from app.core.config import get_settings
 
 
-def test_token_from_flask_is_accepted_by_fastapi(client, make_auth_headers):
+def test_a_token_with_the_old_claims_is_accepted(client, make_auth_headers):
     # make_auth_headers signs with the claims flask_jwt_extended wrote.
     _, headers = make_auth_headers()
 
@@ -23,7 +23,7 @@ def test_token_from_flask_is_accepted_by_fastapi(client, make_auth_headers):
     assert response.status_code == 200
 
 
-def test_token_from_fastapi_is_accepted_by_flask(client, make_user):
+def test_a_token_names_its_user(client, make_user):
     from app.core.security import create_access_token
 
     user_id, _ = make_user()

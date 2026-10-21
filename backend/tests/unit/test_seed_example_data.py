@@ -16,7 +16,7 @@ def _make_temp_dir(name: str) -> Path:
     return path
 
 
-def test_restore_seed_faiss_assets_copies_seeded_manifest(monkeypatch):
+def test_restore_seed_faiss_assets_copies_seeded_manifest(monkeypatch, override_settings):
     temp_root = _make_temp_dir("seed-faiss")
     seed_faiss_root = temp_root / "seeds-faiss"
     seed_faiss_root.mkdir(parents=True)
@@ -28,7 +28,7 @@ def test_restore_seed_faiss_assets_copies_seeded_manifest(monkeypatch):
     (faiss_root / "stale.json").write_text("stale", encoding="utf-8")
 
     monkeypatch.setattr(seed_example_data, "SEED_FAISS_ASSETS_ROOT", seed_faiss_root)
-    monkeypatch.setattr(seed_example_data, "FAISS_ROOT", faiss_root)
+    override_settings(forum_rag_faiss_dir=faiss_root)
 
     restored_count = seed_example_data._restore_seed_faiss_assets()
 
@@ -37,17 +37,19 @@ def test_restore_seed_faiss_assets_copies_seeded_manifest(monkeypatch):
     assert not (faiss_root / "stale.json").exists()
 
 
-def test_validate_seeded_forum_rag_assets_requires_manifest(monkeypatch):
+def test_validate_seeded_forum_rag_assets_requires_manifest(override_settings):
     faiss_root = _make_temp_dir("missing-manifest")
-    monkeypatch.setattr(seed_example_data, "FAISS_ROOT", faiss_root)
+    override_settings(forum_rag_faiss_dir=faiss_root)
 
     with pytest.raises(FileNotFoundError):
         seed_example_data._validate_seeded_forum_rag_assets(forum_post_chunk_count=1)
 
 
-def test_validate_seeded_forum_rag_assets_allows_empty_chunk_seed_without_manifest(monkeypatch):
+def test_validate_seeded_forum_rag_assets_allows_empty_chunk_seed_without_manifest(
+    override_settings,
+):
     faiss_root = _make_temp_dir("empty-chunks")
-    monkeypatch.setattr(seed_example_data, "FAISS_ROOT", faiss_root)
+    override_settings(forum_rag_faiss_dir=faiss_root)
 
     seed_example_data._validate_seeded_forum_rag_assets(forum_post_chunk_count=0)
 

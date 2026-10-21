@@ -344,7 +344,15 @@ docs/adr/
 >     这两个路径是写死在脚本里的，不读 `UPLOAD_ROOT`；我设置了临时目录，却没有先读脚本里用的是什么路径。
 >     随后 seed 脚本恢复了 36 个 seed 文件和 `forum_rag.json`，开发库引用的 32 个上传文件都在。
 >     FAISS 目录里另一个被删的条目无法确认是什么。
-> - 下一步：D3，删除 Flask 相关模块、`app/config/settings.py` 及其测试，以及 7 个依赖包；脚本改为读取 `UPLOAD_ROOT`。
+>   - D3 ✅（2026-10-21）：**代码里不再有 Flask，P1 完成。**
+>     - 删除了 `flask_app.py`、`extensions/`、`config/settings.py` 和 `wsgi_threads`，以及 Flask、Flask-Cors、Flask-JWT-Extended、
+>       Flask-Migrate、Flask-SQLAlchemy、a2wsgi、pytest-flask 这 7 个包。SQLAlchemy、Alembic、PyJWT 原来是经由 Flask
+>       的包间接安装的，改为按原版本显式声明。
+>     - `test_config_parity` 的快照改为直接记录 Settings 的输出：重新录制之前，先逐项对比了旧快照里的 220 个值，0 处不一致。
+>     - 脚本的上传目录和 FAISS 目录改为在调用时读取配置（先写了会失败的测试；测试会先断言目标是临时目录，才允许删除）。
+>     - conftest 原来没有把 `FORUM_RAG_FAISS_DIR` 指向临时目录，所以测试一直在读写真实的 `data/faiss`，这次补上了。
+>       D2 事故里那个无法确认的 FAISS 条目，查明是 `forum_rag.faiss`：它是索引文件，第一次被读取时会重建，后来已经自动重新生成。
+> - 下一步：P2（async LLM 网关、统一主图，以及在调用 LLM 之前结束事务以解决 #9）。
 >   迁 market 和 forum 时，要逐个处理剩下的 `except Exception: pass`：异常吞掉后 session 仍处于失败状态，后面的查询会返回 500。
 >   迁 forum 和 market 时，要把 `notification_service.dispatch` 和 `auth_identity` 剩下的 Flask 依赖一起去掉。
 
@@ -363,7 +371,7 @@ docs/adr/
 - 论坛后台索引任务：`ThreadPoolExecutor(max_workers=1)` 换成 Celery（Redis 做 broker），带重试；worker 作为 compose 里的独立服务。
 - 迁完后删除 Flask、Flask-* 和 a2wsgi 依赖，gunicorn sync worker 换成 uvicorn 多 worker。
 
-**验收**
+**验收**（✅ 2026-10-21）
 - 代码里不再有 Flask。
 - `/docs` 能看到全部接口。
 - 全部测试在 PG 上通过。

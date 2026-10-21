@@ -1,6 +1,6 @@
 """Integration tests for Forum API endpoints.
 
-Tests go through the full HTTP stack: Flask test client -> Blueprint -> Service -> Repository -> DB.
+Tests go through the full HTTP stack: test client -> route -> service -> repository -> DB.
 """
 
 from app.core.security import create_access_token

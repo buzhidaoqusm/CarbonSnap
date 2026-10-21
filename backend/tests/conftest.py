@@ -57,6 +57,8 @@ os.environ.update(
         # Never touch the developer's dev database.
         "DATABASE_URL": _TEST_DATABASE_URL.render_as_string(hide_password=False),
         "UPLOAD_ROOT": str(_TEST_TMP_ROOT / "uploads"),
+        # The FAISS index is built and read here too; never the real data/faiss.
+        "FORUM_RAG_FAISS_DIR": str(_TEST_TMP_ROOT / "faiss"),
         "UPLOAD_URL_PREFIX": "/api/uploads",
         "JWT_SECRET_KEY": "test-secret-at-least-32-bytes-long",
         # Placeholder credentials: non-empty so provider config checks pass,

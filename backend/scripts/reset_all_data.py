@@ -17,12 +17,22 @@ sys.path.insert(0, str(_BACKEND_ROOT))
 
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.db.base import Base
 from app.db.maintenance import truncate_tables
 from app.db.session import get_engine, get_sessionmaker
 
-UPLOADS_ROOT = _REPO_ROOT / "data" / "uploads"
-FAISS_ROOT = _REPO_ROOT / "data" / "faiss"
+
+def uploads_root() -> Path:
+    # Read at call time: UPLOAD_ROOT (or a test override) decides where the
+    # script reads, writes and deletes.
+    return Path(get_settings().upload_root)
+
+
+def faiss_root() -> Path:
+    # Read at call time: FORUM_RAG_FAISS_DIR (or a test override) decides
+    # where the script reads, writes and deletes.
+    return Path(get_settings().forum_rag_faiss_dir)
 
 
 def _clear_all_table_data(session: Session) -> int:
@@ -33,9 +43,9 @@ def _clear_all_table_data(session: Session) -> int:
 
 def _clear_uploads_directory() -> int:
     removed_entries = 0
-    UPLOADS_ROOT.mkdir(parents=True, exist_ok=True)
+    uploads_root().mkdir(parents=True, exist_ok=True)
 
-    for child in UPLOADS_ROOT.iterdir():
+    for child in uploads_root().iterdir():
         if child.name == ".gitkeep":
             continue
         if child.is_dir():
@@ -44,7 +54,7 @@ def _clear_uploads_directory() -> int:
             child.unlink()
         removed_entries += 1
 
-    gitkeep_path = UPLOADS_ROOT / ".gitkeep"
+    gitkeep_path = uploads_root() / ".gitkeep"
     if not gitkeep_path.exists():
         gitkeep_path.write_text("", encoding="utf-8")
 
@@ -53,9 +63,9 @@ def _clear_uploads_directory() -> int:
 
 def _clear_faiss_directory() -> int:
     removed_entries = 0
-    FAISS_ROOT.mkdir(parents=True, exist_ok=True)
+    faiss_root().mkdir(parents=True, exist_ok=True)
 
-    for child in FAISS_ROOT.iterdir():
+    for child in faiss_root().iterdir():
         if child.name == ".gitkeep":
             continue
         if child.is_dir():
@@ -64,7 +74,7 @@ def _clear_faiss_directory() -> int:
             child.unlink()
         removed_entries += 1
 
-    gitkeep_path = FAISS_ROOT / ".gitkeep"
+    gitkeep_path = faiss_root() / ".gitkeep"
     if not gitkeep_path.exists():
         gitkeep_path.write_text("", encoding="utf-8")
 

@@ -1,10 +1,9 @@
-"""Typed application settings, independent of Flask.
+"""Typed application settings.
 
 Everything configurable is declared once here, with its type and default, and
 read from the environment (and ENV_FILE / backend/.env) when first needed.
-Code reads it with ``get_settings().field_name`` instead of
-``current_app.config.get("FIELD_NAME", default)``, which works outside a Flask
-request and lets mypy catch a misspelt name.
+Code reads it with ``get_settings().field_name``, so mypy catches a misspelt
+name.
 
 Behaviour kept from the old os.getenv loader (tests/unit/test_config_parity.py
 pins it): strings are trimmed, a blank variable means "use the default", the
@@ -75,11 +74,6 @@ class Settings(BaseSettings):
     # The compose postgres service. 127.0.0.1 rather than localhost: on Windows
     # localhost tries ::1 first, which the port binding does not answer.
     database_url: str = "postgresql+psycopg://carbonsnap:carbonsnap@127.0.0.1:5432/carbonsnap"
-    # Threads per process that run the Flask app behind the ASGI server, i.e.
-    # how many not-yet-migrated requests (a chat stream holds one throughout)
-    # one process serves at once. The database pool is sized to match. See
-    # docs/benchmarks.md for why one process with 40 threads beat three.
-    wsgi_threads: int = Field(40, ge=1)
     # Threads that step the AI streams (one per stream while it waits on the
     # model), kept apart from the thread pool every other sync route runs on,
     # so streams cannot starve /api/health or a login. The FastAPI database

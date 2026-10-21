@@ -64,8 +64,8 @@ def test_settings_cannot_be_changed_at_runtime():
 
 
 def test_env_file_is_read_and_real_environment_wins(monkeypatch, tmp_path):
-    # load_app_settings no longer calls load_dotenv: Settings reads ENV_FILE
-    # itself. Real environment variables still take precedence, as before.
+    # Settings reads ENV_FILE itself; real environment variables take
+    # precedence over it.
     from app.core.config import _load_settings, clear_settings_cache
 
     env_file = tmp_path / "test.env"
