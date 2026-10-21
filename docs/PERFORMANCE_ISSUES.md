@@ -43,6 +43,7 @@ docker compose -f docker-compose.yml -f docker-compose.bench.yml --profile bench
 | 13 | ~~已登录列表把全站数据加载进内存再排序~~ ✅ 已修 | 全站 2 万行、有画像的用户拉第 1 页：forum **18.3 s → 49 ms**，project **14.6 s → 183 ms**，market **15.3 s → 41 ms**；内存峰值 **约 70 MB → 0.7 MB** | 已修（2026-10-18） | 耗时和内存不随全站行数增长 |
 | 14 | ~~每次 LLM 调用新建客户端，连接不复用~~ ✅ 已修 | 一轮 5 次调用：**5 → 1 个 TCP 连接**；本机经代理实测，新建一个连接要多花 OpenRouter **约 1.5 s**、DashScope **约 60 ms** | 已修（2026-10-21，P2 E1） | 连接复用 |
 | 15 | ~~主 provider 出故障时，每轮对话都失败~~ ✅ 已修 | 主 provider 返回 503：**每轮都以 error 结束（1.4 s）→ 降级到备用 provider，正常完成（5.0 s）** | 已修（2026-10-21，P2 E1） | 主 provider 故障时自动降级 |
+| 16 | 读超时限制的是间隔，不是总时长 | 连 OpenRouter 时，辅助调用的读超时设为 60 s，实测仍有 **2 / 25 次等了 120.6 s**，最后拿到空回复 | P2 E3 | 每次调用都有总时长上限 |
 
 ---
 
@@ -499,6 +500,18 @@ httpx 只能丢掉那个连接。这只发生在失败的路径上，不需要�
 FAKE_LLM_LOG=1 FAKE_LLM_FAIL_STATUS=503 LLM_FALLBACK_PROVIDER=qwen docker compose -f docker-compose.yml -f docker-compose.bench.yml --profile bench up -d
 uv run --no-project --with requests python tools/load_test/probe.py providers
 ```
+
+## 16. 读超时限制的是间隔，不是总时长
+
+`AI_LLM_AUX_TIMEOUT_SECONDS` 和 `AI_LLM_TIMEOUT_SECONDS` 都是 httpx 的读超时，限制的是"两次收到数据之间最多等多久"，
+不是一次调用的总时长。#6 的修复和那张"最坏 105 s"的表，前提是 provider 卡住时一个字节都不发。
+
+E2 用真实的免费模型（`nvidia/nemotron-3.5-super-vl:free`）跑评测时，读超时设的是 60 s，记忆提取的 25 次调用里有
+2 次等了 **120.6 s**。这 2 次调用"成功"返回，但 `content` 为空，也没有用量数据。推测是 OpenRouter 在等上游模型时，
+会定期发送空白字符来保持连接，读超时因此一直触发不了，直到它自己在约 120 s 时放弃。生产上辅助调用的 15 s 超时
+在这种情况下同样会失效。
+
+计划：E3 改成 async 后，给每次调用加一个总时长上限（`anyio.fail_after`）；读超时仍然保留，用来限制两次收到数据之间的间隔。
 
 ## 查过但没有发现问题的
 

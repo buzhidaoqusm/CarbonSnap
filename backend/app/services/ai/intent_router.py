@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, get_args
 
-from app.services.ai.openrouter_service import complete_json_diagnostic
+from app.services.ai.openrouter_service import complete_structured_diagnostic
+from app.services.ai.structured_outputs import FollowUpType, Intent, RouterDecision
 
-INTENTS = {"general_chat", "recycling_analysis", "recycling_follow_up"}
-FOLLOW_UP_TYPES = {"guidance_follow_up", "nearby_search", "task_verification"}
+INTENTS = set(get_args(Intent))
+FOLLOW_UP_TYPES = set(get_args(FollowUpType))
 ROUTER_FEW_SHOTS: tuple[dict[str, Any], ...] = (
     {
         "message": "How do I recycle this plastic bottle?",
@@ -297,7 +298,8 @@ def classify_intent_detailed(
     prompt_memory: dict[str, Any] | None,
     allow_business_fallback: bool,
 ) -> dict[str, Any]:
-    diagnostic = complete_json_diagnostic(
+    diagnostic = complete_structured_diagnostic(
+        output=RouterDecision,
         purpose="router",
         user_message=_build_router_user_prompt(
             message=message,

@@ -91,7 +91,7 @@ def test_pre_answer_calls_are_auxiliary(monkeypatch, module, call):
         seen.update(kwargs)
         return {"payload": None, "raw_reply": None, "error": "x", "model": None, "usage": {}}
 
-    monkeypatch.setattr(module, "complete_json_diagnostic", fake_diagnostic)
+    monkeypatch.setattr(module, "complete_structured_diagnostic", fake_diagnostic)
     call()
 
     assert seen.get("auxiliary") is True

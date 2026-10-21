@@ -36,7 +36,7 @@ class TestIntentRouter:
     def test_uses_model_payload_when_available(self, monkeypatch):
         monkeypatch.setattr(
             intent_router,
-            "complete_json_diagnostic",
+            "complete_structured_diagnostic",
             lambda **kwargs: {
                 "payload": {
                     "intent": "recycling_follow_up",
@@ -67,7 +67,7 @@ class TestIntentRouter:
     def test_detailed_router_safe_default_on_invalid_payload_in_llm_first_mode(self, monkeypatch):
         monkeypatch.setattr(
             intent_router,
-            "complete_json_diagnostic",
+            "complete_structured_diagnostic",
             lambda **kwargs: {
                 "payload": {"intent": "chat_memory_question"},
                 "raw_reply": '{"intent":"chat_memory_question"}',
@@ -92,7 +92,7 @@ class TestIntentRouter:
     def test_business_fallback_can_route_guidance_follow_up(self, monkeypatch):
         monkeypatch.setattr(
             intent_router,
-            "complete_json_diagnostic",
+            "complete_structured_diagnostic",
             lambda **kwargs: {
                 "payload": None,
                 "raw_reply": "not-json",
@@ -121,7 +121,7 @@ class TestIntentRouter:
     def test_business_fallback_keeps_recycling_ideation_as_general_chat(self, monkeypatch):
         monkeypatch.setattr(
             intent_router,
-            "complete_json_diagnostic",
+            "complete_structured_diagnostic",
             lambda **kwargs: {
                 "payload": None,
                 "raw_reply": "not-json",

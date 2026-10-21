@@ -117,6 +117,11 @@ files = [
     "app/main.py",
     "app/llm",
     "app/services/ai/openrouter_service.py",
+    "app/services/ai/structured_outputs.py",
+    "app/services/ai/intent_router.py",
+    "app/services/ai/memory_extractor.py",
+    "app/services/ai/case_resolver.py",
+    "scripts/eval_structured_output.py",
 ]
 follow_imports = "silent"
 ignore_missing_imports = true

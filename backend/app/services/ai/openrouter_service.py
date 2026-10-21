@@ -5,8 +5,10 @@ import re
 from collections.abc import Generator, Iterable
 from typing import Any
 
+from pydantic import BaseModel
+
 from app.core.config import get_settings
-from app.llm import gateway
+from app.llm import gateway, structured
 from app.llm.providers import LLMConfigError
 
 # The callers' name for a missing API key, from before the gateway existed.
@@ -543,6 +545,75 @@ def complete_json_diagnostic(
             "model": response.get("model"),
             "usage": response.get("usage", {}),
         }
+
+
+def _usage_of(reply: gateway.Reply) -> dict[str, Any]:
+    usage = getattr(reply.completion, "usage", None)
+    return {
+        "prompt_tokens": getattr(usage, "prompt_tokens", None),
+        "completion_tokens": getattr(usage, "completion_tokens", None),
+        "total_tokens": getattr(usage, "total_tokens", None),
+    }
+
+
+def complete_structured_diagnostic(
+    *,
+    output: type[BaseModel],
+    user_message: str,
+    history: list[dict[str, Any]] | None = None,
+    image_data_url: str | None = None,
+    system_prompt: str | None = None,
+    prompt_memory: dict[str, Any] | None = None,
+    auxiliary: bool = False,
+    purpose: str,
+) -> dict[str, Any]:
+    """``complete_json_diagnostic`` with a schema: the reply is ``output``'s shape.
+
+    ``payload`` is the validated reply as a dict; ``error`` is
+    ``provider_error:<exception>``, ``no_reply``, ``invalid_json`` or
+    ``schema_mismatch``.
+    """
+    messages = build_messages(
+        user_message=user_message,
+        history=history,
+        image_data_url=image_data_url,
+        system_prompt=system_prompt,
+        prompt_memory=prompt_memory,
+    )
+    try:
+        result = structured.structured_sync(messages, output, purpose=purpose, auxiliary=auxiliary)
+    except structured.StructuredOutputError as exc:
+        return {
+            "payload": None,
+            "raw_reply": exc.raw,
+            "error": exc.reason,
+            "model": exc.reply.completion.model,
+            "usage": _usage_of(exc.reply),
+        }
+    except Exception as exc:
+        return {
+            "payload": None,
+            "raw_reply": None,
+            "error": f"provider_error:{exc.__class__.__name__}",
+            "model": None,
+            "usage": {},
+        }
+    return {
+        "payload": result.value.model_dump(),
+        "raw_reply": result.raw,
+        "error": None,
+        "model": result.reply.completion.model,
+        "usage": _usage_of(result.reply),
+    }
+
+
+def complete_structured(**kwargs: Any) -> dict[str, Any]:
+    """The validated reply as a dict; raises ValueError naming the failure."""
+    diagnostic = complete_structured_diagnostic(**kwargs)
+    if diagnostic["payload"] is None:
+        raise ValueError(str(diagnostic["error"]))
+    payload: dict[str, Any] = diagnostic["payload"]
+    return payload
 
 
 def stream_text(

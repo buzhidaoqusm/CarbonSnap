@@ -12,7 +12,7 @@ from tests.support.database import db
 def test_analyze_stage1_resolves_only_known_forum_references(monkeypatch):
     monkeypatch.setattr(
         recycling_analysis_service,
-        "complete_json",
+        "complete_structured",
         lambda **kwargs: {
             "waste_type": "Plastic bottle",
             "confidence": 0.92,
@@ -65,7 +65,7 @@ def test_analyze_stage1_includes_graph_context_in_system_prompt(monkeypatch):
             "forum_references": [],
         }
 
-    monkeypatch.setattr(recycling_analysis_service, "complete_json", fake_complete_json)
+    monkeypatch.setattr(recycling_analysis_service, "complete_structured", fake_complete_json)
 
     recycling_analysis_service._analyze_stage1(
         message="How should I recycle batteries?",

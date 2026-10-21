@@ -3,7 +3,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from app.services.ai.openrouter_service import complete_json_diagnostic
+from app.services.ai.openrouter_service import complete_structured_diagnostic
+from app.services.ai.structured_outputs import MemoryExtraction, memory_value
 
 
 def _normalize(text: str) -> str:
@@ -41,7 +42,8 @@ def extract_explicit_memory_candidates_detailed(
             "fallback_mode": None,
         }
 
-    diagnostic = complete_json_diagnostic(
+    diagnostic = complete_structured_diagnostic(
+        output=MemoryExtraction,
         purpose="memory_extractor",
         user_message=json.dumps(
             {
@@ -83,36 +85,28 @@ def extract_explicit_memory_candidates_detailed(
     }
 
 
-def _normalize_candidates(raw: dict[str, Any]) -> list[dict[str, Any]] | None:
-    candidates = raw.get("memory_candidates")
-    if candidates is None:
-        if raw.get("is_explicit_preference") is False:
-            return []
-        return None
-    if not isinstance(candidates, list):
-        return None
-
+def _normalize_candidates(raw: dict[str, Any]) -> list[dict[str, Any]]:
+    """A validated MemoryExtraction as the candidates memory_service stores."""
     normalized_items: list[dict[str, Any]] = []
-    for item in candidates:
-        if not isinstance(item, dict):
+    for item in raw["memory_candidates"]:
+        value = memory_value(item)
+        memory_key = item["memory_key"].strip()
+        if value is None or not memory_key:
             continue
-        memory_type = str(item.get("memory_type") or "").strip()
-        memory_key = str(item.get("memory_key") or "").strip()
-        value = item.get("value")
-        if memory_type and memory_key and isinstance(value, dict) and value:
-            if memory_type == "response_style":
-                memory_key = "response_style"
-            elif memory_type == "topic_interest":
-                memory_key = str(value.get("topic") or memory_key).strip()
-            elif memory_type == "item_method_preference":
-                memory_key = str(value.get("item_type") or memory_key).strip()
-            normalized_items.append(
-                {
-                    "memory_type": memory_type,
-                    "memory_key": memory_key,
-                    "value": value,
-                }
-            )
+        memory_type = item["memory_type"]
+        if memory_type == "response_style":
+            memory_key = "response_style"
+        elif memory_type == "topic_interest":
+            memory_key = str(value["topic"]).strip()
+        elif memory_type == "item_method_preference":
+            memory_key = str(value["item_type"]).strip()
+        normalized_items.append(
+            {
+                "memory_type": memory_type,
+                "memory_key": memory_key,
+                "value": value,
+            }
+        )
     return normalized_items
 
 
@@ -203,16 +197,18 @@ Return exactly one JSON object with:
 - is_explicit_preference: boolean
 - memory_candidates: array
 
-Each memory candidate object must include:
+Each memory candidate has every one of these fields, null where it does not apply:
 - memory_type: one of response_style, recycling_preference, topic_interest, item_method_preference
 - memory_key: string
-- value: object
+- style: "concise" or "detailed" for response_style, otherwise null
+- enabled: true or false for recycling_preference, otherwise null
+- topic: the topic for topic_interest, otherwise null
+- item_type and preferred_method: for item_method_preference, otherwise null
 
 Rules:
 - If there is no explicit stable preference, return {"is_explicit_preference": false, "memory_candidates": []}
-- response_style values should usually be concise or detailed
-- recycling_preference examples: prefer_nearby_options, allow_manual_area_input
-- topic_interest value should look like {"topic":"battery"}
-- item_method_preference value should look like {"item_type":"battery","preferred_method":"specialized_dropoff"}
+- recycling_preference keys: prefer_nearby_options, allow_manual_area_input
+- topic_interest example: memory_key "battery", topic "battery"
+- item_method_preference example: memory_key "battery", item_type "battery", preferred_method "specialized_dropoff"
 - Return JSON only.
 """.strip()

@@ -5,7 +5,7 @@ class TestCaseResolver:
     def test_uses_model_resolution_when_available(self, monkeypatch):
         monkeypatch.setattr(
             case_resolver,
-            "complete_json_diagnostic",
+            "complete_structured_diagnostic",
             lambda **kwargs: {
                 "payload": {
                     "target_case_id": 12,

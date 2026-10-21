@@ -31,7 +31,7 @@ from app.services.ai.neo4j_graph_retrieval_service import (
     query_graph_context,
 )
 from app.services.ai.openrouter_service import (
-    complete_json,
+    complete_structured,
     generate_conversation_title,
     stream_text,
 )
@@ -46,6 +46,7 @@ from app.services.ai.recycling_session_service import (
     set_workflow_reference,
     update_location_state,
 )
+from app.services.ai.structured_outputs import StageOneAnalysis
 from app.services.recommendation import behavior_event_service, preference_profile_service
 
 LOCATION_OPTIONS = [
@@ -1168,7 +1169,11 @@ def _analyze_stage1(
     graph_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     try:
-        response = complete_json(
+        # Validated against StageOneAnalysis, so the normalizer below gets the
+        # types it assumes; a reply such as "0.5 kg" for the weight used to
+        # raise out of it, past this try.
+        response = complete_structured(
+            output=StageOneAnalysis,
             purpose="recycling_stage1",
             user_message=message or "Please analyze this waste item.",
             image_data_url=image_data_url,

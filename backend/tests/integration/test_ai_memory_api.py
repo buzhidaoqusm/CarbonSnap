@@ -55,7 +55,7 @@ class TestAiMemoryApi:
             ai_conversation_service, "chat_with_openrouter", fake_chat_with_openrouter
         )
         monkeypatch.setattr(
-            "app.services.ai.memory_extractor.complete_json_diagnostic",
+            "app.services.ai.memory_extractor.complete_structured_diagnostic",
             lambda **kwargs: {
                 "payload": {
                     "is_explicit_preference": True,
@@ -63,7 +63,11 @@ class TestAiMemoryApi:
                         {
                             "memory_type": "response_style",
                             "memory_key": "response_style",
-                            "value": {"value": "concise"},
+                            "style": "concise",
+                            "enabled": None,
+                            "topic": None,
+                            "item_type": None,
+                            "preferred_method": None,
                         }
                     ],
                 },

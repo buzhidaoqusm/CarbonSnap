@@ -1,0 +1,228 @@
+{
+  "label": "after-memory-rerun",
+  "model": "nvidia/nemotron-3.5-super-vl:free",
+  "summary": {
+    "memory": {
+      "cases": 6,
+      "raw_reply": {
+        "clean_json": 6
+      },
+      "conforms": 6,
+      "from_model": 6,
+      "correct": 6,
+      "failure_reasons": [],
+      "median_latency_ms": 4336,
+      "completion_tokens": 1515,
+      "readable_candidates": "5/5"
+    }
+  },
+  "results": [
+    {
+      "from_model": true,
+      "failure_reason": null,
+      "correct": true,
+      "readable": [
+        true
+      ],
+      "observed": [
+        {
+          "memory_type": "response_style",
+          "memory_key": "response_style",
+          "value": {
+            "value": "concise"
+          }
+        }
+      ],
+      "kind": "memory",
+      "id": "m01",
+      "raw_class": "clean_json",
+      "conforms": true,
+      "raw_reply": "{\"is_explicit_preference\": true, \"memory_candidates\": [{\"memory_type\": \"response_style\", \"memory_key\": \"response_style\", \"style\": \"concise\", \"enabled\": null, \"topic\": null, \"item_type\": null, \"preferred_method\": null}]}",
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "memory_extractor",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 4479,
+          "first_chunk_ms": null,
+          "prompt_tokens": 317,
+          "completion_tokens": 227,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": true,
+      "failure_reason": null,
+      "correct": true,
+      "readable": [
+        true
+      ],
+      "observed": [
+        {
+          "memory_type": "response_style",
+          "memory_key": "response_style",
+          "value": {
+            "value": "detailed"
+          }
+        }
+      ],
+      "kind": "memory",
+      "id": "m02",
+      "raw_class": "clean_json",
+      "conforms": true,
+      "raw_reply": "{\"is_explicit_preference\": true, \"memory_candidates\": [{\"memory_type\": \"response_style\", \"memory_key\": \"response_style\", \"style\": \"detailed\", \"enabled\": null, \"topic\": null, \"item_type\": null, \"preferred_method\": null}]}",
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "memory_extractor",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 2541,
+          "first_chunk_ms": null,
+          "prompt_tokens": 317,
+          "completion_tokens": 210,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": true,
+      "failure_reason": null,
+      "correct": true,
+      "readable": [
+        true
+      ],
+      "observed": [
+        {
+          "memory_type": "topic_interest",
+          "memory_key": "composting",
+          "value": {
+            "topic": "composting"
+          }
+        }
+      ],
+      "kind": "memory",
+      "id": "m03",
+      "raw_class": "clean_json",
+      "conforms": true,
+      "raw_reply": "{\"is_explicit_preference\": true, \"memory_candidates\": [{\"memory_type\": \"topic_interest\", \"memory_key\": \"composting\", \"style\": null, \"enabled\": null, \"topic\": \"composting\", \"item_type\": null, \"preferred_method\": null}]}",
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "memory_extractor",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 7308,
+          "first_chunk_ms": null,
+          "prompt_tokens": 324,
+          "completion_tokens": 198,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": true,
+      "failure_reason": null,
+      "correct": true,
+      "readable": [
+        true
+      ],
+      "observed": [
+        {
+          "memory_type": "item_method_preference",
+          "memory_key": "battery",
+          "value": {
+            "item_type": "battery",
+            "preferred_method": "specialized_dropoff"
+          }
+        }
+      ],
+      "kind": "memory",
+      "id": "m04",
+      "raw_class": "clean_json",
+      "conforms": true,
+      "raw_reply": "{\"is_explicit_preference\": true, \"memory_candidates\": [{\"memory_type\": \"item_method_preference\", \"memory_key\": \"battery\", \"style\": null, \"enabled\": null, \"topic\": null, \"item_type\": \"battery\", \"preferred_method\": \"specialized_dropoff\"}]}",
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "memory_extractor",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 4193,
+          "first_chunk_ms": null,
+          "prompt_tokens": 318,
+          "completion_tokens": 245,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": true,
+      "failure_reason": null,
+      "correct": true,
+      "readable": [],
+      "observed": [],
+      "kind": "memory",
+      "id": "m05",
+      "raw_class": "clean_json",
+      "conforms": true,
+      "raw_reply": "{\"is_explicit_preference\": false, \"memory_candidates\": []}",
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "memory_extractor",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 1628,
+          "first_chunk_ms": null,
+          "prompt_tokens": 316,
+          "completion_tokens": 115,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": true,
+      "failure_reason": null,
+      "correct": true,
+      "readable": [
+        true
+      ],
+      "observed": [
+        {
+          "memory_type": "recycling_preference",
+          "memory_key": "prefer_nearby_options",
+          "value": {
+            "value": false
+          }
+        }
+      ],
+      "kind": "memory",
+      "id": "m06",
+      "raw_class": "clean_json",
+      "conforms": true,
+      "raw_reply": "{\"is_explicit_preference\": true, \"memory_candidates\": [{\"memory_type\": \"recycling_preference\", \"memory_key\": \"prefer_nearby_options\", \"style\": null, \"enabled\": false, \"topic\": null, \"item_type\": null, \"preferred_method\": null}]}",
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "memory_extractor",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 5648,
+          "first_chunk_ms": null,
+          "prompt_tokens": 317,
+          "completion_tokens": 520,
+          "fallback_from": null
+        }
+      ]
+    }
+  ]
+}

@@ -5,7 +5,7 @@ class TestMemoryExtractor:
     def test_extracts_concise_response_style_preference(self, monkeypatch):
         monkeypatch.setattr(
             memory_extractor,
-            "complete_json_diagnostic",
+            "complete_structured_diagnostic",
             lambda **kwargs: {
                 "payload": {
                     "is_explicit_preference": True,
@@ -13,7 +13,11 @@ class TestMemoryExtractor:
                         {
                             "memory_type": "response_style",
                             "memory_key": "response_style",
-                            "value": {"value": "concise"},
+                            "style": "concise",
+                            "enabled": None,
+                            "topic": None,
+                            "item_type": None,
+                            "preferred_method": None,
                         }
                     ],
                 },
@@ -36,7 +40,7 @@ class TestMemoryExtractor:
     def test_extracts_item_method_preference_for_battery(self, monkeypatch):
         monkeypatch.setattr(
             memory_extractor,
-            "complete_json_diagnostic",
+            "complete_structured_diagnostic",
             lambda **kwargs: {
                 "payload": {
                     "is_explicit_preference": True,
@@ -44,10 +48,11 @@ class TestMemoryExtractor:
                         {
                             "memory_type": "item_method_preference",
                             "memory_key": "battery",
-                            "value": {
-                                "item_type": "battery",
-                                "preferred_method": "specialized_dropoff",
-                            },
+                            "style": None,
+                            "enabled": None,
+                            "topic": None,
+                            "item_type": "battery",
+                            "preferred_method": "specialized_dropoff",
                         }
                     ],
                 },
@@ -66,7 +71,7 @@ class TestMemoryExtractor:
     def test_small_talk_does_not_create_memory_candidates(self, monkeypatch):
         monkeypatch.setattr(
             memory_extractor,
-            "complete_json_diagnostic",
+            "complete_structured_diagnostic",
             lambda **kwargs: {
                 "payload": {"is_explicit_preference": False, "memory_candidates": []},
                 "raw_reply": '{"is_explicit_preference":false,"memory_candidates":[]}',

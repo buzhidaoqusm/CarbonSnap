@@ -3,7 +3,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from app.services.ai.openrouter_service import complete_json_diagnostic
+from app.services.ai.openrouter_service import complete_structured_diagnostic
+from app.services.ai.structured_outputs import CaseResolution
 
 
 def resolve_target_case(
@@ -28,7 +29,7 @@ def resolve_target_case_detailed(
     allow_heuristic_fallback: bool,
 ) -> dict[str, Any]:
     if not case_summaries:
-        result = {
+        result: dict[str, Any] = {
             "target_case_id": None,
             "confidence": 0.0,
             "needs_clarification": True,
@@ -43,7 +44,8 @@ def resolve_target_case_detailed(
             "fallback_mode": "safe_default",
         }
 
-    diagnostic = complete_json_diagnostic(
+    diagnostic = complete_structured_diagnostic(
+        output=CaseResolution,
         purpose="case_resolver",
         user_message=json.dumps(
             {

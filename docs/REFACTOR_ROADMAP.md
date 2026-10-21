@@ -398,7 +398,16 @@ docs/adr/
 > - **成本先不算**：需要每个模型的价格表，等 P3 接 Langfuse 时一起做；
 > - **3 类调用不降级**：辅助调用、embedding、已经开始输出的流，原因见 PERFORMANCE_ISSUES #15。
 >
-> 结构化输出单独作为 E2：它需要真实模型来测 JSON 解析失败率。
+> 结构化输出单独作为 E2，因为它需要真实模型来测 JSON 解析失败率。
+>
+> ✅ **结构化输出已完成（2026-10-21，E2）**：路由、记忆提取、case resolver、stage1 这 4 个调用改为 strict `json_schema` 加 Pydantic 校验，
+> 删掉了正则抠 JSON 的逻辑。评测方法和结果见 `backend/evals/structured_output/README.md`。
+> 和计划不同的地方：
+> - 免费模型只靠 prompt，JSON 格式错误率本来就是 **0 / 22**，所以失败率没有下降的空间；
+> - 这次真正修掉的是两个 bug：
+>   - 记忆的 `value` 字段约定不明确，用户偏好**有一半读不出来**（2 / 4 → 重跑 5 / 5）；
+>   - stage1 回复里的重量带单位时，会抛出异常，而不是走兜底；
+> - topic_mapping、论坛图谱抽取、回收审核这 3 个调用还在用旧的 `complete_json`。
 
 - 新建 `app/llm/`，基于 `AsyncOpenAI`，统一提供 `chat()`、`stream()`、`structured()`、`embed()` 四个接口。
 - 超时（连接和读取分开设）；用 tenacity 做指数退避重试，只重试 429、5xx 和超时；主备 provider 自动降级（OpenRouter ⇄ Qwen）。

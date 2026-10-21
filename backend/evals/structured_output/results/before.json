@@ -1,0 +1,794 @@
+{
+  "label": "before",
+  "model": "nvidia/nemotron-3.5-super-vl:free",
+  "summary": {
+    "router": {
+      "cases": 12,
+      "raw_reply": {
+        "clean_json": 11,
+        "provider_error": 1
+      },
+      "conforms": 11,
+      "from_model": 11,
+      "correct": 12,
+      "failure_reasons": [
+        "provider_error:InternalServerError"
+      ],
+      "median_latency_ms": 5497,
+      "completion_tokens": 4822
+    },
+    "memory": {
+      "cases": 6,
+      "raw_reply": {
+        "clean_json": 4,
+        "no_reply": 2
+      },
+      "conforms": 4,
+      "from_model": 4,
+      "correct": 3,
+      "failure_reasons": [
+        "invalid_json:ValueError"
+      ],
+      "median_latency_ms": 8800,
+      "completion_tokens": 1179,
+      "readable_candidates": "2/4"
+    },
+    "resolver": {
+      "cases": 4,
+      "raw_reply": {
+        "clean_json": 4
+      },
+      "conforms": 4,
+      "from_model": 4,
+      "correct": 4,
+      "failure_reasons": [],
+      "median_latency_ms": 2318,
+      "completion_tokens": 888
+    },
+    "stage1": {
+      "cases": 3,
+      "raw_reply": {
+        "clean_json": 3
+      },
+      "conforms": 3,
+      "from_model": 3,
+      "correct": 3,
+      "failure_reasons": [],
+      "median_latency_ms": 18703,
+      "completion_tokens": 2162
+    }
+  },
+  "results": [
+    {
+      "from_model": true,
+      "failure_reason": null,
+      "correct": true,
+      "observed": {
+        "intent": "recycling_analysis",
+        "follow_up_type": null
+      },
+      "kind": "router",
+      "id": "r01",
+      "raw_class": "clean_json",
+      "conforms": true,
+      "raw_reply": "{\n  \"intent\": \"recycling_analysis\",\n  \"follow_up_type\": null,\n  \"confidence\": 0.98,\n  \"possible_preference_signal\": false,\n  \"needs_clarification\": false,\n  \"clarification_question\": null,\n  \"clarification_options\": []\n}",
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "router",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 6263,
+          "first_chunk_ms": null,
+          "prompt_tokens": 2769,
+          "completion_tokens": 509,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": true,
+      "failure_reason": null,
+      "correct": true,
+      "observed": {
+        "intent": "recycling_analysis",
+        "follow_up_type": null
+      },
+      "kind": "router",
+      "id": "r02",
+      "raw_class": "clean_json",
+      "conforms": true,
+      "raw_reply": "{\"intent\": \"recycling_analysis\", \"follow_up_type\": null, \"confidence\": 0.95, \"possible_preference_signal\": false, \"needs_clarification\": false, \"clarification_question\": null, \"clarification_options\": []}",
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "router",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 5441,
+          "first_chunk_ms": null,
+          "prompt_tokens": 2768,
+          "completion_tokens": 463,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": true,
+      "failure_reason": null,
+      "correct": true,
+      "observed": {
+        "intent": "general_chat",
+        "follow_up_type": null
+      },
+      "kind": "router",
+      "id": "r03",
+      "raw_class": "clean_json",
+      "conforms": true,
+      "raw_reply": "{\n  \"intent\": \"general_chat\",\n  \"follow_up_type\": null,\n  \"confidence\": 0.98,\n  \"possible_preference_signal\": false,\n  \"needs_clarification\": false,\n  \"clarification_question\": null,\n  \"clarification_options\": []\n}",
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "router",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 2689,
+          "first_chunk_ms": null,
+          "prompt_tokens": 2768,
+          "completion_tokens": 305,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": true,
+      "failure_reason": null,
+      "correct": true,
+      "observed": {
+        "intent": "general_chat",
+        "follow_up_type": null
+      },
+      "kind": "router",
+      "id": "r04",
+      "raw_class": "clean_json",
+      "conforms": true,
+      "raw_reply": "{\n  \"intent\": \"general_chat\",\n  \"follow_up_type\": null,\n  \"confidence\": 0.97,\n  \"possible_preference_signal\": false,\n  \"needs_clarification\": false,\n  \"clarification_question\": null,\n  \"clarification_options\": []\n}",
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "router",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 7115,
+          "first_chunk_ms": null,
+          "prompt_tokens": 2770,
+          "completion_tokens": 399,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": true,
+      "failure_reason": null,
+      "correct": true,
+      "observed": {
+        "intent": "general_chat",
+        "follow_up_type": null
+      },
+      "kind": "router",
+      "id": "r05",
+      "raw_class": "clean_json",
+      "conforms": true,
+      "raw_reply": "{\n  \"intent\": \"general_chat\",\n  \"follow_up_type\": null,\n  \"confidence\": 0.98,\n  \"possible_preference_signal\": false,\n  \"needs_clarification\": false,\n  \"clarification_question\": null,\n  \"clarification_options\": []\n}",
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "router",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 2536,
+          "first_chunk_ms": null,
+          "prompt_tokens": 2767,
+          "completion_tokens": 297,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": true,
+      "failure_reason": null,
+      "correct": true,
+      "observed": {
+        "intent": "recycling_analysis",
+        "follow_up_type": null
+      },
+      "kind": "router",
+      "id": "r06",
+      "raw_class": "clean_json",
+      "conforms": true,
+      "raw_reply": "{\n  \"intent\": \"recycling_analysis\",\n  \"follow_up_type\": null,\n  \"confidence\": 0.97,\n  \"possible_preference_signal\": false,\n  \"needs_clarification\": false,\n  \"clarification_question\": null,\n  \"clarification_options\": []\n}",
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "router",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 3198,
+          "first_chunk_ms": null,
+          "prompt_tokens": 2771,
+          "completion_tokens": 396,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": true,
+      "failure_reason": null,
+      "correct": true,
+      "observed": {
+        "intent": "recycling_follow_up",
+        "follow_up_type": "nearby_search"
+      },
+      "kind": "router",
+      "id": "r07",
+      "raw_class": "clean_json",
+      "conforms": true,
+      "raw_reply": "{\n  \"intent\": \"recycling_follow_up\",\n  \"follow_up_type\": \"nearby_search\",\n  \"confidence\": 0.98,\n  \"possible_preference_signal\": false,\n  \"needs_clarification\": false,\n  \"clarification_question\": null,\n  \"clarification_options\": []\n}",
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "router",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 5718,
+          "first_chunk_ms": null,
+          "prompt_tokens": 2818,
+          "completion_tokens": 587,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": false,
+      "failure_reason": "provider_error:InternalServerError",
+      "correct": true,
+      "observed": {
+        "intent": "recycling_follow_up",
+        "follow_up_type": "task_verification"
+      },
+      "kind": "router",
+      "id": "r08",
+      "raw_class": "provider_error",
+      "conforms": false,
+      "raw_reply": null,
+      "errors": [
+        "InternalServerError"
+      ],
+      "calls": [
+        {
+          "purpose": "router",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "InternalServerError",
+          "latency_ms": 562,
+          "first_chunk_ms": null,
+          "prompt_tokens": null,
+          "completion_tokens": null,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": true,
+      "failure_reason": null,
+      "correct": true,
+      "observed": {
+        "intent": "recycling_follow_up",
+        "follow_up_type": "guidance_follow_up"
+      },
+      "kind": "router",
+      "id": "r09",
+      "raw_class": "clean_json",
+      "conforms": true,
+      "raw_reply": "{\n  \"intent\": \"recycling_follow_up\",\n  \"follow_up_type\": \"guidance_follow_up\",\n  \"confidence\": 0.95,\n  \"possible_preference_signal\": false,\n  \"needs_clarification\": false,\n  \"clarification_question\": null,\n  \"clarification_options\": []\n}",
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "router",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 6561,
+          "first_chunk_ms": null,
+          "prompt_tokens": 2822,
+          "completion_tokens": 442,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": true,
+      "failure_reason": null,
+      "correct": true,
+      "observed": {
+        "intent": "general_chat",
+        "follow_up_type": null
+      },
+      "kind": "router",
+      "id": "r10",
+      "raw_class": "clean_json",
+      "conforms": true,
+      "raw_reply": "{\n  \"intent\": \"general_chat\",\n  \"follow_up_type\": null,\n  \"confidence\": 0.98,\n  \"possible_preference_signal\": false,\n  \"needs_clarification\": false,\n  \"clarification_question\": null,\n  \"clarification_options\": []\n}",
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "router",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 6752,
+          "first_chunk_ms": null,
+          "prompt_tokens": 2822,
+          "completion_tokens": 257,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": true,
+      "failure_reason": null,
+      "correct": true,
+      "observed": {
+        "intent": "recycling_follow_up",
+        "follow_up_type": "nearby_search"
+      },
+      "kind": "router",
+      "id": "r11",
+      "raw_class": "clean_json",
+      "conforms": true,
+      "raw_reply": "{\"intent\": \"recycling_follow_up\", \"follow_up_type\": \"nearby_search\", \"confidence\": 0.97, \"possible_preference_signal\": false, \"needs_clarification\": false, \"clarification_question\": null, \"clarification_options\": []}",
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "router",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 4905,
+          "first_chunk_ms": null,
+          "prompt_tokens": 2867,
+          "completion_tokens": 776,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": true,
+      "failure_reason": null,
+      "correct": true,
+      "observed": {
+        "intent": "recycling_analysis",
+        "follow_up_type": null
+      },
+      "kind": "router",
+      "id": "r12",
+      "raw_class": "clean_json",
+      "conforms": true,
+      "raw_reply": "{\n  \"intent\": \"recycling_analysis\",\n  \"follow_up_type\": null,\n  \"confidence\": 0.97,\n  \"possible_preference_signal\": false,\n  \"needs_clarification\": false,\n  \"clarification_question\": null,\n  \"clarification_options\": []\n}",
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "router",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 5497,
+          "first_chunk_ms": null,
+          "prompt_tokens": 2769,
+          "completion_tokens": 391,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": true,
+      "failure_reason": null,
+      "correct": false,
+      "readable": [
+        false
+      ],
+      "observed": [
+        {
+          "memory_type": "response_style",
+          "memory_key": "response_style",
+          "value": {
+            "style": "concise"
+          }
+        }
+      ],
+      "kind": "memory",
+      "id": "m01",
+      "raw_class": "clean_json",
+      "conforms": true,
+      "raw_reply": "{\"is_explicit_preference\": true, \"memory_candidates\": [{\"memory_type\": \"response_style\", \"memory_key\": \"response_style\", \"value\": {\"style\": \"concise\"}}]}",
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "memory_extractor",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 8038,
+          "first_chunk_ms": null,
+          "prompt_tokens": 256,
+          "completion_tokens": 432,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": true,
+      "failure_reason": null,
+      "correct": false,
+      "readable": [
+        false
+      ],
+      "observed": [
+        {
+          "memory_type": "response_style",
+          "memory_key": "response_style",
+          "value": {
+            "style": "detailed"
+          }
+        }
+      ],
+      "kind": "memory",
+      "id": "m02",
+      "raw_class": "clean_json",
+      "conforms": true,
+      "raw_reply": "{\"is_explicit_preference\": true, \"memory_candidates\": [{\"memory_type\": \"response_style\", \"memory_key\": \"response_style\", \"value\": {\"style\": \"detailed\"}}]}",
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "memory_extractor",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 9563,
+          "first_chunk_ms": null,
+          "prompt_tokens": 256,
+          "completion_tokens": 278,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": true,
+      "failure_reason": null,
+      "correct": true,
+      "readable": [
+        true
+      ],
+      "observed": [
+        {
+          "memory_type": "topic_interest",
+          "memory_key": "composting",
+          "value": {
+            "topic": "composting"
+          }
+        }
+      ],
+      "kind": "memory",
+      "id": "m03",
+      "raw_class": "clean_json",
+      "conforms": true,
+      "raw_reply": "{\n  \"is_explicit_preference\": true,\n  \"memory_candidates\": [\n    {\n      \"memory_type\": \"topic_interest\",\n      \"memory_key\": \"topic_interest_composting\",\n      \"value\": {\n        \"topic\": \"composting\"\n      }\n    }\n  ]\n}",
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "memory_extractor",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 1529,
+          "first_chunk_ms": null,
+          "prompt_tokens": 263,
+          "completion_tokens": 139,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": true,
+      "failure_reason": null,
+      "correct": true,
+      "readable": [
+        true
+      ],
+      "observed": [
+        {
+          "memory_type": "item_method_preference",
+          "memory_key": "battery",
+          "value": {
+            "item_type": "battery",
+            "preferred_method": "specialized_dropoff"
+          }
+        }
+      ],
+      "kind": "memory",
+      "id": "m04",
+      "raw_class": "clean_json",
+      "conforms": true,
+      "raw_reply": "{\"is_explicit_preference\": true, \"memory_candidates\": [{\"memory_type\": \"item_method_preference\", \"memory_key\": \"battery_preferred_method\", \"value\": {\"item_type\": \"battery\", \"preferred_method\": \"specialized_dropoff\"}}]}",
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "memory_extractor",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 2848,
+          "first_chunk_ms": null,
+          "prompt_tokens": 257,
+          "completion_tokens": 330,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": false,
+      "failure_reason": "invalid_json:ValueError",
+      "correct": true,
+      "readable": [],
+      "observed": [],
+      "kind": "memory",
+      "id": "m05",
+      "raw_class": "no_reply",
+      "conforms": false,
+      "raw_reply": null,
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "memory_extractor",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 120639,
+          "first_chunk_ms": null,
+          "prompt_tokens": null,
+          "completion_tokens": null,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": false,
+      "failure_reason": "invalid_json:ValueError",
+      "correct": false,
+      "readable": [],
+      "observed": [],
+      "kind": "memory",
+      "id": "m06",
+      "raw_class": "no_reply",
+      "conforms": false,
+      "raw_reply": null,
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "memory_extractor",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 120767,
+          "first_chunk_ms": null,
+          "prompt_tokens": null,
+          "completion_tokens": null,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": true,
+      "failure_reason": null,
+      "correct": true,
+      "observed": {
+        "target_case_id": 12,
+        "needs_clarification": false
+      },
+      "kind": "resolver",
+      "id": "c01",
+      "raw_class": "clean_json",
+      "conforms": true,
+      "raw_reply": "{\n  \"target_case_id\": 12,\n  \"confidence\": 0.98,\n  \"needs_clarification\": false,\n  \"clarification_question\": null,\n  \"clarification_options\": []\n}",
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "case_resolver",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 2806,
+          "first_chunk_ms": null,
+          "prompt_tokens": 265,
+          "completion_tokens": 156,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": true,
+      "failure_reason": null,
+      "correct": true,
+      "observed": {
+        "target_case_id": 11,
+        "needs_clarification": false
+      },
+      "kind": "resolver",
+      "id": "c02",
+      "raw_class": "clean_json",
+      "conforms": true,
+      "raw_reply": "{\n  \"target_case_id\": 11,\n  \"confidence\": 0.95,\n  \"needs_clarification\": false,\n  \"clarification_question\": null,\n  \"clarification_options\": []\n}",
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "case_resolver",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 1831,
+          "first_chunk_ms": null,
+          "prompt_tokens": 265,
+          "completion_tokens": 176,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": true,
+      "failure_reason": null,
+      "correct": true,
+      "observed": {
+        "target_case_id": 23,
+        "needs_clarification": false
+      },
+      "kind": "resolver",
+      "id": "c03",
+      "raw_class": "clean_json",
+      "conforms": true,
+      "raw_reply": "{\n  \"target_case_id\": 23,\n  \"confidence\": 1.0,\n  \"needs_clarification\": false,\n  \"clarification_question\": null,\n  \"clarification_options\": []\n}",
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "case_resolver",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 1749,
+          "first_chunk_ms": null,
+          "prompt_tokens": 317,
+          "completion_tokens": 194,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": true,
+      "failure_reason": null,
+      "correct": true,
+      "observed": {
+        "target_case_id": null,
+        "needs_clarification": true
+      },
+      "kind": "resolver",
+      "id": "c04",
+      "raw_class": "clean_json",
+      "conforms": true,
+      "raw_reply": "{\n  \"target_case_id\": null,\n  \"confidence\": 0.5,\n  \"needs_clarification\": true,\n  \"clarification_question\": \"You mentioned “the bottle,” but there are two active plastic bottle cases. Which one are you referring to?\",\n  \"clarification_options\": [\n    {\n      \"label\": \"Case 31\",\n      \"reply_text\": \"I mean case 31\"\n    },\n    {\n      \"label\": \"Case 32\",\n      \"reply_text\": \"I mean case 32\"\n    }\n  ]\n}",
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "case_resolver",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 3599,
+          "first_chunk_ms": null,
+          "prompt_tokens": 263,
+          "completion_tokens": 362,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": true,
+      "failure_reason": null,
+      "correct": true,
+      "observed": {
+        "waste_type": "Glass jars",
+        "estimated_weight_kg": 0.3
+      },
+      "kind": "stage1",
+      "id": "s01",
+      "raw_class": "clean_json",
+      "conforms": true,
+      "raw_reply": "{\n  \"waste_type\": \"Glass jars\",\n  \"confidence\": 0.98,\n  \"estimated_weight_kg\": 0.3,\n  \"recycle_suggestions\": [\n    \"Rinse thoroughly and remove metal lids\",\n    \"Deposit at local glass bottle bank\",\n    \"Check curbside glass recycling acceptance\",\n    \"Reuse for food storage or home canning\"\n  ],\n  \"needs_nearby_search\": true,\n  \"forum_references\": []\n}",
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "recycling_stage1",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 27488,
+          "first_chunk_ms": null,
+          "prompt_tokens": 466,
+          "completion_tokens": 950,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": true,
+      "failure_reason": null,
+      "correct": true,
+      "observed": {
+        "waste_type": "household batteries",
+        "estimated_weight_kg": 0.25
+      },
+      "kind": "stage1",
+      "id": "s02",
+      "raw_class": "clean_json",
+      "conforms": true,
+      "raw_reply": "{\n  \"waste_type\": \"household batteries\",\n  \"confidence\": 0.95,\n  \"estimated_weight_kg\": 0.25,\n  \"recycle_suggestions\": [\n    \"Drop off at a battery recycling bin at retail stores\",\n    \"Do not dispose of in household trash or curbside recycling\",\n    \"Contact local waste management for hazardous waste collection dates\"\n  ],\n  \"needs_nearby_search\": true,\n  \"forum_references\": []\n}",
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "recycling_stage1",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 18703,
+          "first_chunk_ms": null,
+          "prompt_tokens": 460,
+          "completion_tokens": 734,
+          "fallback_from": null
+        }
+      ]
+    },
+    {
+      "from_model": true,
+      "failure_reason": null,
+      "correct": true,
+      "observed": {
+        "waste_type": "stainless steel reusable water bottle",
+        "estimated_weight_kg": 0.35
+      },
+      "kind": "stage1",
+      "id": "s03",
+      "raw_class": "clean_json",
+      "conforms": true,
+      "raw_reply": "{\n  \"waste_type\": \"stainless steel reusable water bottle\",\n  \"confidence\": 0.95,\n  \"estimated_weight_kg\": 0.35,\n  \"recycle_suggestions\": [\n    \"Separate the plastic lid from the metal body\",\n    \"Recycle stainless steel at a scrap metal recycler\",\n    \"Check local curbside rules for the plastic lid\",\n    \"Donate or reuse if still in good condition\"\n  ],\n  \"needs_nearby_search\": true,\n  \"forum_references\": []\n}",
+      "errors": [],
+      "calls": [
+        {
+          "purpose": "recycling_stage1",
+          "provider": "openrouter",
+          "model": "nvidia/nemotron-3.5-super-vl:free",
+          "outcome": "ok",
+          "latency_ms": 10786,
+          "first_chunk_ms": null,
+          "prompt_tokens": 436,
+          "completion_tokens": 478,
+          "fallback_from": null
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "_comment": "Labelled inputs for the four JSON-returning calls on the chat decision path. Written for this eval; none repeats the router's few-shot examples. One provider request per case.",
+  "router": [
+    {"id": "r01", "message": "Can I put an empty pizza box in the recycling?", "cases": [], "expected_intent": "recycling_analysis"},
+    {"id": "r02", "message": "Which bin does a broken drinking glass go in?", "cases": [], "expected_intent": "recycling_analysis"},
+    {"id": "r03", "message": "What's a good name for a grey cat?", "cases": [], "expected_intent": "general_chat"},
+    {"id": "r04", "message": "Any fun upcycling ideas for old t-shirts?", "cases": [], "expected_intent": "general_chat"},
+    {"id": "r05", "message": "Summarise what we talked about earlier.", "cases": [], "expected_intent": "general_chat"},
+    {"id": "r06", "message": "Is an empty aerosol can safe to put in the metal bin?", "cases": [], "expected_intent": "recycling_analysis"},
+    {"id": "r07", "message": "Where's the nearest drop-off point for it?", "cases": ["plastic bottle"], "expected_intent": "recycling_follow_up", "expected_follow_up_type": "nearby_search"},
+    {"id": "r08", "message": "I've dropped it off and attached a photo, can you verify it?", "cases": ["plastic bottle"], "expected_intent": "recycling_follow_up", "expected_follow_up_type": "task_verification"},
+    {"id": "r09", "message": "What else could I do with the bottle instead of binning it?", "cases": ["plastic bottle"], "expected_intent": "recycling_follow_up", "expected_follow_up_type": "guidance_follow_up"},
+    {"id": "r10", "message": "Thanks! Unrelated, but what's a good stretch after cycling?", "cases": ["battery"], "expected_intent": "general_chat"},
+    {"id": "r11", "message": "Find me somewhere near me to recycle the battery.", "cases": ["glass jar", "battery"], "expected_intent": "recycling_follow_up", "expected_follow_up_type": "nearby_search"},
+    {"id": "r12", "message": "How do I get rid of old paint tins?", "cases": [], "expected_intent": "recycling_analysis"}
+  ],
+  "memory": [
+    {"id": "m01", "message": "Please keep your answers short from now on.", "expected_type": "response_style", "expected_value": "concise"},
+    {"id": "m02", "message": "I always want detailed step-by-step explanations.", "expected_type": "response_style", "expected_value": "detailed"},
+    {"id": "m03", "message": "I'm really into composting, so tell me about that kind of thing.", "expected_type": "topic_interest"},
+    {"id": "m04", "message": "For batteries I always prefer specialised drop-off points.", "expected_type": "item_method_preference"},
+    {"id": "m05", "message": "How do I recycle a toaster?", "expected_type": null},
+    {"id": "m06", "message": "Don't use my location when suggesting places.", "expected_type": "recycling_preference"}
+  ],
+  "resolver": [
+    {"id": "c01", "message": "Where do I take the battery?", "cases": [[11, "glass jar"], [12, "battery"]], "expected_case_id": 12},
+    {"id": "c02", "message": "Is the jar clean enough now?", "cases": [[11, "glass jar"], [12, "battery"]], "expected_case_id": 11},
+    {"id": "c03", "message": "The charger one, what's next?", "cases": [[21, "plastic bottle"], [22, "cardboard box"], [23, "phone charger"]], "expected_case_id": 23},
+    {"id": "c04", "message": "What about the bottle?", "cases": [[31, "plastic bottle"], [32, "plastic bottle"]], "expected_case_id": null}
+  ],
+  "stage1": [
+    {"id": "s01", "image": "images/glass-jars.jpg", "message": "What is this and how do I recycle it?", "expected_material": ["glass"]},
+    {"id": "s02", "image": "images/batteries.jpg", "message": "What is this and how do I recycle it?", "expected_material": ["battery", "batteries"]},
+    {"id": "s03", "image": "images/steel-bottle.jpg", "message": "What is this and how do I recycle it?", "expected_material": ["steel", "metal", "aluminium", "aluminum"]}
+  ]
+}
