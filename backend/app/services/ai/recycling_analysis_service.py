@@ -619,6 +619,7 @@ def stream_recycling_analysis(
         if case is None:
             yield {"type": "stage_start", "stage": "follow_up"}
             for event in stream_text(
+                purpose="recycling_follow_up",
                 user_message=(
                     "The user asked a recycling follow-up, but no matching recycling case was found in "
                     f"this conversation. User message: {message}"
@@ -732,6 +733,7 @@ def stream_recycling_analysis(
         yield {"type": "stage_start", "stage": "follow_up"}
         follow_up_chunks: list[str] = []
         for event in stream_text(
+            purpose="recycling_follow_up",
             user_message=(
                 "Continue the existing recycling case with a helpful Markdown answer.\n"
                 f"User follow-up: {message}\n"
@@ -1167,6 +1169,7 @@ def _analyze_stage1(
 ) -> dict[str, Any]:
     try:
         response = complete_json(
+            purpose="recycling_stage1",
             user_message=message or "Please analyze this waste item.",
             image_data_url=image_data_url,
             system_prompt=_stage1_analysis_system_prompt(
@@ -1389,6 +1392,7 @@ def _stream_stage1_markdown(
     )
 
     for event in stream_text(
+        purpose="recycling_stage1_summary",
         user_message=prompt,
         system_prompt=(
             "You are CarbonSnap's recycling assistant. "
@@ -1507,6 +1511,7 @@ def _stream_skip_summary(
     )
 
     for event in stream_text(
+        purpose="recycling_skip_summary",
         user_message=prompt,
         system_prompt=(
             "You are CarbonSnap's recycling assistant. "
@@ -1548,6 +1553,7 @@ def _stream_nearby_summary(
     )
 
     for event in stream_text(
+        purpose="recycling_nearby_summary",
         user_message=prompt,
         system_prompt=(
             "You are CarbonSnap's recycling assistant. "

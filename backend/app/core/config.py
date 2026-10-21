@@ -83,6 +83,8 @@ class Settings(BaseSettings):
 
     # --- LLM provider ----------------------------------------------------------
     llm_provider: Literal["openrouter", "qwen"] = "openrouter"
+    # Tried when the primary provider fails a call; empty means no fallback.
+    llm_fallback_provider: Literal["", "openrouter", "qwen"] = ""
     openrouter_api_key: str = ""
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_model: str = "openai/gpt-5.2"
@@ -171,7 +173,11 @@ class Settings(BaseSettings):
         return value
 
     @field_validator(
-        "llm_provider", "ai_decision_engine_mode", "ai_tool_selection_mode", mode="before"
+        "llm_provider",
+        "llm_fallback_provider",
+        "ai_decision_engine_mode",
+        "ai_tool_selection_mode",
+        mode="before",
     )
     @classmethod
     def _lowercase(cls, value: Any) -> Any:

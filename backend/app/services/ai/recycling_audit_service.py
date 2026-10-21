@@ -202,6 +202,7 @@ def stream_recycling_audit(
 
     try:
         raw_audit = complete_json(
+            purpose="recycling_audit",
             user_message=_build_audit_prompt(message, case_summary),
             image_data_url=image_data_url,
             system_prompt=_audit_system_prompt(),

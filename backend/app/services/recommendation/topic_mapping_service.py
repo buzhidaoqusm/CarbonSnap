@@ -99,6 +99,7 @@ def select_forum_topics_with_llm(
     }
 
     diagnostic = complete_json_diagnostic(
+        purpose="topic_mapping",
         user_message=json.dumps(prompt_payload, ensure_ascii=False),
         system_prompt=_forum_topic_selection_system_prompt(),
     )
@@ -132,6 +133,7 @@ def select_market_topics_with_llm(
     }
 
     diagnostic = complete_json_diagnostic(
+        purpose="topic_mapping",
         user_message=json.dumps(prompt_payload, ensure_ascii=False),
         system_prompt=_market_topic_selection_system_prompt(),
     )
@@ -165,6 +167,7 @@ def select_project_topics_with_llm(
     }
 
     diagnostic = complete_json_diagnostic(
+        purpose="topic_mapping",
         user_message=json.dumps(prompt_payload, ensure_ascii=False),
         system_prompt=_project_topic_selection_system_prompt(),
     )

@@ -164,3 +164,9 @@ uv run --no-project --with locust locust -f tools/load_test/locustfile.py --host
 ```
 
 Commit: the stage 1 merge into `main` (`p1/asgi-shell`).
+
+> **The fake provider now disables Nagle (2026-10-21).** It writes headers and
+> body separately; on a reused connection the body then waited for a delayed
+> ACK, 40 ms per non-streamed call. Before P2 E1 every call opened a fresh
+> connection (quick-ACK mode), so the numbers above never paid it; with the
+> gateway's pooled clients they would have. See PERFORMANCE_ISSUES #14.

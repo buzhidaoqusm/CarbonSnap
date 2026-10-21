@@ -13,7 +13,8 @@ import json
 from types import SimpleNamespace
 from typing import Any
 
-from app.services.ai import openrouter_service, tool_calling_agent
+from app.llm import providers
+from app.services.ai import tool_calling_agent
 from tests.support.database import db
 
 
@@ -63,7 +64,7 @@ class _ScriptedClient:
 
 def test_agent_loop_composes_real_provider_registry_and_graph(monkeypatch):
     client = _ScriptedClient()
-    monkeypatch.setattr(openrouter_service, "_get_client", lambda: client)
+    monkeypatch.setattr(providers, "sync_client", lambda _provider: client)
 
     result = tool_calling_agent.run_tool_calling_agent(
         db.session,
@@ -123,7 +124,7 @@ def test_high_risk_tool_is_blocked_through_real_executor(monkeypatch):
             )
 
     client = _HighRiskClient()
-    monkeypatch.setattr(openrouter_service, "_get_client", lambda: client)
+    monkeypatch.setattr(providers, "sync_client", lambda _provider: client)
 
     result = tool_calling_agent.run_tool_calling_agent(
         db.session,
@@ -183,7 +184,7 @@ def test_graph_agent_general_route_runs_tool_calling_agent_with_persistence(
     )
 
     client = _ScriptedClient()
-    monkeypatch.setattr(openrouter_service, "_get_client", lambda: client)
+    monkeypatch.setattr(providers, "sync_client", lambda _provider: client)
 
     user_id, _headers = make_auth_headers()
 

@@ -115,6 +115,8 @@ files = [
     "app/models",
     "app/repositories",
     "app/main.py",
+    "app/llm",
+    "app/services/ai/openrouter_service.py",
 ]
 follow_imports = "silent"
 ignore_missing_imports = true

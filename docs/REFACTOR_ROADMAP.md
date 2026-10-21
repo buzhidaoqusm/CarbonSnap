@@ -391,6 +391,15 @@ docs/adr/
 
 ### 4.1 LLM 网关层（3 天，旧计划 B1–B5）
 
+> ✅ **网关部分已完成（2026-10-21，E1）**：`app/llm/`（`providers` / `gateway` / `usage`），同步和 async 两套接口，
+> 主备降级，每次调用一条用量记录。`openrouter_service` 的公开函数不变，内部改为调用网关。
+> 和计划不同的地方：
+> - **没用 tenacity**：同一 provider 内的重试 SDK 已经在做，再套一层次数会相乘（#6）；
+> - **成本先不算**：需要每个模型的价格表，等 P3 接 Langfuse 时一起做；
+> - **3 类调用不降级**：辅助调用、embedding、已经开始输出的流，原因见 PERFORMANCE_ISSUES #15。
+>
+> 结构化输出单独作为 E2：它需要真实模型来测 JSON 解析失败率。
+
 - 新建 `app/llm/`，基于 `AsyncOpenAI`，统一提供 `chat()`、`stream()`、`structured()`、`embed()` 四个接口。
 - 超时（连接和读取分开设）；用 tenacity 做指数退避重试，只重试 429、5xx 和超时；主备 provider 自动降级（OpenRouter ⇄ Qwen）。
 - 结构化输出：router、memory extractor、回收分析 stage1 改用 `response_format=json_schema` + Pydantic 校验，删掉正则抠 JSON 的逻辑。**记录改造前后的 JSON 解析失败率。**

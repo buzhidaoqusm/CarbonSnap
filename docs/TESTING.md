@@ -111,6 +111,14 @@ docker compose -f docker-compose.yml -f docker-compose.bench.yml --profile bench
 docker volume rm carbonsnap_bench-data carbonsnap_bench-postgres-data
 ```
 
+假 LLM 的开关（都在启动 bench 栈时用环境变量设置）：
+- `FAKE_LLM_LOG=1`：每次调用打一行日志，带客户端端口，可以用来数连接数；
+- `FAKE_LLM_FAIL_STATUS=503`：主实例的所有 chat 请求都返回这个状态码；
+- `LLM_FALLBACK_PROVIDER=qwen`：api 在主实例失败时降级到 `fake-llm-backup`。
+
+`uv run --no-project --with requests python tools/load_test/probe.py providers` 跑一轮对话，输出这一轮以什么事件结束、
+每个假 provider 收到了几次调用、用了几个连接，以及 api 日志里的用量记录。
+
 `--users` 分别取 1 / 3 / 10 / 20，结果记入 [benchmarks.md](benchmarks.md)。压测用独立的数据卷（上传目录和 PG 数据目录都是），不会写入开发库。**不要用 `down -v`**：它会删掉项目里所有数据卷，包括开发库 `postgres-data`。逐个问题的复现实验见 [PERFORMANCE_ISSUES.md](PERFORMANCE_ISSUES.md)。
 
 ## 本地开发库恢复演示数据（在 `backend/` 下，PG 要先启动）

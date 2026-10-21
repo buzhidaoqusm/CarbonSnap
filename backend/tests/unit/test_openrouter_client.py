@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from app.llm import providers
 from app.services.ai import intent_router, memory_extractor, openrouter_service
 
 
@@ -15,10 +16,10 @@ def test_client_applies_configured_timeout(override_settings):
     override_settings(openrouter_api_key="test-key")
     override_settings(ai_llm_timeout_seconds=42)
 
-    client = openrouter_service._get_client()
+    client = providers.sync_client(providers.chain(fallback=False)[0])
 
     assert client.timeout.read == 42.0
-    assert client.timeout.connect == openrouter_service.LLM_CONNECT_TIMEOUT_SECONDS
+    assert client.timeout.connect == providers.LLM_CONNECT_TIMEOUT_SECONDS
 
 
 class _RecordingClient:
@@ -39,8 +40,7 @@ class _RecordingClient:
 @pytest.fixture
 def recording_client(monkeypatch):
     client = _RecordingClient()
-    monkeypatch.setattr(openrouter_service, "_get_client", lambda: client)
-    monkeypatch.setattr(openrouter_service, "_build_extra_headers", lambda: {})
+    monkeypatch.setattr(providers, "sync_client", lambda _provider: client)
     return client
 
 

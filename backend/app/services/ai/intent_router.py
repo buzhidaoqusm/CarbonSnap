@@ -298,6 +298,7 @@ def classify_intent_detailed(
     allow_business_fallback: bool,
 ) -> dict[str, Any]:
     diagnostic = complete_json_diagnostic(
+        purpose="router",
         user_message=_build_router_user_prompt(
             message=message,
             recent_history=recent_history,

@@ -15,6 +15,11 @@ services:
       LLM_PROVIDER: openrouter
       OPENROUTER_BASE_URL: http://fake-llm:9800/v1
       OPENROUTER_API_KEY: fake
+      # LLM_FALLBACK_PROVIDER=qwen sends failed calls to fake-llm-backup.
+      LLM_FALLBACK_PROVIDER: ${LLM_FALLBACK_PROVIDER:-}
+      QWEN_BASE_URL: http://fake-llm-backup:9800/v1
+      QWEN_API_KEY: fake
+      QWEN_MODEL: fake-backup-model
       # Processes, and threads per process that step the chat streams,
       # e.g. WEB_WORKERS=3 AI_STREAM_THREADS=10 to see what each one buys.
       WEB_WORKERS: ${WEB_WORKERS:-1}
@@ -30,6 +35,18 @@ services:
     environment:
       # "1" prints one line per provider call: how many calls a chat turn makes.
       FAKE_LLM_LOG: ${FAKE_LLM_LOG:-0}
+      # e.g. 503: the primary fails every chat completion.
+      FAKE_LLM_FAIL_STATUS: ${FAKE_LLM_FAIL_STATUS:-}
+
+  # The fallback provider; only used with LLM_FALLBACK_PROVIDER=qwen.
+  fake-llm-backup:
+    profiles: ["bench"]
+    image: python:3.12-slim
+    command: ["python", "/app/tools/fake_llm/server.py"]
+    environment:
+      FAKE_LLM_LOG: ${FAKE_LLM_LOG:-0}
+    volumes:
+      - ./tools:/app/tools:ro
 
 volumes:
   bench-data:

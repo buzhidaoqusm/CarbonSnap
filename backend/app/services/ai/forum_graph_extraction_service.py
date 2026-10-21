@@ -18,6 +18,7 @@ def extract_forum_graph_payload(
     url: str,
 ) -> dict[str, Any]:
     diagnostic = complete_json_diagnostic(
+        purpose="forum_graph_extraction",
         user_message=json.dumps(
             {
                 "post_id": post_id,

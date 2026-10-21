@@ -223,23 +223,25 @@ def guard_llm_client(request, monkeypatch):
         yield
         return
 
-    from app.services.ai import openrouter_service
+    from app.llm import providers
 
     callers: list[str] = []
 
-    def guarded_get_client():
-        # Name the app functions that led here; the immediate caller is
-        # always the same low-level request helper.
+    def guarded_client(_provider):
+        # Name the app functions that led here, past the gateway's own frames,
+        # which are the same for every call.
         chain = []
         frame = sys._getframe(1)
         while frame is not None and len(chain) < 4:
-            if f"{os.sep}app{os.sep}" in frame.f_code.co_filename:
+            filename = frame.f_code.co_filename
+            if f"{os.sep}app{os.sep}" in filename and f"{os.sep}llm{os.sep}" not in filename:
                 chain.append(frame.f_code.co_name)
             frame = frame.f_back
         callers.append(" <- ".join(chain))
         raise AssertionError("un-mocked LLM call")
 
-    monkeypatch.setattr(openrouter_service, "_get_client", guarded_get_client)
+    monkeypatch.setattr(providers, "sync_client", guarded_client)
+    monkeypatch.setattr(providers, "async_client", guarded_client)
     yield
     if callers:
         pytest.fail(
@@ -276,10 +278,10 @@ def llm_unavailable(guard_llm_client, monkeypatch):
     Returns the stub client; ``.calls`` counts the failed requests, so a test
     can assert the fallback was actually taken.
     """
-    from app.services.ai import openrouter_service
+    from app.llm import providers
 
     client = _UnreachableLLMClient()
-    monkeypatch.setattr(openrouter_service, "_get_client", lambda: client)
+    monkeypatch.setattr(providers, "sync_client", lambda _provider: client)
     return client
 
 

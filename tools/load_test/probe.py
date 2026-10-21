@@ -10,6 +10,10 @@ problem at a time, so each fix later has a before/after number of its own:
   abandon     how many provider calls still start after the user closes the tab
               (reads the fake provider's log; start the stack with FAKE_LLM_LOG=1)
   slow        what a hanging provider does to a worker
+  providers   one turn: how it ended, and per fake provider the calls and the
+              TCP connections they came on (FAKE_LLM_LOG=1); with
+              FAKE_LLM_FAIL_STATUS=503 and LLM_FALLBACK_PROVIDER=qwen it shows
+              the fallback
 
 Run against the bench stack (docker-compose.bench.yml):
 
@@ -181,6 +185,35 @@ def probe_abandon() -> None:
     print(f"  ...started after the abort:  {len(later)}")
 
 
+def _logs_since(container: str, since: dt.datetime) -> list[str]:
+    out = subprocess.run(
+        ["docker", "logs", "--since", since.isoformat(), container],
+        capture_output=True, text=True, check=False,
+    )
+    return (out.stdout + out.stderr).splitlines()
+
+
+def probe_providers() -> None:
+    token = register()
+    started = dt.datetime.now(dt.UTC)
+    marks = stream_turn(token)
+    time.sleep(2)  # let the logs flush
+    ended = "error" if "error" in marks else "done" if "done" in marks else "neither"
+    print(f"  turn ended with             {ended} after {fmt(marks['closed'])}")
+    for container in ("carbonsnap-fake-llm-1", "carbonsnap-fake-llm-backup-1"):
+        requests_seen = [
+            json.loads(line[line.index("{"):])
+            for line in _logs_since(container, started)
+            if '"path"' in line
+        ]
+        ports = {request.get("client_port") for request in requests_seen}
+        print(f"  {container:<29} {len(requests_seen)} calls on {len(ports)} connections")
+    records = [line for line in _logs_since("carbonsnap-api-1", started) if "llm_call" in line]
+    print(f"  usage records in api log:   {len(records)}")
+    for line in records:
+        print("    " + line[line.index("llm_call"):])
+
+
 def probe_slow() -> None:
     token = register()
     marks = stream_turn(token)
@@ -190,7 +223,7 @@ def probe_slow() -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("probe", choices=["timeline", "blocking", "disconnect", "abandon", "slow"])
+    parser.add_argument("probe", choices=["timeline", "blocking", "disconnect", "abandon", "slow", "providers"])
     parser.add_argument("--streams", type=int, default=3)
     args = parser.parse_args()
 
@@ -203,6 +236,8 @@ def main() -> None:
         probe_disconnect()
     elif args.probe == "abandon":
         probe_abandon()
+    elif args.probe == "providers":
+        probe_providers()
     else:
         probe_slow()
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from app.llm import providers
 from app.services.ai import openrouter_service
 
 
@@ -34,8 +35,7 @@ def test_embed_texts_normalizes_input_and_restores_response_order(monkeypatch):
         ]
     )
 
-    monkeypatch.setattr(openrouter_service, "_get_client", lambda: fake_client)
-    monkeypatch.setattr(openrouter_service, "_build_extra_headers", lambda: {})
+    monkeypatch.setattr(providers, "sync_client", lambda _provider: fake_client)
 
     vectors = openrouter_service.embed_texts(
         ["  first   chunk  ", "second\nchunk"],
@@ -50,8 +50,7 @@ def test_embed_texts_normalizes_input_and_restores_response_order(monkeypatch):
 def test_embed_texts_rejects_blank_input(monkeypatch):
     fake_client = _FakeClient([_EmbeddingItem(index=0, embedding=[1.0, 0.0])])
 
-    monkeypatch.setattr(openrouter_service, "_get_client", lambda: fake_client)
-    monkeypatch.setattr(openrouter_service, "_build_extra_headers", lambda: {})
+    monkeypatch.setattr(providers, "sync_client", lambda _provider: fake_client)
 
     with pytest.raises(ValueError):
         openrouter_service.embed_texts(["   "], model="forum-rag-embed")

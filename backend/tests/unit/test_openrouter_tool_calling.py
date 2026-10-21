@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-import pytest
-
+from app.llm import providers
 from app.services.ai import openrouter_service
 
 
@@ -54,18 +53,13 @@ def _make_completion(
     return SimpleNamespace(choices=[choice], model=model, usage=usage)
 
 
-@pytest.fixture()
-def patch_headers(monkeypatch):
-    monkeypatch.setattr(openrouter_service, "_build_extra_headers", lambda: {})
-
-
 def _install_client(monkeypatch, response: object) -> _FakeClient:
     fake_client = _FakeClient(response)
-    monkeypatch.setattr(openrouter_service, "_get_client", lambda: fake_client)
+    monkeypatch.setattr(providers, "sync_client", lambda _provider: fake_client)
     return fake_client
 
 
-def test_tool_calls_are_parsed_and_raw_message_keeps_original_arguments(monkeypatch, patch_headers):
+def test_tool_calls_are_parsed_and_raw_message_keeps_original_arguments(monkeypatch):
     raw_arguments = '{"location": "Dublin", "count": 2}'
     tool_call = _make_function_call("call_1", "get_weather", raw_arguments)
     completion = _make_completion(content=None, tool_calls=[tool_call])
@@ -97,7 +91,7 @@ def test_tool_calls_are_parsed_and_raw_message_keeps_original_arguments(monkeypa
     ]
 
 
-def test_plain_text_reply_has_no_tool_calls(monkeypatch, patch_headers):
+def test_plain_text_reply_has_no_tool_calls(monkeypatch):
     completion = _make_completion(content="Hello there", tool_calls=None)
     _install_client(monkeypatch, completion)
 
@@ -111,7 +105,7 @@ def test_plain_text_reply_has_no_tool_calls(monkeypatch, patch_headers):
     assert result["raw_message"] == {"role": "assistant", "content": "Hello there"}
 
 
-def test_tools_none_omits_tools_and_tool_choice_from_payload(monkeypatch, patch_headers):
+def test_tools_none_omits_tools_and_tool_choice_from_payload(monkeypatch):
     completion = _make_completion(content="ok", tool_calls=None)
     fake_client = _install_client(monkeypatch, completion)
 
@@ -125,7 +119,7 @@ def test_tools_none_omits_tools_and_tool_choice_from_payload(monkeypatch, patch_
     assert "tool_choice" not in captured_kwargs
 
 
-def test_empty_tools_list_omits_tools_and_tool_choice_from_payload(monkeypatch, patch_headers):
+def test_empty_tools_list_omits_tools_and_tool_choice_from_payload(monkeypatch):
     completion = _make_completion(content="ok", tool_calls=None)
     fake_client = _install_client(monkeypatch, completion)
 
@@ -139,7 +133,7 @@ def test_empty_tools_list_omits_tools_and_tool_choice_from_payload(monkeypatch, 
     assert "tool_choice" not in captured_kwargs
 
 
-def test_non_empty_tools_are_included_with_tool_choice(monkeypatch, patch_headers):
+def test_non_empty_tools_are_included_with_tool_choice(monkeypatch):
     completion = _make_completion(content="ok", tool_calls=None)
     fake_client = _install_client(monkeypatch, completion)
 
@@ -161,7 +155,7 @@ def test_non_empty_tools_are_included_with_tool_choice(monkeypatch, patch_header
     assert captured_kwargs["tool_choice"] == "required"
 
 
-def test_malformed_tool_call_arguments_parse_to_empty_dict(monkeypatch, patch_headers):
+def test_malformed_tool_call_arguments_parse_to_empty_dict(monkeypatch):
     tool_call = _make_function_call("call_2", "get_weather", "{not-valid-json")
     completion = _make_completion(content=None, tool_calls=[tool_call])
     _install_client(monkeypatch, completion)
@@ -174,7 +168,7 @@ def test_malformed_tool_call_arguments_parse_to_empty_dict(monkeypatch, patch_he
     assert result["raw_message"]["tool_calls"][0]["function"]["arguments"] == "{not-valid-json"
 
 
-def test_explicit_timeout_is_passed_through(monkeypatch, patch_headers):
+def test_explicit_timeout_is_passed_through(monkeypatch):
     completion = _make_completion(content="ok", tool_calls=None)
     fake_client = _install_client(monkeypatch, completion)
 
@@ -187,9 +181,7 @@ def test_explicit_timeout_is_passed_through(monkeypatch, patch_headers):
     assert captured_kwargs["timeout"] == 12.5
 
 
-def test_default_timeout_falls_back_to_configured_setting(
-    monkeypatch, patch_headers, override_settings
-):
+def test_default_timeout_falls_back_to_configured_setting(monkeypatch, override_settings):
     completion = _make_completion(content="ok", tool_calls=None)
     fake_client = _install_client(monkeypatch, completion)
 
@@ -202,7 +194,7 @@ def test_default_timeout_falls_back_to_configured_setting(
     assert captured_kwargs["timeout"] == 42.0
 
 
-def test_usage_model_and_finish_reason_are_reported(monkeypatch, patch_headers):
+def test_usage_model_and_finish_reason_are_reported(monkeypatch):
     completion = _make_completion(
         content="ok",
         tool_calls=None,
@@ -227,7 +219,7 @@ def test_usage_model_and_finish_reason_are_reported(monkeypatch, patch_headers):
     }
 
 
-def test_no_choices_defaults_to_empty_content_and_tool_calls(monkeypatch, patch_headers):
+def test_no_choices_defaults_to_empty_content_and_tool_calls(monkeypatch):
     completion = SimpleNamespace(choices=[], model="openai/gpt-5.2", usage=None)
     _install_client(monkeypatch, completion)
 

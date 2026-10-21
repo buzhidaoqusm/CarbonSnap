@@ -5,73 +5,12 @@ import re
 from collections.abc import Generator, Iterable
 from typing import Any
 
-from openai import OpenAI, Timeout
-
 from app.core.config import get_settings
+from app.llm import gateway
+from app.llm.providers import LLMConfigError
 
-# Reaching the provider should take well under a second; waiting the full read
-# timeout to learn it is unreachable only holds the worker longer.
-LLM_CONNECT_TIMEOUT_SECONDS = 5.0
-
-
-class OpenRouterConfigError(RuntimeError):
-    pass
-
-
-def _get_provider_name() -> str:
-    return get_settings().llm_provider
-
-
-def _get_provider_settings() -> dict[str, str]:
-    config = get_settings()
-
-    if config.llm_provider == "qwen":
-        return {
-            "provider": "qwen",
-            "api_key": config.qwen_api_key,
-            "base_url": config.qwen_base_url,
-            "model": config.qwen_model,
-        }
-
-    return {
-        "provider": "openrouter",
-        "api_key": config.openrouter_api_key,
-        "base_url": config.openrouter_base_url,
-        "model": config.openrouter_model,
-    }
-
-
-def _get_client() -> OpenAI:
-    settings = _get_provider_settings()
-    api_key = settings["api_key"]
-    if not api_key:
-        raise OpenRouterConfigError(f"{settings['provider'].upper()} API key is not configured.")
-
-    # Set on the client so every call gets it; without it the SDK waits up to
-    # 600 s. For streams the read timeout bounds the gap between chunks, not
-    # the whole response, so long answers are not cut off.
-    config = get_settings()
-    return OpenAI(
-        base_url=settings["base_url"],
-        api_key=api_key,
-        max_retries=config.ai_llm_max_retries,
-        timeout=Timeout(config.ai_llm_timeout_seconds, connect=LLM_CONNECT_TIMEOUT_SECONDS),
-    )
-
-
-def _build_extra_headers() -> dict[str, str]:
-    if _get_provider_name() != "openrouter":
-        return {}
-
-    site_url = get_settings().openrouter_site_url
-    site_name = get_settings().openrouter_site_name
-
-    extra_headers: dict[str, str] = {}
-    if site_url:
-        extra_headers["HTTP-Referer"] = site_url
-    if site_name:
-        extra_headers["X-OpenRouter-Title"] = site_name
-    return extra_headers
+# The callers' name for a missing API key, from before the gateway existed.
+OpenRouterConfigError = LLMConfigError
 
 
 def _sanitize_history(history: list[dict[str, Any]]) -> list[dict[str, str]]:
@@ -166,17 +105,7 @@ def _get_embedding_model() -> str:
 
 
 def _send_embedding_request(*, inputs: list[str], model: str | None = None) -> Any:
-    client = _get_client()
-    request_payload: dict[str, Any] = {
-        "model": model or _get_embedding_model(),
-        "input": inputs,
-    }
-
-    extra_headers = _build_extra_headers()
-    if extra_headers:
-        request_payload["extra_headers"] = extra_headers
-
-    return client.embeddings.create(**request_payload)
+    return gateway.embed_sync(inputs, model=model or _get_embedding_model())
 
 
 def _parse_embedding_response(response: Any) -> list[list[float]]:
@@ -357,6 +286,7 @@ def generate_conversation_title(
             image_data_url=image_data_url,
             system_prompt=prompt,
             auxiliary=True,
+            purpose="title",
         )
         title = _clean_title_candidate(str(response.get("reply", "")))
         if _is_valid_conversation_title(title):
@@ -410,34 +340,14 @@ def _extract_delta_text(delta_content: Any) -> str:
 def _send_completion_request(
     *,
     messages: list[dict[str, Any]],
-    stream: bool,
+    purpose: str,
     auxiliary: bool = False,
-) -> Any:
-    client = _get_client()
-    if auxiliary:
-        # Routing, memory extraction and titles run before the first token and
-        # every caller has a fallback, so a slow one is abandoned rather than
-        # retried: three retries on each of them is what let one chat turn
-        # outlive gunicorn's worker timeout.
-        client = client.with_options(
-            timeout=Timeout(
-                get_settings().ai_llm_aux_timeout_seconds, connect=LLM_CONNECT_TIMEOUT_SECONDS
-            ),
-            max_retries=0,
-        )
-    model = _get_provider_settings()["model"]
-
-    request_payload: dict[str, Any] = {
-        "model": model,
-        "messages": messages,
-        "stream": stream,
-    }
-
-    extra_headers = _build_extra_headers()
-    if extra_headers:
-        request_payload["extra_headers"] = extra_headers
-
-    return client.chat.completions.create(**request_payload)
+) -> gateway.Reply:
+    # Routing, memory extraction and titles run before the first token and
+    # every caller has a fallback, so a slow one is abandoned rather than
+    # retried: three retries on each of them is what let one chat turn
+    # outlive gunicorn's worker timeout.
+    return gateway.chat_sync(messages, purpose=purpose, auxiliary=auxiliary)
 
 
 def complete_with_tools(
@@ -447,27 +357,15 @@ def complete_with_tools(
     tool_choice: str = "auto",
     timeout: float | None = None,
 ) -> dict[str, Any]:
-    client = _get_client()
-    model = _get_provider_settings()["model"]
-
-    request_payload: dict[str, Any] = {
-        "model": model,
-        "messages": messages,
-        "stream": False,
-    }
-
+    request: dict[str, Any] = {}
     if tools:
-        request_payload["tools"] = tools
-        request_payload["tool_choice"] = tool_choice
+        request["tools"] = tools
+        request["tool_choice"] = tool_choice
+    request["timeout"] = timeout if timeout is not None else get_settings().ai_llm_timeout_seconds
 
-    extra_headers = _build_extra_headers()
-    if extra_headers:
-        request_payload["extra_headers"] = extra_headers
-
-    effective_timeout = timeout if timeout is not None else get_settings().ai_llm_timeout_seconds
-    request_payload["timeout"] = effective_timeout
-
-    completion = client.chat.completions.create(**request_payload)
+    reply = gateway.chat_sync(messages, purpose="tool_calling", **request)
+    completion = reply.completion
+    model = reply.provider.model
 
     choices = getattr(completion, "choices", None) or []
     if choices:
@@ -544,6 +442,7 @@ def complete_text(
     system_prompt: str | None = None,
     prompt_memory: dict[str, Any] | None = None,
     auxiliary: bool = False,
+    purpose: str = "chat",
 ) -> dict[str, Any]:
     messages = build_messages(
         user_message=user_message,
@@ -552,7 +451,8 @@ def complete_text(
         system_prompt=system_prompt,
         prompt_memory=prompt_memory,
     )
-    completion = _send_completion_request(messages=messages, stream=False, auxiliary=auxiliary)
+    sent = _send_completion_request(messages=messages, purpose=purpose, auxiliary=auxiliary)
+    completion = sent.completion
 
     reply = ""
     if completion.choices:
@@ -560,7 +460,7 @@ def complete_text(
         reply = content if isinstance(content, str) else str(content)
 
     usage = getattr(completion, "usage", None)
-    model = completion.model or _get_provider_settings()["model"]
+    model = completion.model or sent.provider.model
 
     return {
         "reply": reply,
@@ -580,6 +480,7 @@ def complete_json(
     image_data_url: str | None = None,
     system_prompt: str | None = None,
     prompt_memory: dict[str, Any] | None = None,
+    purpose: str = "json",
 ) -> dict[str, Any]:
     diagnostic = complete_json_diagnostic(
         user_message=user_message,
@@ -587,6 +488,7 @@ def complete_json(
         image_data_url=image_data_url,
         system_prompt=system_prompt,
         prompt_memory=prompt_memory,
+        purpose=purpose,
     )
     payload = diagnostic.get("payload")
     if isinstance(payload, dict):
@@ -602,6 +504,7 @@ def complete_json_diagnostic(
     system_prompt: str | None = None,
     prompt_memory: dict[str, Any] | None = None,
     auxiliary: bool = False,
+    purpose: str = "json",
 ) -> dict[str, Any]:
     try:
         response = complete_text(
@@ -611,6 +514,7 @@ def complete_json_diagnostic(
             system_prompt=system_prompt,
             prompt_memory=prompt_memory,
             auxiliary=auxiliary,
+            purpose=purpose,
         )
     except Exception as exc:
         return {
@@ -648,8 +552,8 @@ def stream_text(
     image_data_url: str | None = None,
     system_prompt: str | None = None,
     prompt_memory: dict[str, Any] | None = None,
+    purpose: str = "answer",
 ) -> Generator[dict[str, Any], None, None]:
-    model = _get_provider_settings()["model"]
     messages = build_messages(
         user_message=user_message,
         history=history,
@@ -658,9 +562,14 @@ def stream_text(
         prompt_memory=prompt_memory,
     )
 
-    yield {"type": "meta", "model": model}
+    # Opened before "meta" so it names the model that answers, which after a
+    # fallback is not the primary's.
+    stream = gateway.open_stream_sync(messages, purpose=purpose)
+    yield {"type": "meta", "model": stream.provider.model}
 
-    stream = _send_completion_request(messages=messages, stream=True)
+    finish_reason = "stop"
+    # Read to the end rather than returning at the finish: the usage chunk
+    # comes after it.
     for chunk in stream:
         if not chunk.choices:
             continue
@@ -672,12 +581,9 @@ def stream_text(
             if delta_text:
                 yield {"type": "delta", "content": delta_text}
 
-        finish_reason = getattr(choice, "finish_reason", None)
-        if finish_reason:
-            yield {"type": "done", "finish_reason": finish_reason}
-            return
+        finish_reason = getattr(choice, "finish_reason", None) or finish_reason
 
-    yield {"type": "done", "finish_reason": "stop"}
+    yield {"type": "done", "finish_reason": finish_reason}
 
 
 def chat_with_openrouter(

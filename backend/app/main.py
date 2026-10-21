@@ -7,6 +7,8 @@ fig pattern) no longer sits behind it, so an unknown path is a 404 envelope
 from the error handlers.
 """
 
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -24,7 +26,20 @@ from app.api.project import routes as project
 from app.api.uploads import routes as uploads
 
 
+def _log_app_info() -> None:
+    # uvicorn configures only its own loggers, and the root logger's default
+    # (WARNING) would drop the app's INFO lines, the LLM usage records among
+    # them. Records still propagate, so pytest's caplog sees them too.
+    logger = logging.getLogger("app")
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s"))
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+
+
 def create_api() -> FastAPI:
+    _log_app_info()
     api = FastAPI(title="CarbonSnap API", version="0.1.0")
     api.add_middleware(
         CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]

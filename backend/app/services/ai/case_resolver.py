@@ -44,6 +44,7 @@ def resolve_target_case_detailed(
         }
 
     diagnostic = complete_json_diagnostic(
+        purpose="case_resolver",
         user_message=json.dumps(
             {
                 "message": message,

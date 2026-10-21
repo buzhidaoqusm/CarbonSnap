@@ -42,6 +42,7 @@ def extract_explicit_memory_candidates_detailed(
         }
 
     diagnostic = complete_json_diagnostic(
+        purpose="memory_extractor",
         user_message=json.dumps(
             {
                 "message": text,

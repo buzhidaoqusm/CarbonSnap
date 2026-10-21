@@ -33,6 +33,8 @@ EMBEDDING_DIM = int(os.getenv("FAKE_LLM_EMBEDDING_DIM", "1024"))
 PORT = int(os.getenv("PORT", "9800"))
 # One line per request, to see how many provider calls a single chat turn makes.
 LOG_REQUESTS = os.getenv("FAKE_LLM_LOG", "").lower() in {"1", "true", "yes"}
+# e.g. 503: every chat completion fails with it, to exercise provider fallback.
+FAIL_STATUS = int(os.getenv("FAKE_LLM_FAIL_STATUS") or 0)
 
 _WORDS = (
     "Rinse the bottle, remove the cap, and put it in the plastics bin. "
@@ -53,6 +55,11 @@ def _vector_for(text: object) -> list[float]:
 
 class FakeProviderHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
+    # Headers and body go out as separate small writes. With Nagle on, the
+    # body waits for the ACK of the headers, which a reused connection delays
+    # by 40 ms: a cost of this server, not of the client, and one real
+    # provider front ends (TCP_NODELAY) do not have.
+    disable_nagle_algorithm = True
 
     def log_message(self, fmt: str, *args: object) -> None:  # noqa: A003 - stdlib hook
         pass  # Keep the load-test console readable.
@@ -96,6 +103,9 @@ class FakeProviderHandler(BaseHTTPRequestHandler):
             self._log_request(path, payload)
 
         if path.endswith("/chat/completions"):
+            if FAIL_STATUS:
+                self._send_json({"error": {"message": "injected failure"}}, status=FAIL_STATUS)
+                return
             if payload.get("stream"):
                 self._stream_completion(payload)
             else:
@@ -127,6 +137,9 @@ class FakeProviderHandler(BaseHTTPRequestHandler):
             json.dumps(
                 {
                     "path": path,
+                    # One port per TCP connection: how many the client opened.
+                    "client_port": self.client_address[1],
+                    "model": payload.get("model"),
                     "stream": bool(payload.get("stream")),
                     "response_format": (payload.get("response_format") or {}).get("type"),
                     "tools": len(payload.get("tools") or []),
@@ -190,6 +203,20 @@ class FakeProviderHandler(BaseHTTPRequestHandler):
                 time.sleep(TOKEN_INTERVAL_MS / 1000)
                 frame({"content": token})
             frame({}, finish_reason="stop")
+            if (payload.get("stream_options") or {}).get("include_usage"):
+                usage = {
+                    "id": completion_id,
+                    "object": "chat.completion.chunk",
+                    "created": created,
+                    "model": model,
+                    "choices": [],
+                    "usage": {
+                        "prompt_tokens": 64,
+                        "completion_tokens": TOKEN_COUNT,
+                        "total_tokens": 64 + TOKEN_COUNT,
+                    },
+                }
+                self._write_chunk(f"data: {json.dumps(usage)}\n\n".encode())
             self._write_chunk(b"data: [DONE]\n\n")
             self._write_chunk(b"")  # terminating zero-length chunk
         except (BrokenPipeError, ConnectionResetError):

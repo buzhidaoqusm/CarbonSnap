@@ -41,6 +41,8 @@ docker compose -f docker-compose.yml -f docker-compose.bench.yml --profile bench
 | 11 | ~~并发扣积分重复扣款、超额筹款、一件商品卖两次~~ ✅ 已修 | 每个场景跑 20 轮：重复扣款 **14 → 0**、超额筹款 **19 → 0**、一件商品卖两次 **16 → 0**、订单既发货又退款 **15 → 0** | 已修（2026-10-16） | 并发请求结果和串行执行一致 |
 | 12 | ~~论坛列表 N+1 查询~~ ✅ 已修 | 全站 200 帖、一页 20 帖：未登录 **62 → 5 条 SQL**，已登录 **489 → 15 条**；5 条评论：**12 / 17 → 4 / 5 条** | 已修（2026-10-18） | 一页帖子的 SQL 条数不随帖子数增长 |
 | 13 | ~~已登录列表把全站数据加载进内存再排序~~ ✅ 已修 | 全站 2 万行、有画像的用户拉第 1 页：forum **18.3 s → 49 ms**，project **14.6 s → 183 ms**，market **15.3 s → 41 ms**；内存峰值 **约 70 MB → 0.7 MB** | 已修（2026-10-18） | 耗时和内存不随全站行数增长 |
+| 14 | ~~每次 LLM 调用新建客户端，连接不复用~~ ✅ 已修 | 一轮 5 次调用：**5 → 1 个 TCP 连接**；本机经代理实测，新建一个连接要多花 OpenRouter **约 1.5 s**、DashScope **约 60 ms** | 已修（2026-10-21，P2 E1） | 连接复用 |
+| 15 | ~~主 provider 出故障时，每轮对话都失败~~ ✅ 已修 | 主 provider 返回 503：**每轮都以 error 结束（1.4 s）→ 降级到备用 provider，正常完成（5.0 s）** | 已修（2026-10-21，P2 E1） | 主 provider 故障时自动降级 |
 
 ---
 
@@ -435,7 +437,70 @@ probe 2 万行的 project history：102 → 36 ms，和 cold（36 ms）持平。
 **测量时踩的坑**：第一次测，未登录论坛 2 万帖要 2.1 s。原因是刚批量插完数据、PG 还没有统计信息，执行计划选错了。
 跑过 `ANALYZE` 之后同一条 SQL 只要 16 ms。probe 现在 seed 完会先跑一次 `ANALYZE`。
 
+## 14. 每次 LLM 调用新建客户端，连接不复用 ✅ 已修复
+
+`openrouter_service._get_client()` 每次调用都新建一个 `OpenAI` 客户端，每个客户端自带一个空的连接池，
+所以每次调用都要重新做 TCP 握手，连真实 provider 时还要再做一次 TLS 握手。
+
+修法：新建 `app/llm/`，作为所有 LLM 调用的网关。客户端按配置缓存：同步客户端每个进程一个，
+async 客户端每个事件循环一个（async 连接池只能在打开它的那个事件循环里使用）。
+
+实测（假 LLM，`probe.py providers`，修复前后各跑 3 轮）：
+
+| | 修复前 | 修复后 |
+|---|---|---|
+| 一轮对话的 provider 调用 / TCP 连接 | 5 / 5 | 5 / 1 |
+| 每轮用量记录（provider、model、tokens、延迟） | 0 条 | 5 条 |
+| ttft 中位数（8 轮） | 10738 ms | 10735 ms |
+
+ttft 没有变化，原因有两个：
+- 容器（Linux）里建一个客户端只要 3.9 ms（Windows 上是 26 ms），首 token 前 4 次加起来约 16 ms，被噪声掩盖了；
+- 假 LLM 在本地，走的是明文 HTTP，没有 TLS 握手，也几乎没有网络往返。
+
+连接复用真正省的是连远端 HTTPS 时的握手。下面是本机（经代理）用不调模型、不收费的 `/models` 接口测的：
+
+| | 新连接 | 复用连接 |
+|---|---|---|
+| OpenRouter | 1.83–2.15 s | 0.36–0.82 s |
+| DashScope | 63–91 ms | 9–15 ms |
+
+**测量时踩的坑**：第一次测，修复后的 ttft 反而**慢了约 95 ms**。用量记录显示，每次非流式调用都比假 LLM 的设定值
+多出约 40 ms，只有新连接上的那一次没有。原因在假 LLM：它先写响应头、再写响应体，分成两次小写入。
+开着 Nagle 算法时，第二次写入要等第一次的 ACK，而对方的延迟 ACK 要等 40 ms。新连接处在 quickack 阶段，
+不会触发这个问题，所以修复前"每次都新建连接"反而躲过了它。真实 provider 前面的 nginx 或 CDN 都开着
+`TCP_NODELAY`，不会有这个问题。给假 LLM 关掉 Nagle 后，多出的 40 ms 消失，修复前后的 ttft 重新测成上表的数字。
+
+## 15. 主 provider 出故障时，每轮对话都失败 ✅ 已修复
+
+原来只用 `LLM_PROVIDER` 指定的那一个 provider。另一个 provider 的 key 即使配了，也从来不会被用到。
+
+修法：网关按 `LLM_PROVIDER` → `LLM_FALLBACK_PROVIDER` 的顺序依次尝试。
+- 同一个 provider 内的重试仍然交给 SDK。它本来就会对连接错误、超时、408、409、429、5xx 做指数退避重试。
+  外面不再套 tenacity，否则重试次数会相乘，这正是 #6 踩过的坑。
+- provider 那边的故障（连接失败、超时、429、5xx、401/403/404）会降级；我们自己的请求有问题（400、413、422）
+  不降级，因为换一家照样会失败。
+- 有 3 类调用不降级：
+  - 辅助调用（路由、记忆提取、标题）：它们各自有兜底，降级只会让首 token 前的等待翻倍；
+  - embedding：换一家的模型，向量就不在同一个空间里，没法和已经存好的索引比较；
+  - 已经开始输出的流：用户已经看到的半截回答来自原来那个模型。流只在 provider 接受请求之前可以降级。
+
+实测（假 LLM 主实例设 `FAKE_LLM_FAIL_STATUS=503`，`LLM_FALLBACK_PROVIDER=qwen` 指向 `fake-llm-backup`，各跑 3 轮）：
+
+| | 修复前 | 修复后 |
+|---|---|---|
+| 这一轮的结果 | error，1.3–1.5 s | done，4.9–5.0 s |
+| 主 provider 收到的调用 | 7 次（3 次辅助调用 + 回答调用 1 次加重试 2 次） | 7 次 |
+| 备用 provider 收到的调用 | 0 | 1（回答） |
+
+主 provider 的 7 次调用用了 3 个连接，而不是 1 个：流式请求失败时，SDK 不读响应体就直接关闭了响应，
+httpx 只能丢掉那个连接。这只发生在失败的路径上，不需要修。
+
+```bash
+FAKE_LLM_LOG=1 FAKE_LLM_FAIL_STATUS=503 LLM_FALLBACK_PROVIDER=qwen docker compose -f docker-compose.yml -f docker-compose.bench.yml --profile bench up -d
+uv run --no-project --with requests python tools/load_test/probe.py providers
+```
+
 ## 查过但没有发现问题的
 
 - **SQLite 写锁**：12 个 worker、20 个用户跑了 2 分钟，没有出现 `database is locked`。
-- **服务端自身的处理开销**：一轮对话里除去等 LLM 的时间，只有约 0.1 s。
+- **服务端自身的处理开销**：一轮对话里除去等 LLM 的时间，只有约 0.1 s。其中每次调用新建客户端约占 16 ms（容器里 4 次 × 3.9 ms），见 #14。
